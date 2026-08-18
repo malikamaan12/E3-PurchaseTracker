@@ -3,12 +3,12 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 import { apiClient } from "@/lib/apiClient"
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from "@/components/ui/Select"
 import { Combobox } from "@/components/ui/Combobox"
 import { usePerformance } from "@/context/PerformanceContext"
@@ -61,27 +61,33 @@ export function AnalyticsFilterBar({ filters, setFilters }: AnalyticsFilterBarPr
   }
 
   const activeFiltersCount = [
-    filters.departmentId, 
-    filters.projectId, 
-    filters.vendorId, 
+    filters.departmentId,
+    filters.projectId,
+    filters.vendorId,
     filters.purposeId
   ].filter(Boolean).length
 
   return (
     <div className={cn(
-      "bg-background/80 backdrop-blur-md p-1.5 rounded-2xl border border-border/50 shadow-lg flex items-center gap-1.5 transition-all duration-500",
+      "bg-background/80 backdrop-blur-md p-3 sm:p-2 rounded-2xl border border-border/50 shadow-lg flex flex-col sm:flex-row sm:items-center flex-wrap gap-2 transition-all duration-300 w-full",
       highPerformanceMode && "backdrop-blur-none"
     )}>
       {/* Timeframe Select - Compact & Elegant */}
-      <div className="flex items-center gap-1 px-3 py-1.5 bg-secondary/50 rounded-xl border border-border/50">
-        <div className="p-1 bg-primary/10 rounded-md">
-            <Filter className="w-3 h-3 text-primary" />
+      <div className="flex items-center justify-between sm:justify-start gap-1 px-3 py-1.5 bg-secondary/50 rounded-xl border border-border/50 w-full sm:w-auto shrink-0">
+        <div className="flex items-center gap-1.5">
+          <div className="p-1 bg-primary/10 rounded-md">
+            <Filter className="w-3.5 h-3.5 text-primary" />
+          </div>
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider sm:hidden">Timeframe:</span>
         </div>
-        <Select 
-          value={filters.timeframe} 
+        <Select
+          value={filters.timeframe}
           onValueChange={(val: any) => setFilters(prev => ({ ...prev, timeframe: val }))}
         >
-          <SelectTrigger className="border-none bg-transparent hover:bg-transparent h-7 p-0 px-2 text-xs font-bold uppercase tracking-wider min-w-[100px]">
+          <SelectTrigger
+            aria-label="Select Timeframe"
+            className="border-none bg-transparent hover:bg-transparent h-8 sm:h-7 p-0 px-2 text-xs font-bold uppercase tracking-wider min-w-[110px]"
+          >
             <SelectValue placeholder="Timeframe" />
           </SelectTrigger>
           <SelectContent className="glass">
@@ -92,53 +98,54 @@ export function AnalyticsFilterBar({ filters, setFilters }: AnalyticsFilterBarPr
         </Select>
       </div>
 
-      <ChevronRight className="w-4 h-4 text-muted-foreground/50" />
+      <ChevronRight className="hidden sm:block w-4 h-4 text-muted-foreground/50 shrink-0" />
 
-      {/* Advanced Filters Trigger/Container */}
-      <div className="flex items-center gap-2">
-        <div className="w-[180px]">
-          <Combobox 
+      {/* Advanced Filters Container */}
+      <div className="grid grid-cols-1 sm:flex sm:items-center gap-2 flex-1 w-full sm:w-auto">
+        <div className="w-full sm:w-[150px] md:w-[170px]">
+          <Combobox
             placeholder="Departments"
             options={(depts || []).map(d => ({ value: d.id.toString(), label: d.name }))}
             value={filters.departmentId}
             onChange={(val) => setFilters(prev => ({ ...prev, departmentId: val }))}
-            className="h-9 border-none bg-secondary/50 text-xs uppercase font-bold tracking-wider hover:bg-secondary transition-colors"
+            className="h-10 sm:h-9 border-none bg-secondary/50 text-xs uppercase font-bold tracking-wider hover:bg-secondary transition-colors w-full"
           />
         </div>
 
-        <div className="w-[180px]">
-          <Combobox 
+        <div className="w-full sm:w-[150px] md:w-[170px]">
+          <Combobox
             placeholder="Projects"
             options={(subPurposes || []).map(p => ({ value: p.id.toString(), label: p.name }))}
             value={filters.projectId}
             onChange={(val) => setFilters(prev => ({ ...prev, projectId: val }))}
-            className="h-9 border-none bg-secondary/50 text-xs uppercase font-bold tracking-wider hover:bg-secondary transition-colors"
+            className="h-10 sm:h-9 border-none bg-secondary/50 text-xs uppercase font-bold tracking-wider hover:bg-secondary transition-colors w-full"
           />
         </div>
 
-        <div className="w-[180px]">
-          <Combobox 
+        <div className="w-full sm:w-[150px] md:w-[170px]">
+          <Combobox
             placeholder="Vendors"
             options={(vendors || []).map(v => ({ value: v.id.toString(), label: v.companyName }))}
             value={filters.vendorId}
             onChange={(val) => setFilters(prev => ({ ...prev, vendorId: val }))}
-            className="h-9 border-none bg-secondary/50 text-xs uppercase font-bold tracking-wider hover:bg-secondary transition-colors"
+            className="h-10 sm:h-9 border-none bg-secondary/50 text-xs uppercase font-bold tracking-wider hover:bg-secondary transition-colors w-full"
           />
         </div>
       </div>
 
       {activeFiltersCount > 0 && (
-        <>
-          <div className="w-[1px] h-4 bg-border/50 mx-1" />
-          <button 
+        <div className="flex items-center justify-end sm:justify-start w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/50">
+          <div className="hidden sm:block w-[1px] h-4 bg-border/50 mx-1" />
+          <button
             onClick={handleReset}
-            className="p-2 hover:bg-rose-500/10 text-rose-500/80 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wider group"
+            aria-label="Clear active filters"
+            className="min-h-[40px] sm:min-h-[32px] px-3 hover:bg-rose-500/10 text-rose-500/80 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wider group"
           >
             <X className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-300" />
-            <span className="hidden lg:inline">Clear</span>
-            <span className="bg-rose-500/10 px-1.5 py-0.5 rounded-md text-[10px]">{activeFiltersCount}</span>
+            <span>Clear Filters</span>
+            <span className="bg-rose-500/10 px-1.5 py-0.5 rounded-md text-[10px] font-mono">{activeFiltersCount}</span>
           </button>
-        </>
+        </div>
       )}
     </div>
   )

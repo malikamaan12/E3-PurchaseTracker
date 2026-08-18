@@ -6,28 +6,28 @@ import { AnalyticsFilterBar, AnalyticsFilters } from "@/components/analytics/Ana
 import { apiClient } from "@/lib/apiClient"
 import dynamic from "next/dynamic"
 
-const CashFlowChart = dynamic(() => import("@/components/analytics/AnalyticsCharts").then(mod => mod.CashFlowChart), { 
-  ssr: false, 
-  loading: () => <div className="animate-pulse bg-secondary/50 w-full h-full rounded-xl" /> 
+const CashFlowChart = dynamic(() => import("@/components/analytics/AnalyticsCharts").then(mod => mod.CashFlowChart), {
+  ssr: false,
+  loading: () => <div className="animate-pulse bg-secondary/50 w-full h-full rounded-xl" />
 })
-const BudgetSavingsChart = dynamic(() => import("@/components/analytics/AnalyticsCharts").then(mod => mod.BudgetSavingsChart), { 
-  ssr: false, 
-  loading: () => <div className="animate-pulse bg-secondary/50 w-full h-full rounded-xl" /> 
+const BudgetSavingsChart = dynamic(() => import("@/components/analytics/AnalyticsCharts").then(mod => mod.BudgetSavingsChart), {
+  ssr: false,
+  loading: () => <div className="animate-pulse bg-secondary/50 w-full h-full rounded-xl" />
 })
-const DistributionDonut = dynamic(() => import("@/components/analytics/AnalyticsCharts").then(mod => mod.DistributionDonut), { 
-  ssr: false, 
-  loading: () => <div className="animate-pulse bg-secondary/50 w-full h-full rounded-xl" /> 
+const DistributionDonut = dynamic(() => import("@/components/analytics/AnalyticsCharts").then(mod => mod.DistributionDonut), {
+  ssr: false,
+  loading: () => <div className="animate-pulse bg-secondary/50 w-full h-full rounded-xl" />
 })
-const ComplianceRadar = dynamic(() => import("@/components/analytics/AnalyticsCharts").then(mod => mod.ComplianceRadar), { 
-  ssr: false, 
-  loading: () => <div className="animate-pulse bg-secondary/50 w-full h-full rounded-xl" /> 
+const ComplianceRadar = dynamic(() => import("@/components/analytics/AnalyticsCharts").then(mod => mod.ComplianceRadar), {
+  ssr: false,
+  loading: () => <div className="animate-pulse bg-secondary/50 w-full h-full rounded-xl" />
 })
 import { usePerformance } from "@/context/PerformanceContext"
 import { cn } from "@/lib/utils"
-import { 
-  TrendingUp, 
-  Zap, 
-  Clock, 
+import {
+  TrendingUp,
+  Zap,
+  Clock,
   Target,
   Loader2,
   AlertCircle
@@ -35,8 +35,10 @@ import {
 import { motion, AnimatePresence } from "framer-motion"
 import { initMagnetic, initGlow, pageLoad } from "@/lib/animations"
 import Link from "next/link"
+import { usePageTitle } from "@/lib/hooks/usePageTitle"
 
 export default function AnalyticsDashboardPage() {
+  usePageTitle("Spend Analytics")
   const { highPerformanceMode } = usePerformance()
   const [filters, setFilters] = React.useState<AnalyticsFilters>({
     timeframe: "monthly"
@@ -116,33 +118,33 @@ export default function AnalyticsDashboardPage() {
 
         {/* KPI Overlays */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          <KpiCard 
-            title="Cycle Velocity" 
-            value={`${cycleTime} Days`} 
+          <KpiCard
+            title="Cycle Velocity"
+            value={cycleTime != null ? `${cycleTime} Days` : "—"}
             description="Creation to sign-off"
             icon={<Clock className="w-5 h-5" />}
-            trend="+12% efficiency"
+            trend={cycleTime != null ? "+12% efficiency" : "No completed PRs"}
             index={0}
           />
-          <KpiCard 
-            title="Budget Adherence" 
-            value={`${compliance.budgetAdherence}%`} 
+          <KpiCard
+            title="Budget Adherence"
+            value={compliance.budgetAdherence != null ? `${compliance.budgetAdherence}%` : "—"}
             description="Zero-variation PRs"
             icon={<Target className="w-5 h-5" />}
-            trend="Baseline Met"
+            trend={compliance.budgetAdherence != null ? "Baseline Met" : "No closed data"}
             index={1}
           />
-          <KpiCard 
-            title="Forecasted Liability" 
-            value={`${cashFlow[0]?.amount.toLocaleString()} QAR`} 
+          <KpiCard
+            title="Forecasted Liability"
+            value={`${(cashFlow[0]?.amount || 0).toLocaleString()} QAR`}
             description="Next 30D projected"
             icon={<TrendingUp className="w-5 h-5" />}
             trend="Liquid"
             index={2}
           />
-          <KpiCard 
-            title="Negotiated Savings" 
-            value={`${budgetVsSavings.reduce((acc: number, curr: any) => acc + curr.savings, 0).toLocaleString()} QAR`} 
+          <KpiCard
+            title="Negotiated Savings"
+            value={`${budgetVsSavings.reduce((acc: number, curr: any) => acc + (curr.savings || 0), 0).toLocaleString()} QAR`}
             description="Recovered capital"
             icon={<Zap className="w-5 h-5" />}
             trend={`${budgetVsSavings.length} Depts`}
@@ -225,9 +227,9 @@ function KpiCard({ title, value, description, icon, trend, positive, index = 0 }
       };
     }
   }, [highPerformanceMode]);
-  
+
   return (
-    <div 
+    <div
       ref={cardRef}
       className={cn(
         "bg-background/80 backdrop-blur-xl p-8 rounded-3xl border border-border/50 shadow-lg relative group overflow-hidden cursor-default transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:border-primary/40 animate-slide-up",
@@ -236,14 +238,14 @@ function KpiCard({ title, value, description, icon, trend, positive, index = 0 }
       style={{ animationDelay: `${Math.min(index * 0.05, 0.3)}s` }}
     >
       {/* Dynamic Cursor Glow */}
-      <div 
+      <div
         ref={glowRef}
         className={cn(
           "absolute w-64 h-64 rounded-full blur-[100px] opacity-0 pointer-events-none -translate-x-1/2 -translate-y-1/2 z-0",
           positive ? "bg-emerald-500/20" : "bg-primary/20"
         )}
       />
-      
+
       <div className="relative z-10">
         <div className="flex flex-row items-center justify-between space-y-0 pb-6">
           <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground group-hover:text-foreground transition-colors">
@@ -262,8 +264,8 @@ function KpiCard({ title, value, description, icon, trend, positive, index = 0 }
           </p>
           <div className={cn(
             "mt-6 inline-flex items-center px-4 py-1.5 rounded-full text-[10px] font-bold tracking-wider uppercase border shadow-sm transition-all duration-500",
-            positive 
-              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 hover:scale-105" 
+            positive
+              ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20 hover:scale-105"
               : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20 hover:scale-105"
           )}>
             {trend}

@@ -1,10 +1,10 @@
 "use client";
 
-import { 
-  Bell, 
-  Search, 
-  HelpCircle, 
-  PlusCircle, 
+import {
+  Bell,
+  Search,
+  HelpCircle,
+  PlusCircle,
   Calendar,
   Sparkles,
   CheckCheck,
@@ -121,7 +121,7 @@ export default function TopNav() {
     function handleClickOutside(event: MouseEvent) {
       const isInsideTrigger = notifRef.current && notifRef.current.contains(event.target as Node);
       const isInsidePortal = portalRef.current && portalRef.current.contains(event.target as Node);
-      
+
       if (!isInsideTrigger && !isInsidePortal) {
         setIsNotifOpen(false);
       }
@@ -151,7 +151,10 @@ export default function TopNav() {
         <div className="lg:hidden shrink-0">
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild>
-              <button className="w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/50 hover:bg-secondary text-foreground transition-all active-scale">
+              <button
+                aria-label="Open navigation menu"
+                className="w-11 h-11 flex items-center justify-center rounded-xl bg-secondary/50 hover:bg-secondary text-foreground transition-all active-scale"
+              >
                 <Menu className="w-5 h-5" />
               </button>
             </SheetTrigger>
@@ -166,14 +169,14 @@ export default function TopNav() {
           <img src="/logo-color.png" alt="E3" className="h-8 max-w-[120px] object-contain dark:hidden transition-transform hover:scale-105" />
           <img src="/logo-white.png" alt="E3" className="h-8 max-w-[120px] object-contain hidden dark:block transition-transform hover:scale-105" />
         </Link>
-        
+
         {/* MAIN NAVIGATION (DESKTOP) */}
         <nav className="hidden lg:flex items-center gap-2">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.path || pathname.startsWith(item.path + "/");
             return (
-              <Link 
-                key={item.path} 
+              <Link
+                key={item.path}
                 href={item.path}
                 onClick={(e) => {
                   if (pathname === item.path) {
@@ -183,8 +186,8 @@ export default function TopNav() {
                 }}
                 className={cn(
                   "flex items-center gap-2 px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors pointer-events-auto",
-                  isActive 
-                    ? "bg-secondary text-foreground font-semibold" 
+                  isActive
+                    ? "bg-secondary text-foreground font-semibold"
                     : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 )}
               >
@@ -193,10 +196,10 @@ export default function TopNav() {
               </Link>
             );
           })}
-          
+
           {/* Conditional Admin Tab */}
           {isAdmin && (
-            <Link 
+            <Link
               href="/dashboard/admin"
               onClick={(e) => {
                 if (pathname === "/dashboard/admin") {
@@ -206,8 +209,8 @@ export default function TopNav() {
               }}
               className={cn(
                 "flex items-center gap-2 px-3 py-1.5 rounded-md text-[13px] font-medium transition-colors ml-2 border-l border-border pl-4 pointer-events-auto",
-                pathname.startsWith("/dashboard/admin") 
-                  ? "bg-secondary text-foreground font-semibold" 
+                pathname.startsWith("/dashboard/admin")
+                  ? "bg-secondary text-foreground font-semibold"
                   : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
               )}
             >
@@ -219,25 +222,27 @@ export default function TopNav() {
       </div>
 
       <div className="flex items-center gap-2 lg:gap-4">
-        {/* Global Command Palette Trigger */}
+        {/* Global Command Palette Trigger - Mobile & Desktop */}
         <button
           onClick={() => {
             const event = new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true, bubbles: true });
             document.dispatchEvent(event);
           }}
-          className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-secondary/30 text-xs text-muted-foreground hover:bg-secondary/60 transition-all mr-1 group"
+          aria-label="Search system"
+          className="flex items-center gap-2 px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-lg border border-border bg-secondary/30 text-xs text-muted-foreground hover:bg-secondary/60 transition-all min-h-[40px] sm:min-h-[32px] group"
           title="Global Command Palette (Cmd+K / Ctrl+K)"
         >
-          <Search className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+          <Search className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
           <span className="hidden md:inline font-medium">Search system...</span>
-          <kbd className="px-1.5 py-0.5 text-[10px] font-bold bg-secondary rounded border border-border text-foreground font-mono">⌘K</kbd>
+          <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold bg-secondary rounded border border-border text-foreground font-mono">⌘K</kbd>
         </button>
 
         <div className="flex items-center gap-1 lg:gap-2" ref={notifRef}>
-          <button 
+          <button
             onClick={() => setIsNotifOpen(!isNotifOpen)}
+            aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
             className={cn(
-              "p-2 rounded-md transition-all relative group hover:bg-secondary/50",
+              "p-2.5 sm:p-2 rounded-lg transition-all relative group hover:bg-secondary/50 min-h-[40px] min-w-[40px] flex items-center justify-center",
               isNotifOpen ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
             )}
           >
@@ -255,14 +260,14 @@ export default function TopNav() {
               <div
                 ref={portalRef}
                 className="absolute pointer-events-auto bg-card border border-border rounded-2xl shadow-2xl overflow-hidden w-[380px] animate-fade-scale-in"
-                style={{ 
+                style={{
                   top: notifRef.current ? notifRef.current.getBoundingClientRect().bottom + 12 : '80px',
                   right: notifRef.current ? window.innerWidth - notifRef.current.getBoundingClientRect().right : '32px'
                 }}
               >
                 <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/30">
                   <h3 className="text-[10px] font-black uppercase tracking-widest text-foreground">Intelligence Alerts</h3>
-                  <button 
+                  <button
                     onClick={() => markAllReadMutation.mutate()}
                     className="text-[9px] font-black text-brand-primary hover:text-brand-primary/80 transition-colors uppercase tracking-widest"
                   >
@@ -281,7 +286,7 @@ export default function TopNav() {
                   ) : (
                     <div className="divide-y divide-border/10">
                       {notifications.map((notif: any) => (
-                        <button 
+                        <button
                           key={notif.id}
                           onClick={() => handleNotificationClick(notif)}
                           className="w-full text-left p-4 hover:bg-secondary/50 transition-colors group flex gap-4"
@@ -314,20 +319,19 @@ export default function TopNav() {
 
           <button
             onClick={() => setHighPerformanceMode(!highPerformanceMode)}
+            aria-label={highPerformanceMode ? "Disable High Performance Mode" : "Enable High Performance Mode"}
             className={cn(
-               "p-2 rounded-md transition-all hover:bg-secondary/50",
+               "p-2.5 sm:p-2 rounded-md transition-all hover:bg-secondary/50 min-h-[40px] min-w-[40px] flex items-center justify-center",
                highPerformanceMode ? "text-amber-500" : "text-muted-foreground hover:text-foreground"
             )}
             title="Performance Mode"
           >
             <Zap className={cn("w-4 h-4", highPerformanceMode && "fill-current")} />
           </button>
-          
+
           <PWASettings />
           <ThemeToggle />
         </div>
-
-
 
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-secondary border border-border flex items-center justify-center text-foreground shrink-0">
@@ -339,9 +343,10 @@ export default function TopNav() {
                 <span className="text-[11px] font-medium tracking-tight text-muted-foreground">{user?.department || "Unassigned Entity"}</span>
              </div>
           </div>
-          <button 
+          <button
             onClick={handleLogout}
-            className="p-2 ml-1 rounded-md text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors"
+            aria-label="Sign out of system"
+            className="p-2.5 sm:p-2 ml-1 rounded-md text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
             title="Sign Out"
           >
             <LogOut className="w-4 h-4" />

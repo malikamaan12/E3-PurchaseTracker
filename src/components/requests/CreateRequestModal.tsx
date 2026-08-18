@@ -400,7 +400,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   return (
     <AnimatePresence mode="wait">
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center sm:p-4">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -413,22 +413,22 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
             initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 10 }}
-            className={`relative w-[95vw] md:w-[85vw] lg:w-[1000px] bg-background/70 backdrop-blur-3xl border rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] overflow-hidden flex flex-col max-h-[95dvh] md:max-h-[85vh] z-[101] transition-all duration-500 ${isOverBudget ? "border-rose-500/50" : "border-border/30"}`}
+            className={`relative w-full h-full sm:w-[95vw] md:w-[85vw] lg:w-[1000px] bg-background/95 sm:bg-background/70 backdrop-blur-3xl border sm:rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] overflow-hidden flex flex-col max-h-[100dvh] sm:max-h-[95dvh] md:max-h-[85vh] z-[101] transition-all duration-300 ${isOverBudget ? "border-rose-500/50" : "border-border/30"}`}
           >
             {/* Header */}
-            <div className={`p-6 border-b border-border/20 flex items-center justify-between transition-colors ${isOverBudget ? "bg-rose-500/5" : "bg-transparent"}`}>
-              <div className="flex items-center gap-5">
-                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg transition-all ${isOverBudget ? "bg-rose-500/10 shadow-rose-500/20" : "bg-primary/10 shadow-primary/20"}`}>
-                  {isOverBudget ? <AlertCircle className="text-rose-500 w-6 h-6" /> : <Plus className="text-primary w-6 h-6" />}
+            <div className={`p-4 sm:p-6 border-b border-border/20 flex items-center justify-between transition-colors shrink-0 ${isOverBudget ? "bg-rose-500/5" : "bg-transparent"}`}>
+              <div className="flex items-center gap-3 sm:gap-5 min-w-0">
+                <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-2xl flex items-center justify-center shadow-lg transition-all shrink-0 ${isOverBudget ? "bg-rose-500/10 shadow-rose-500/20" : "bg-primary/10 shadow-primary/20"}`}>
+                  {isOverBudget ? <AlertCircle className="text-rose-500 w-5 h-5 sm:w-6 sm:h-6" /> : <Plus className="text-primary w-5 h-5 sm:w-6 sm:h-6" />}
                 </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-foreground tracking-tight transition-colors">
+                <div className="min-w-0">
+                  <h2 className="text-base sm:text-xl font-semibold text-foreground tracking-tight transition-colors truncate">
                     {isOverBudget ? "Budget Variance Detected" : (requestId ? "Edit Purchase Request" : "Create Purchase Request")}
                   </h2>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-xs text-muted-foreground">Internal Procurement Engine</p>
-                    <div className={`w-1 h-1 rounded-full ${isOverBudget ? "bg-rose-500 animate-pulse" : "bg-primary/40"}`} />
-                    <p className={`text-xs font-medium ${isOverBudget ? "text-rose-500" : "text-primary"}`}>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-[11px] sm:text-xs text-muted-foreground truncate">Procurement Engine</p>
+                    <div className={`w-1 h-1 rounded-full shrink-0 ${isOverBudget ? "bg-rose-500 animate-pulse" : "bg-primary/40"}`} />
+                    <p className={`text-[11px] sm:text-xs font-medium shrink-0 ${isOverBudget ? "text-rose-500" : "text-primary"}`}>
                       {isOverBudget ? "Finance Review Required" : "Draft Mode"}
                     </p>
                   </div>
@@ -436,14 +436,15 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
               </div>
               <button
                 onClick={handleCloseWithDraft}
-                className="p-2.5 hover:bg-secondary/50 rounded-xl text-muted-foreground hover:text-foreground transition-all"
+                aria-label="Close dialog"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2.5 hover:bg-secondary/50 rounded-xl text-muted-foreground hover:text-foreground transition-all shrink-0"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Tab Navigation */}
-            <div className="flex px-8 gap-8 border-b border-border/20 bg-transparent transition-colors shrink-0">
+            <div className="flex px-4 sm:px-8 gap-4 sm:gap-8 border-b border-border/20 bg-transparent transition-colors shrink-0 overflow-x-auto no-scrollbar">
               {(["general", "items", "payments", "approvals"] as const).map((tabId) => {
                 const tabMeta = {
                   general: { label: "Details", icon: <Layout className="w-4 h-4" /> },
@@ -457,15 +458,16 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                     key={tabId}
                     type="button"
                     onClick={() => setActiveTab(tabId)}
-                    className={`py-4 text-sm font-medium flex items-center gap-2 transition-all relative z-10 pointer-events-auto ${
+                    aria-label={`Switch to ${tabMeta.label} step`}
+                    className={`py-3 sm:py-4 text-xs sm:text-sm font-medium flex items-center gap-1.5 sm:gap-2 transition-all relative z-10 shrink-0 min-h-[44px] ${
                       activeTab === tabId
-                        ? isInvalid ? "text-rose-500" : "text-primary"
+                        ? isInvalid ? "text-rose-500 font-bold" : "text-primary font-bold"
                         : isInvalid ? "text-rose-400/80" : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    {isInvalid ? <AlertCircle className="w-4 h-4 animate-pulse" /> : tabMeta.icon}
-                    {tabMeta.label}
-                    {isInvalid && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 absolute top-4 -right-2 pointer-events-none" />}
+                    {isInvalid ? <AlertCircle className="w-4 h-4 animate-pulse text-rose-500" /> : tabMeta.icon}
+                    <span>{tabMeta.label}</span>
+                    {isInvalid && <span className="w-1.5 h-1.5 rounded-full bg-rose-500 absolute top-3 sm:top-4 -right-1 pointer-events-none" />}
                     {activeTab === tabId && (
                       <motion.div
                         layoutId="tab-underline"
@@ -1044,29 +1046,29 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                 </div>
 
                 {/* Footer */}
-                <div className={`p-6 border-t transition-colors flex items-center justify-between ${isOverBudget ? "bg-rose-500/10 border-rose-500/20" : "bg-secondary/30 border-border"}`}>
-                  <div className="flex items-center gap-8">
+                <div className={`p-4 sm:p-6 border-t transition-colors flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 shrink-0 ${isOverBudget ? "bg-rose-500/10 border-rose-500/20" : "bg-secondary/30 border-border"}`}>
+                  <div className="flex items-center justify-between sm:justify-start gap-4 sm:gap-8">
                     <div className="flex flex-col">
-                      <span className="text-sm text-muted-foreground font-medium">Total Estimated Exposure</span>
-                      <span className={`text-lg font-semibold transition-colors ${isOverBudget ? "text-rose-500" : "text-foreground"}`}>
+                      <span className="text-[11px] sm:text-xs text-muted-foreground font-medium">Total Estimated Exposure</span>
+                      <span className={`text-base sm:text-lg font-semibold transition-colors ${isOverBudget ? "text-rose-500" : "text-foreground"}`}>
                         QAR {((watch("totalEstimatedCost") + watch("freightAmount")) * exchangeRate).toLocaleString()}
                       </span>
                     </div>
 
                     {selectedBudget !== null && (
-                      <div className="flex items-center gap-4 pl-8 border-l border-border/50">
-                        <div className={`p-3 rounded-2xl ${isOverBudget ? "bg-rose-500 text-white shadow-xl shadow-rose-500/20" : "bg-emerald-500 text-white shadow-xl shadow-emerald-500/20"}`}>
-                          {isOverBudget ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
+                      <div className="flex items-center gap-3 sm:gap-4 pl-4 sm:pl-8 border-l border-border/50">
+                        <div className={`p-2 sm:p-3 rounded-xl sm:rounded-2xl ${isOverBudget ? "bg-rose-500 text-white shadow-lg shadow-rose-500/20" : "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20"}`}>
+                          {isOverBudget ? <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" /> : <TrendingDown className="w-4 h-4 sm:w-5 sm:h-5" />}
                         </div>
                         <div>
-                          <span className="text-xs text-muted-foreground font-medium block">Dept Allocation</span>
+                          <span className="text-[10px] sm:text-xs text-muted-foreground font-medium block">Dept Allocation</span>
                           <div className="flex items-center gap-2">
-                            <span className={`text-sm font-semibold ${isOverBudget ? "text-rose-500" : "text-emerald-500"}`}>
+                            <span className={`text-xs sm:text-sm font-semibold ${isOverBudget ? "text-rose-500" : "text-emerald-500"}`}>
                               QAR {selectedBudget.toLocaleString()}
                             </span>
                             {isOverBudget && (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-rose-500 text-white text-[8px] font-black uppercase tracking-tighter">
-                                Flag for Finance
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-rose-500 text-white text-[8px] font-black uppercase tracking-tighter">
+                                Flag
                               </span>
                             )}
                           </div>
@@ -1075,19 +1077,35 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                     )}
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-end gap-2 sm:gap-3">
+                    {activeTab !== "general" && (
+                      <Button
+                        variant="outline"
+                        size="lg"
+                        type="button"
+                        onClick={() => {
+                          if (activeTab === "approvals") setActiveTab("payments");
+                          else if (activeTab === "payments") setActiveTab("items");
+                          else if (activeTab === "items") setActiveTab("general");
+                        }}
+                        className="min-h-[44px] px-4 font-semibold text-foreground border-border"
+                      >
+                        Back
+                      </Button>
+                    )}
+
                     <Button 
                       variant="ghost" 
                       size="lg"
                       type="button" 
                       onClick={onClose} 
-                      className="px-8 font-bold text-muted-foreground"
+                      className="min-h-[44px] px-4 sm:px-6 font-semibold text-muted-foreground"
                     >
                       Discard
                     </Button>
 
-                    <div className="flex items-center gap-3 h-full">
-                      {/* Save Draft Action - Visible on final tab or if editing existing */}
+                    <div className="flex items-center gap-2">
+                      {/* Next or Submit Button */}
                       {!(activeTab === "approvals" || requestId) ? (
                         <Button
                           variant={isOverBudget ? "outline" : "secondary"}
@@ -1098,10 +1116,10 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             else if (activeTab === "items") setActiveTab("payments");
                             else if (activeTab === "payments") setActiveTab("approvals");
                           }}
-                          className={`flex items-center gap-3 px-10 rounded-lg font-medium ${isOverBudget ? "border-rose-500/30 text-rose-500 hover:bg-rose-500/10" : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"}`}
+                          className={`min-h-[44px] flex items-center gap-2 px-6 sm:px-8 rounded-xl font-semibold ${isOverBudget ? "border-rose-500/30 text-rose-500 hover:bg-rose-500/10" : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"}`}
                         >
-                          Next Section
-                          <ChevronRight className={`w-5 h-5 ${isOverBudget ? "text-rose-500" : ""}`} />
+                          <span>Next</span>
+                          <ChevronRight className={`w-4 h-4 ${isOverBudget ? "text-rose-500" : ""}`} />
                         </Button>
                       ) : (
                         <Button
@@ -1109,7 +1127,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           size="lg"
                           onClick={handleSubmit((data) => handleAction(data, "pending"))}
                           className={cn(
-                            "flex items-center gap-4 px-8 rounded-lg shadow-sm font-serif font-bold transition-all",
+                            "min-h-[44px] flex items-center gap-2 px-6 sm:px-8 rounded-xl shadow-sm font-semibold transition-all",
                             isNonCompliant 
                               ? "bg-rose-500 hover:bg-rose-600 grayscale opacity-50 cursor-not-allowed text-white shadow-rose-500/20" 
                               : isOverBudget 
@@ -1119,18 +1137,18 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         >
                           {isSubmitting ? (
                             <>
-                              <Loader2 className="w-5 h-5 animate-spin" />
-                              Processing...
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              <span>Processing...</span>
                             </>
                           ) : isNonCompliant ? (
                             <>
-                              Access Denied
-                              <ShieldAlert className="w-5 h-5" />
+                              <span>Access Denied</span>
+                              <ShieldAlert className="w-4 h-4" />
                             </>
                           ) : (
                             <>
-                              {isOverBudget ? "Override & Submit" : "Submit Request"}
-                              <Sparkles className="w-5 h-5" />
+                              <span>{isOverBudget ? "Override & Submit" : "Submit Request"}</span>
+                              <Sparkles className="w-4 h-4" />
                             </>
                           )}
                         </Button>

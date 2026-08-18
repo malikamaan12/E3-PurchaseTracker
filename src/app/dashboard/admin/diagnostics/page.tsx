@@ -6,8 +6,10 @@ import { useAuth } from "@/context/AuthContext";
 import { Activity, BugPlay, ShieldAlert, Cpu, DownloadCloud, ChevronRight, Zap } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 export default function DiagnosticsPage() {
+  usePageTitle("System Diagnostics");
   const { user, isLoading: isAuthLoading } = useAuth();
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ["admin_audit_logs"],

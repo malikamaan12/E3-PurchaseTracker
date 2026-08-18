@@ -17,13 +17,13 @@ export type NotificationPriority = 'high' | 'normal' | 'low';
 /**
  * Notification Action Types
  */
-export type NotificationActionType = 
-  | 'approve' 
-  | 'reject' 
-  | 'review' 
-  | 'acknowledge' 
-  | 'complete' 
-  | 'update' 
+export type NotificationActionType =
+  | 'approve'
+  | 'reject'
+  | 'review'
+  | 'acknowledge'
+  | 'complete'
+  | 'update'
   | 'view';
 
 /**
@@ -38,23 +38,23 @@ export const NOTIFICATION_ROUTES = {
   purchase_request_updated: '/dashboard/requests/{id}',
   purchase_request_canceled: '/dashboard/requests/{id}',
   purchase_request_completed: '/dashboard/requests/{id}',
-  
+
   // Approval related notifications
   approval_required: '/dashboard/requests/{id}',
   approval_reminder: '/dashboard/requests/{id}',
   approval_delegated: '/dashboard/requests/{id}',
   approval_overridden: '/dashboard/requests/{id}',
-  
+
   // Vendor related notifications
   vendor_created: '/dashboard/vendors/{id}',
   vendor_updated: '/dashboard/vendors/{id}',
   vendor_deactivated: '/dashboard/vendors/{id}',
-  
+
   // Account related notifications
   account_created: '/dashboard/user-profile',
   account_updated: '/dashboard/user-profile',
   password_reset: '/login', // Typically outside dashboard
-  
+
   // System notifications
   system_maintenance: '/dashboard/notifications',
   system_update: '/dashboard/notifications',
@@ -85,8 +85,65 @@ export class NotificationService {
   }
 
   /**
-   * Create a notification
+   * Deduplicate notification items in memory by unique event signature
    */
+  public static deduplicateNotifications(items: any[]): any[] {
+    if (!Array.isArray(items)) return [];
+    const seen = new Map<string, any>();
+    for (const item of items) {
+      const signature = item.idempotencyKey || item.actionData?.idempotencyKey ||
+        NotificationService.generateIdempotencyKey({
+          recipientId: item.userId,
+          entityType: item.requestId ? 'purchase_request' : 'system',
+          entityId: item.requestId,
+          eventType: item.type,
+          stage: item.actionData?.stage || null,
+          causalEventId: item.actionData?.versionId || null
+        }) + `_${(item.title || '').trim()}_${(item.message || '').trim()}`;
+
+      if (!seen.has(signature)) {
+        seen.set(signature, item);
+      } else {
+        const existing = seen.get(signature);
+        if (item.isRead && !existing.isRead) {
+          existing.isRead = true;
+        }
+      }
+    }
+    return Array.from(seen.values());
+  }
+
+  /**
+   * Create a notification with strict idempotency protection
+   */
+  /**
+   * Deterministic idempotency key generator for multi-worker atomic notification deduplication.
+   */
+  public static generateIdempotencyKey({
+    recipientId,
+    entityType = 'purchase_request',
+    entityId,
+    eventType,
+    stage,
+    causalEventId
+  }: {
+    recipientId: number;
+    entityType?: string;
+    entityId?: number | string | null;
+    eventType: string;
+    stage?: string | null;
+    causalEventId?: string | number | null;
+  }): string {
+    return [
+      `rec:${recipientId}`,
+      `ent:${entityType}`,
+      `id:${entityId ?? 'none'}`,
+      `evt:${eventType}`,
+      `stg:${stage ?? 'none'}`,
+      `csl:${causalEventId ?? 'none'}`
+    ].join("|");
+  }
+
   public async createNotification({
     userId,
     title,
@@ -98,7 +155,10 @@ export class NotificationService {
     actionData = {},
     expiresAt,
     roleRestrictions,
-    departmentRestrictions
+    departmentRestrictions,
+    stage,
+    causalEventId,
+    customIdempotencyKey
   }: {
     userId: number;
     title: string;
@@ -111,17 +171,52 @@ export class NotificationService {
     expiresAt?: Date;
     roleRestrictions?: string | string[];
     departmentRestrictions?: string | string[];
+    stage?: string;
+    causalEventId?: string | number;
+    customIdempotencyKey?: string;
   }) {
+    // 1. Generate Deterministic Idempotency Key
+    const idempotencyKey = customIdempotencyKey || NotificationService.generateIdempotencyKey({
+      recipientId: userId,
+      entityType: requestId ? "purchase_request" : "system",
+      entityId: requestId,
+      eventType: type,
+      stage: stage || (actionData?.stage as string) || null,
+      causalEventId: causalEventId || (actionData?.versionId as string) || null
+    });
+
+    // 2. Pre-insert Idempotency Check (supports environments where unique index migration is pending)
+    const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const existingNotifications = await db
+      .select()
+      .from(notifications)
+      .where(and(
+        eq(notifications.userId, userId),
+        requestId ? eq(notifications.requestId, requestId) : sql`TRUE`,
+        eq(notifications.type, type),
+        gte(notifications.createdAt, twentyFourHoursAgo)
+      ));
+
+    const exactMatch = existingNotifications.find((n: any) =>
+      (n.idempotencyKey && n.idempotencyKey === idempotencyKey) ||
+      ((n.title || "").trim() === title.trim() && (n.message || "").trim() === message.trim())
+    );
+
+    if (exactMatch) {
+      console.log(`[NotificationService] Idempotency: Suppressed duplicate notification for user ${userId}, req ${requestId}, type ${type}, key ${idempotencyKey}`);
+      return exactMatch;
+    }
+
     // Generate link based on type
     const link = this.generateLink(type, { requestId });
 
-    // Add role and department restrictions to action data if provided
-    const enhancedActionData = { ...actionData };
-    
+    // Add role and department restrictions and idempotency key to action data
+    const enhancedActionData: Record<string, any> = { ...actionData, idempotencyKey };
+
     if (roleRestrictions) {
       enhancedActionData.roleRestrictions = roleRestrictions;
     }
-    
+
     if (departmentRestrictions) {
       enhancedActionData.departmentRestrictions = departmentRestrictions;
     }
@@ -134,26 +229,74 @@ export class NotificationService {
       priority,
       link,
       requestId,
+      idempotencyKey,
       isRead: false,
       isAcknowledged: false,
       expiresAt,
       actionType: actionType ?? null,
-      actionData: Object.keys(enhancedActionData).length > 0 ? enhancedActionData : null,
+      actionData: enhancedActionData,
       createdAt: new Date(),
       updatedAt: new Date()
     };
 
-    const results = await db
-      .insert(notifications)
-      .values(notification)
-      .returning();
+    try {
+      const results = await db
+        .insert(notifications)
+        .values(notification)
+        .onConflictDoNothing({ target: notifications.idempotencyKey })
+        .returning();
 
-    const result = results[0];
-    if (!result) {
-      console.warn("[NotificationService] No record returned from insertion, but proceeding...");
+      if (results.length > 0) {
+        return results[0];
+      }
+
+      // Conflict occurred: retrieve existing record
+      const [existing] = await db
+        .select()
+        .from(notifications)
+        .where(eq(notifications.idempotencyKey, idempotencyKey))
+        .limit(1);
+
+      return existing || notification;
+    } catch (err: any) {
+      if (err?.code === '42703') {
+        // Strict failure when migration is missing — no silent unindexed degraded insertion
+        console.error("[NotificationService] Schema readiness error: column 'idempotency_key' is missing from 'notifications' table. Apply migration 0001_notification_idempotency.sql before creating notifications.");
+        throw new Error("SCHEMA_NOT_MIGRATED: Notification idempotency key column missing. Run database migration.");
+      }
+      throw err;
     }
+  }
 
-    return result;
+  /**
+   * Deployment health check to verify database column and index readiness.
+   * Does not log or expose credentials, bank details, or personal data.
+   */
+  public static async verifySchemaHealth(): Promise<{ columnExists: boolean; indexExists: boolean; ready: boolean }> {
+    try {
+      const colCheck = await db.execute(sql`
+        SELECT column_name
+        FROM information_schema.columns
+        WHERE table_name = 'notifications' AND column_name = 'idempotency_key'
+      `);
+      const columnExists = ((colCheck as any).rows?.length || 0) > 0;
+
+      const idxCheck = await db.execute(sql`
+        SELECT indexname
+        FROM pg_indexes
+        WHERE tablename = 'notifications' AND indexname = 'idx_notifications_idempotency_key'
+      `);
+      const indexExists = ((idxCheck as any).rows?.length || 0) > 0;
+
+      return {
+        columnExists,
+        indexExists,
+        ready: columnExists && indexExists
+      };
+    } catch (error) {
+      console.error("[NotificationService] Schema health check failed");
+      return { columnExists: false, indexExists: false, ready: false };
+    }
   }
 
   /**
@@ -295,7 +438,7 @@ export class NotificationService {
     const cacheKey = `notifications_${userId}`;
     const cached = this.cache.get(cacheKey);
     const now = Date.now();
-    
+
     // 30-second cache for ultra-fast responses
     if (cached && (now - cached.timestamp) < 30000) {
       return cached.data;
@@ -304,7 +447,7 @@ export class NotificationService {
     try {
       // Construct filters
       const filters = [eq(notifications.userId, userId)];
-      
+
       if (options?.includeRead === false) {
         filters.push(eq(notifications.isRead, false));
       }
@@ -313,32 +456,119 @@ export class NotificationService {
         filters.push(eq(notifications.type, options.type));
       }
 
-      const result = await db
-        .select()
-        .from(notifications)
-        .where(and(...filters))
-        .orderBy(desc(notifications.createdAt))
-        .limit(20); 
+      let result: any[];
+      try {
+        result = await db
+          .select()
+          .from(notifications)
+          .where(and(...filters))
+          .orderBy(desc(notifications.createdAt))
+          .limit(20);
+      } catch (e: any) {
+        if (e?.code === '42703') {
+          result = await db
+            .select({
+              id: notifications.id,
+              userId: notifications.userId,
+              requestId: notifications.requestId,
+              title: notifications.title,
+              message: notifications.message,
+              type: notifications.type,
+              priority: notifications.priority,
+              isRead: notifications.isRead,
+              isAcknowledged: notifications.isAcknowledged,
+              link: notifications.link,
+              actionType: notifications.actionType,
+              actionData: notifications.actionData,
+              expiresAt: notifications.expiresAt,
+              createdAt: notifications.createdAt,
+              updatedAt: notifications.updatedAt
+            })
+            .from(notifications)
+            .where(and(...filters))
+            .orderBy(desc(notifications.createdAt))
+            .limit(20);
+        } else {
+          throw e;
+        }
+      }
 
       // Minimal filtering - just expired notifications
       const currentTime = new Date();
-      const validNotifications = result.filter((notification: any) => 
+      const validNotifications = result.filter((notification: any) =>
         !notification.expiresAt || new Date(notification.expiresAt) >= currentTime
       );
 
+      // Deduplicate historical notifications in memory
+      const deduplicated = NotificationService.deduplicateNotifications(validNotifications);
+
       // Apply lastFetchTime filter if provided
-      const filteredResults = options?.lastFetchTime 
-        ? validNotifications.filter((n: any) => new Date(n.createdAt) >= options.lastFetchTime!)
-        : validNotifications;
+      const filteredResults = options?.lastFetchTime
+        ? deduplicated.filter((n: any) => new Date(n.createdAt) >= options.lastFetchTime!)
+        : deduplicated;
 
       // Cache the results
       this.cache.set(cacheKey, { data: filteredResults, timestamp: now });
-      
+
       return filteredResults;
-      
+
     } catch (error) {
       console.error('Notification fetch error:', error);
       return []; // Return empty array to prevent UI crashes
+    }
+  }
+
+  /**
+   * Get accurate unread count after deduplicating notifications
+   */
+  public async getUnreadCount(userId: number): Promise<number> {
+    try {
+      let unreadList: any[];
+      try {
+        unreadList = await db
+          .select()
+          .from(notifications)
+          .where(and(
+            eq(notifications.userId, userId),
+            eq(notifications.isRead, false)
+          ))
+          .orderBy(desc(notifications.createdAt));
+      } catch (e: any) {
+        if (e?.code === '42703') {
+          unreadList = await db
+            .select({
+              id: notifications.id,
+              userId: notifications.userId,
+              requestId: notifications.requestId,
+              title: notifications.title,
+              message: notifications.message,
+              type: notifications.type,
+              priority: notifications.priority,
+              isRead: notifications.isRead,
+              isAcknowledged: notifications.isAcknowledged,
+              link: notifications.link,
+              actionType: notifications.actionType,
+              actionData: notifications.actionData,
+              expiresAt: notifications.expiresAt,
+              createdAt: notifications.createdAt,
+              updatedAt: notifications.updatedAt
+            })
+            .from(notifications)
+            .where(and(
+              eq(notifications.userId, userId),
+              eq(notifications.isRead, false)
+            ))
+            .orderBy(desc(notifications.createdAt));
+        } else {
+          throw e;
+        }
+      }
+
+      const deduplicated = NotificationService.deduplicateNotifications(unreadList);
+      return deduplicated.length;
+    } catch (error) {
+      console.error('Get unread count error:', error);
+      return 0;
     }
   }
 
@@ -403,29 +633,6 @@ export class NotificationService {
       .returning();
 
     return updated;
-  }
-
-  /**
-   * Get unread notification count for a user
-   */
-  public async getUnreadCount(userId: number) {
-    const now = new Date();
-    
-    const [result] = await db
-      .select({ count: sql`count(*)::int` })
-      .from(notifications)
-      .where(
-        and(
-          eq(notifications.userId, userId),
-          eq(notifications.isRead, false),
-          or(
-            sql`${notifications.expiresAt} IS NULL`,
-            sql`${notifications.expiresAt} >= ${now}`
-          ) as SQL<unknown>
-        )
-      );
-
-    return Number(result.count);
   }
 
   /**
@@ -577,7 +784,7 @@ export class NotificationService {
     if (!routePattern) return null;
 
     let link = routePattern;
-    
+
     // Replace parameters in route pattern
     Object.keys(params).forEach(key => {
       if (params[key] !== undefined && params[key] !== null) {
@@ -596,10 +803,10 @@ function lte(createdAt: any, cutoffDate: Date) {
   if (createdAt instanceof Date) {
     return createdAt <= cutoffDate;
   }
-  
+
   if (typeof createdAt === 'string') {
     return new Date(createdAt) <= cutoffDate;
   }
-  
+
   return false;
 }

@@ -20,6 +20,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePerformance } from "@/context/PerformanceContext"
+import { usePageTitle } from "@/lib/hooks/usePageTitle"
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 interface ComplianceDoc {
@@ -62,6 +63,7 @@ const KpiDisk = ({ label, value, sub, color }: { label: string, value: string | 
 
 // ─── MAIN PAGE ──────────────────────────────────────────────────────────────
 export default function ComplianceGatewayPage() {
+  usePageTitle("Compliance Gateway")
   const { highPerformanceMode } = usePerformance()
   const [search, setSearch] = React.useState("")
   const [isScanning, setIsScanning] = React.useState(false)
@@ -126,6 +128,8 @@ export default function ComplianceGatewayPage() {
     v.registrationNumber?.includes(search)
   )
 
+  const auditQuarter = `Q${Math.floor(new Date().getMonth() / 3) + 1} ${new Date().getFullYear()}`
+
   return (
     <div className="relative min-h-screen p-4 sm:p-8 w-full overflow-hidden">
       {/* 1. Header & Global Analytics */}
@@ -138,7 +142,7 @@ export default function ComplianceGatewayPage() {
             <div>
               <h1 className="text-4xl font-serif text-foreground tracking-tight">Compliance Gateway</h1>
               <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mt-1 opacity-60">
-                System-Wide Regulatory Audit • Q2 2026
+                System-Wide Regulatory Audit • {auditQuarter}
               </p>
             </div>
           </div>

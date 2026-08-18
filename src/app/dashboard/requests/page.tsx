@@ -3,12 +3,12 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { useState, lazy } from "react";
-import { 
-  FileText, 
-  Download, 
-  CheckCircle, 
-  XCircle, 
-  Filter, 
+import {
+  FileText,
+  Download,
+  CheckCircle,
+  XCircle,
+  Filter,
   MoreHorizontal,
   ChevronDown,
   ChevronUp,
@@ -20,7 +20,8 @@ import {
   Link as LinkIcon,
   FileSpreadsheet,
   PlusCircle,
-  Lock
+  Lock,
+  Inbox
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -32,11 +33,13 @@ import { RequestFilters } from "@/components/requests/RequestFilters";
 import { DeleteRequestDialog } from "@/components/requests/DeleteRequestDialog";
 import { Edit2, Trash2, Zap } from "lucide-react";
 import { usePerformance } from "@/context/PerformanceContext";
+import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 // Lazy-load the heavy 62KB modal — only downloaded when user clicks "New Request"
 const CreateRequestModal = lazy(() => import("@/components/requests/CreateRequestModal"));
 
 function RequestsDashboardContent() {
+  usePageTitle("Purchase Requests");
   const queryClient = useQueryClient();
   const { user, isAdmin, isApprover } = useAuth();
   const searchParams = useSearchParams();
@@ -184,83 +187,155 @@ function RequestsDashboardContent() {
 
       <SpendAnalytics data={analytics} isLoading={analyticsLoading} />
 
-      <RequestFilters 
-        filters={filters} 
-        setFilters={setFilters} 
-        metadata={{ departments, vendors, purposes, subPurposes }} 
+      <RequestFilters
+        filters={filters}
+        setFilters={setFilters}
+        metadata={{ departments, vendors, purposes, subPurposes }}
       />
 
-      <main className="bg-card border border-border overflow-x-auto shadow-sm rounded-lg w-full custom-scrollbar relative">
-        <table className="w-full text-left border-collapse text-sm">
-          <thead className="bg-secondary/50 border-b border-border text-xs font-medium text-muted-foreground">
-            <tr>
-              <th className="px-6 py-5 w-12 text-center">
-                <input 
-                  type="checkbox"
-                  className="w-4 h-4 rounded-md border-white/20 bg-white/5 text-brand-primary focus:ring-brand-primary cursor-pointer transition-all"
-                  checked={selectedIds.length === requests?.length && requests?.length > 0}
-                  onChange={(e) => handleSelectAll(e.target.checked)}
-                />
-              </th>
-              <th className="px-6 py-5 font-bold">Request #</th>
-              <th className="px-6 py-5 font-bold">Title & Requester</th>
-              <th className="px-6 py-5 font-bold">Status</th>
-              <th className="px-6 py-5 font-bold">Amount</th>
-              <th className="px-6 py-5 text-right font-bold pr-10">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
-            {isLoading ? (
-              <>
-                <TableRowSkeleton />
-                <TableRowSkeleton />
-                <TableRowSkeleton />
-                <TableRowSkeleton />
-                <TableRowSkeleton />
-              </>
-            ) : highPerformanceMode ? (
-              requests?.map((req: any) => (
-                <RequestRow 
-                  key={req.id} 
-                  request={req} 
+      <main className="w-full">
+        {isLoading ? (
+          <div className="space-y-4">
+            <div className="md:hidden space-y-4">
+              {[1, 2, 3].map(i => (
+                <div key={i} className="bg-card p-5 rounded-xl border border-border animate-pulse space-y-3">
+                  <div className="h-4 w-28 bg-white/10 dark:bg-white/5 rounded" />
+                  <div className="h-5 w-4/5 bg-white/10 dark:bg-white/5 rounded" />
+                  <div className="h-4 w-1/2 bg-white/10 dark:bg-white/5 rounded" />
+                  <div className="h-8 w-full bg-white/10 dark:bg-white/5 rounded-lg" />
+                </div>
+              ))}
+            </div>
+            <div className="hidden md:block bg-card border border-border shadow-sm rounded-lg overflow-x-auto">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead className="bg-secondary/50 border-b border-border text-xs font-medium text-muted-foreground">
+                  <tr>
+                    <th scope="col" className="px-6 py-5 w-12 text-center"><div className="w-4 h-4 rounded bg-white/10 mx-auto" /></th>
+                    <th scope="col" className="px-6 py-5 font-bold">Request #</th>
+                    <th scope="col" className="px-6 py-5 font-bold">Title & Requester</th>
+                    <th scope="col" className="px-6 py-5 font-bold">Status</th>
+                    <th scope="col" className="px-6 py-5 font-bold">Amount</th>
+                    <th scope="col" className="px-6 py-5 text-right font-bold pr-10">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  <TableRowSkeleton />
+                  <TableRowSkeleton />
+                  <TableRowSkeleton />
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : requests?.length === 0 ? (
+          <div className="bg-card border border-border rounded-2xl p-8 sm:p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-sm">
+            <div className="w-16 h-16 rounded-2xl bg-secondary/80 flex items-center justify-center border border-border text-muted-foreground">
+              <Inbox className="w-8 h-8 opacity-70" />
+            </div>
+            <div className="max-w-md space-y-1">
+              <h3 className="text-lg font-semibold text-foreground">
+                {filters.search ? "No matching requests found" : filters.status !== 'all' ? `No ${filters.status.replace(/_/g, ' ')} requests` : "No purchase requests"}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {filters.search
+                  ? `No requests match "${filters.search}". Try adjusting your keywords or clearing active filters.`
+                  : filters.status !== 'all' || filters.department !== 'all' || filters.vendor !== 'all'
+                  ? "No purchase requests match the active filter criteria. Clear your filters to see all requests."
+                  : "Get started by creating your first purchase request in the procurement workflow."}
+              </p>
+            </div>
+            {(filters.search || filters.status !== 'all' || filters.department !== 'all' || filters.vendor !== 'all' || filters.dateFrom || filters.dateTo) && (
+              <button
+                onClick={() => setFilters({
+                  status: "all",
+                  priority: "all",
+                  department: "all",
+                  vendor: "all",
+                  purpose: "all",
+                  purposeCategoryId: "all",
+                  subPurposeId: "all",
+                  dateFrom: "",
+                  dateTo: "",
+                  costMin: "",
+                  costMax: "",
+                  search: "",
+                  requestNo: ""
+                })}
+                className="mt-2 inline-flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg shadow-sm hover:bg-primary/90 transition-colors"
+              >
+                Reset All Filters
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Mobile View: Request Cards */}
+            <div className="md:hidden space-y-4">
+              {requests?.map((req: any) => (
+                <RequestMobileCard
+                  key={req.id}
+                  request={req}
                   isSelected={selectedIds.includes(req.id)}
                   onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
                   onApprove={() => approveMutation.mutate(req.id)}
                   onEdit={() => setEditingId(req.id)}
                   onDelete={() => setDeleteRequest(req)}
                 />
-              ))
-            ) : (
-              <>
-                {requests?.map((req: any) => (
-                  <RequestRow 
-                    key={req.id} 
-                    request={req} 
-                    isSelected={selectedIds.includes(req.id)}
-                    onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
-                    onApprove={() => approveMutation.mutate(req.id)}
-                    onEdit={() => setEditingId(req.id)}
-                    onDelete={() => setDeleteRequest(req)}
-                  />
-                ))}
-              </>
+              ))}
+            </div>
+
+            {/* Desktop / Tablet View: Full Table */}
+            <div className="hidden md:block bg-card border border-border overflow-x-auto shadow-sm rounded-lg w-full custom-scrollbar relative">
+              <table className="w-full text-left border-collapse text-sm">
+                <thead className="bg-secondary/50 border-b border-border text-xs font-medium text-muted-foreground">
+                  <tr>
+                    <th scope="col" className="px-6 py-5 w-12 text-center">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all requests"
+                        className="w-4 h-4 rounded-md border-white/20 bg-white/5 text-brand-primary focus:ring-brand-primary cursor-pointer transition-all"
+                        checked={selectedIds.length === requests?.length && requests?.length > 0}
+                        onChange={(e) => handleSelectAll(e.target.checked)}
+                      />
+                    </th>
+                    <th scope="col" className="px-6 py-5 font-bold">Request #</th>
+                    <th scope="col" className="px-6 py-5 font-bold">Title & Requester</th>
+                    <th scope="col" className="px-6 py-5 font-bold">Status</th>
+                    <th scope="col" className="px-6 py-5 font-bold">Amount</th>
+                    <th scope="col" className="px-6 py-5 text-right font-bold pr-10">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {requests?.map((req: any) => (
+                    <RequestRow
+                      key={req.id}
+                      request={req}
+                      isSelected={selectedIds.includes(req.id)}
+                      onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
+                      onApprove={() => approveMutation.mutate(req.id)}
+                      onEdit={() => setEditingId(req.id)}
+                      onDelete={() => setDeleteRequest(req)}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {requests && requests.length >= page * 50 && (
+              <div className="p-4 flex justify-center border-t border-border mt-4">
+                <button
+                  onClick={() => setPage(p => p + 1)}
+                  className="px-4 py-2 bg-secondary text-secondary-foreground text-sm font-medium rounded-lg hover:bg-secondary/80 transition-colors"
+                >
+                  Load More
+                </button>
+              </div>
             )}
-          </tbody>
-        </table>
-        {requests && requests.length >= page * 50 && (
-          <div className="p-4 flex justify-center border-t border-border">
-            <button 
-              onClick={() => setPage(p => p + 1)}
-              className="px-4 py-2 bg-secondary text-secondary-foreground text-sm font-medium rounded hover:bg-secondary/80 transition-colors"
-            >
-              Load More
-            </button>
-          </div>
+          </>
         )}
       </main>
 
-      <BulkActionToolbar 
-        selectedCount={selectedIds.length} 
+      <BulkActionToolbar
+        selectedCount={selectedIds.length}
         onApprove={() => bulkApproveMutation.mutate(selectedIds)}
         onClear={() => setSelectedIds([])}
         isProcessing={bulkApproveMutation.isPending}
@@ -268,7 +343,7 @@ function RequestsDashboardContent() {
 
       {(!!editingId || isCreateModalOpen) && (
         <Suspense fallback={null}>
-          <CreateRequestModal 
+          <CreateRequestModal
             isOpen={!!editingId || isCreateModalOpen}
             onClose={() => {
               setEditingId(null);
@@ -286,7 +361,7 @@ function RequestsDashboardContent() {
         </Suspense>
       )}
 
-      <DeleteRequestDialog 
+      <DeleteRequestDialog
         isOpen={!!deleteRequest}
         onOpenChange={(open) => !open && setDeleteRequest(null)}
         onConfirm={() => deleteMutation.mutate(deleteRequest.id)}
@@ -309,48 +384,62 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
   const { highPerformanceMode } = usePerformance();
   if (isLoading) return <div className="h-32 bg-card border border-border animate-pulse rounded-lg" />;
 
-  // The API returns kpis: { byStatus: [], totalPaid: number }
+  // Prefer canonical overview from FinancialMetricsService if provided
+  const overview = data?.overview;
   const kpis = data?.kpis?.byStatus || [];
-  
-  const approvedObj = kpis.find((k: any) => k.status === 'approved');
-  const pendingObj = kpis.find((k: any) => k.status === 'pending');
-  
-  const approved = approvedObj?.totalValue || 0;
-  const approvedCount = approvedObj?.count || 0;
-  
-  const pending = pendingObj?.totalValue || 0;
-  const pendingCount = pendingObj?.count || 0;
-  
-  // Active count = pending + approved + variation_pending
-  const activeCount = kpis.filter((k: any) => 
-    ['pending', 'approved', 'VARIATION_PENDING', 'changes_requested'].includes(k.status)
-  ).reduce((acc: number, curr: any) => acc + curr.count, 0);
+
+  const getStatusSum = (...statuses: string[]) => {
+    return kpis
+      .filter((k: any) => statuses.some(s => s.toLowerCase() === (k.status || "").toLowerCase()))
+      .reduce((acc: { count: number; totalValue: number }, curr: any) => ({
+        count: acc.count + Number(curr.count || 0),
+        totalValue: acc.totalValue + Number(curr.totalValue || 0)
+      }), { count: 0, totalValue: 0 });
+  };
+
+  const approved = overview ? overview.fullyApprovedAmount : getStatusSum('approved').totalValue;
+  const approvedCount = overview ? overview.fullyApprovedCount : getStatusSum('approved').count;
+
+  // In-flight / pending volume = pending + partially_approved requests
+  const pendingStat = getStatusSum('pending', 'partially_approved', 'PARTIALLY_APPROVED');
+  const pending = overview
+    ? (overview.partiallyApprovedAmount + (kpis.find((k: any) => k.status === 'pending')?.totalValue || 0))
+    : pendingStat.totalValue;
+  const pendingCount = overview
+    ? (overview.partiallyApprovedCount + (kpis.find((k: any) => k.status === 'pending')?.count || 0))
+    : pendingStat.count;
+
+  // Active count = pending + partially_approved + approved + variation_pending + changes_requested
+  const activeCount = overview
+    ? overview.activeRequestsCount
+    : getStatusSum('pending', 'partially_approved', 'PARTIALLY_APPROVED', 'approved', 'VARIATION_PENDING', 'variation_pending', 'changes_requested').count;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <AnalyticsCard 
-        label="Total Approved" 
-        value={approved} 
-        suffix="QAR" 
+      <AnalyticsCard
+        label="Total Approved"
+        value={approved}
+        suffix="QAR"
         subValue={approvedCount}
         subLabel="requests"
-        icon={<TrendingUp className="text-emerald-400 w-6 h-6" />} 
+        icon={<TrendingUp className="text-emerald-500 w-6 h-6" />}
         glowClass="bg-emerald-500"
       />
-      <AnalyticsCard 
-        label="Pending Volume" 
-        value={pending} 
-        suffix="QAR" 
+      <AnalyticsCard
+        label="Pending & In-Flight Volume"
+        value={pending}
+        suffix="QAR"
         subValue={pendingCount}
         subLabel="requests"
-        icon={<BarChart3 className="text-brand-secondary w-6 h-6" />} 
+        icon={<BarChart3 className="text-brand-secondary w-6 h-6" />}
         glowClass="bg-brand-secondary"
       />
-      <AnalyticsCard 
-        label="Active Status" 
-        value={activeCount} 
+      <AnalyticsCard
+        label="Active Requests"
+        value={activeCount}
         suffix="REQ"
-        icon={<div className="text-brand-primary font-black text-sm tracking-tighter">QAR</div>} 
+        subLabel="in workflow"
+        icon={<div className="text-brand-primary font-black text-sm tracking-tighter">QAR</div>}
         glowClass="bg-brand-primary"
       />
     </div>
@@ -375,14 +464,14 @@ function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon, gl
   }, [highPerformanceMode]);
 
   return (
-    <div 
+    <div
       className="bg-card border border-border p-6 rounded-lg relative overflow-hidden"
     >
       <div className="relative z-10 flex justify-between items-start">
         <div className="space-y-1">
           <p className="text-sm font-medium text-muted-foreground">{label}</p>
           <h3 className="text-2xl font-semibold text-foreground tracking-tight flex items-baseline gap-2 mt-1">
-            {value.toLocaleString()} 
+            {value.toLocaleString()}
             {suffix && <span className="text-sm text-muted-foreground font-normal">{suffix}</span>}
           </h3>
           {subValue !== undefined && (
@@ -412,7 +501,7 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
       </div>
       <div className="h-8 w-px bg-border" />
       <div className="flex gap-2">
-        <button 
+        <button
           onClick={onApprove}
           disabled={isProcessing}
           className="bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-md shadow-sm hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2"
@@ -420,7 +509,7 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
           {isProcessing ? "Processing..." : "Approve Now"}
           <CheckCircle className="w-4 h-4" />
         </button>
-        <button 
+        <button
           onClick={onClear}
           className="bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary text-sm font-medium px-4 py-2 rounded-md transition-colors"
         >
@@ -433,10 +522,134 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
   if (highPerformanceMode) return content;
 
   return (
-    <div 
+    <div
       className="animate-fade-scale-in"
     >
       {content}
+    </div>
+  );
+}
+
+function RequestMobileCard({ request, isSelected, onSelect, onApprove, onEdit, onDelete }: any) {
+  const router = useRouter();
+  const { user, isAdmin } = useAuth();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  return (
+    <div className={`bg-card rounded-2xl border p-4 sm:p-5 shadow-sm transition-all relative ${isSelected ? 'border-brand-primary/50 bg-brand-primary/5' : 'border-border hover:border-brand-primary/20'}`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            aria-label={`Select request ${request.requestNumber}`}
+            className="w-4 h-4 rounded border-border bg-secondary text-brand-primary focus:ring-brand-primary cursor-pointer"
+            checked={isSelected}
+            onChange={(e) => onSelect(e.target.checked)}
+          />
+          <div>
+            <span className="font-mono text-xs font-semibold text-brand-secondary">
+              {request.requestNumber}
+            </span>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              {request.requester?.username} • {request.requester?.department}
+            </div>
+          </div>
+        </div>
+        <StatusBadge status={request.status} />
+      </div>
+
+      <div className="my-3">
+        <h4 className="font-medium text-foreground text-sm leading-snug">
+          {request.title}
+        </h4>
+        {request.subPurpose?.name && (
+          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand-primary" />
+            {request.subPurpose.name}
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-between pt-3 border-t border-border mt-3">
+        <div>
+          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Estimated Amount</span>
+          <span className="text-base font-bold text-foreground">
+            {request.totalEstimatedCost?.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">QAR</span>
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {request.status === "pending" && (
+            <button
+              onClick={onApprove}
+              aria-label="Quick approve request"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium text-xs border border-emerald-500/20 transition-colors"
+            >
+              <CheckCircle className="w-3.5 h-3.5" /> Approve
+            </button>
+          )}
+
+          <button
+            onClick={() => router.push(`/dashboard/requests/${request.id}`)}
+            aria-label={`View details for request ${request.requestNumber}`}
+            className="flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium text-xs hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            <Eye className="w-3.5 h-3.5" /> View
+          </button>
+
+          <div className="relative">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label="More actions"
+              className="w-8 h-8 rounded-lg flex items-center justify-center border border-border bg-secondary/60 hover:bg-secondary text-muted-foreground transition-colors"
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+
+            {isMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
+                <div className="absolute right-0 bottom-full mb-1 w-44 bg-popover border border-border rounded-xl shadow-xl z-50 py-1.5 overflow-hidden animate-in fade-in zoom-in-95">
+                  {((isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
+                   (request.requesterId === user?.id && (
+                     request.status === 'draft' ||
+                     request.status === 'changes_requested' ||
+                     (request.status === 'pending' && Number(request.approvedCount || 0) === 0)
+                   ))) && (
+                    <>
+                      <button
+                        onClick={() => { setIsMenuOpen(false); onEdit(); }}
+                        className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" /> Edit Request
+                      </button>
+                      <button
+                        onClick={() => { setIsMenuOpen(false); onDelete(); }}
+                        className="w-full text-left px-3.5 py-2 text-xs font-medium text-destructive hover:bg-secondary flex items-center gap-2"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" /> Delete Request
+                      </button>
+                      <div className="h-px bg-border my-1 mx-2" />
+                    </>
+                  )}
+                  <button
+                    onClick={() => { setIsMenuOpen(false); apiClient.documents.downloadPdf(request.id); }}
+                    className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2"
+                  >
+                    <FileText className="w-3.5 h-3.5" /> Download PDF
+                  </button>
+                  <button
+                    onClick={() => { setIsMenuOpen(false); apiClient.documents.downloadZip(request.id); }}
+                    className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2"
+                  >
+                    <Archive className="w-3.5 h-3.5" /> Download ZIP
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -451,7 +664,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
   const renderCells = () => (
     <>
       <td className="px-6 py-5">
-        <input 
+        <input
           type="checkbox"
           className="rounded border-border bg-secondary text-brand-primary focus:ring-brand-primary cursor-pointer transition-colors"
           checked={isSelected}
@@ -482,7 +695,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
       <td className="px-6 py-5 text-right overflow-visible">
         <div className="flex justify-end gap-2 items-center">
           {request.status === "pending" && (
-            <button 
+            <button
               onClick={onApprove}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-colors text-xs font-medium"
               title="Quick Approve"
@@ -490,8 +703,8 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
               <CheckCircle className="w-3.5 h-3.5" /> Approve
             </button>
           )}
-          
-          <button 
+
+          <button
             onClick={() => router.push(`/dashboard/requests/${request.id}`)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-secondary hover:bg-secondary/80 text-foreground transition-colors text-xs font-medium border border-border"
           >
@@ -503,10 +716,10 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
               <MoreHorizontal className="w-4 h-4" />
             </button>
             <div className="absolute right-0 top-full mt-1 w-40 bg-popover border border-border rounded-md shadow-md opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 py-1 overflow-hidden">
-              {((isAdmin && !['fully_paid', 'archived'].includes(request.status)) || 
+              {((isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
                (request.requesterId === user?.id && (
-                 request.status === 'draft' || 
-                 request.status === 'changes_requested' || 
+                 request.status === 'draft' ||
+                 request.status === 'changes_requested' ||
                  (request.status === 'pending' && Number(request.approvedCount || 0) === 0)
                ))) && (
                 <>
@@ -540,19 +753,25 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const normalized = (status || "").toLowerCase().trim();
   const configs: Record<string, string> = {
-    pending: "bg-amber-500/10 text-amber-500 border-amber-500/20",
-    approved: "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-    rejected: "bg-rose-500/10 text-rose-500 border-rose-500/20",
+    pending: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    approved: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+    rejected: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30",
     draft: "bg-secondary text-muted-foreground border-border",
-    changes_requested: "bg-amber-600/10 text-amber-600 border-amber-600/20",
-    partially_approved: "bg-teal-500/10 text-teal-500 border-teal-500/20 shadow-[0_0_15px_rgba(20,184,166,0.1)] animate-pulse",
-    VARIATION_PENDING: "bg-orange-500/10 text-orange-400 border-orange-500/20",
+    changes_requested: "bg-amber-600/10 text-amber-800 dark:text-amber-300 border-amber-600/30",
+    partially_approved: "bg-teal-500/10 text-teal-800 dark:text-teal-300 border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.15)]",
+    variation_pending: "bg-orange-500/10 text-orange-800 dark:text-orange-300 border-orange-500/30",
   };
 
+  const label = normalized === 'partially_approved' ? 'Partially Approved'
+    : normalized === 'changes_requested' ? 'Changes Requested'
+    : normalized === 'variation_pending' ? 'Variation Pending'
+    : (status || "").replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
   return (
-    <span className={`px-2 py-0.5 rounded text-[11px] font-medium border ${configs[status] || configs.draft}`}>
-      {status?.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border ${configs[normalized] || configs.draft}`}>
+      {label}
     </span>
   );
 }
@@ -565,14 +784,14 @@ function ActionBar({ onNewRequest }: { onNewRequest: () => void }) {
 
   return (
     <div className="flex items-center gap-2">
-      <button 
+      <button
         onClick={handleExportExcel}
         className="flex items-center gap-2 bg-secondary/80 hover:bg-secondary text-foreground text-sm font-medium px-4 py-2 rounded-md border border-border shadow-sm transition-all"
         title="Export Corporate Excel Report"
       >
         <FileSpreadsheet className="w-4 h-4 text-emerald-500" /> Export Excel
       </button>
-      <button 
+      <button
         onClick={onNewRequest}
         className="flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-md shadow-sm hover:bg-primary/90 transition-colors"
       >
@@ -632,7 +851,7 @@ function TableRowSkeleton() {
 function LoadingState() {
   return (
     <div className="flex flex-col gap-4 p-8 w-full h-[60vh] justify-center items-center">
-      <div 
+      <div
         className="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"
       />
       <p className="text-muted-foreground animate-pulse font-mono tracking-widest text-xs font-bold uppercase transition-colors">Loading Grid...</p>

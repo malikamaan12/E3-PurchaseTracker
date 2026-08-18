@@ -12,6 +12,7 @@ import {
 } from "@db/schema";
 import { sql, eq, and, isNotNull, gte, lte, desc, sum, count, avg, inArray } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
+import { FinancialMetricsService } from "@/lib/services/FinancialMetricsService";
 
 export const dynamic = 'force-dynamic';
 
@@ -54,21 +55,25 @@ export async function GET(req: NextRequest) {
     const whereClause = prFilters.length > 0 ? and(...prFilters) : undefined;
 
     // ─── 1. KPI AGGREGATION ────────────────────────────────────────────────
+    const costSql = FinancialMetricsService.getNormalizedPrCostSql();
     const kpis = await db.select({
       status: purchaseRequests.status,
       count: count(),
-      totalValue: sum(sql`COALESCE(${purchaseRequests["revisedTotalCost"]}, ${purchaseRequests["totalEstimatedCost"]})`)
+      totalValue: sum(costSql)
     }).from(purchaseRequests)
       .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(whereClause)
       .groupBy(purchaseRequests.status);
 
+    const paidSql = FinancialMetricsService.getNormalizedPaidAmountSql();
     const totalPaidVal = await db.select({
-      total: sum(paymentInstallments.paidAmount)
+      total: sum(paidSql)
     }).from(paymentInstallments)
       .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
       .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(eq(paymentInstallments.status, 'paid'), whereClause));
+
+    const overview = await FinancialMetricsService.getGlobalFinancialMetrics(!isAdmin ? (userDept || undefined) : (filterDept || undefined));
 
     // ─── 2. NEW: PAYMENT COMPLIANCE (On-time vs Late) ────────────────────────
     const complianceData = await db.select({
@@ -104,19 +109,22 @@ export async function GET(req: NextRequest) {
       .groupBy(subPurposes.id, subPurposes.name, subPurposes.totalBudget);
 
     // ─── 5. CASH FLOW FORECAST (90 DAYS) ───────────────────────────────────
-    const today = new Date();
-    const ninetyDays = new Date(today.getTime() + (90 * 24 * 60 * 60 * 1000));
+    const asOfStr = FinancialMetricsService.getQatarDateOnly(new Date());
+    const ninetyDaysStr = FinancialMetricsService.addCalendarDays(asOfStr, 90);
+    const effDateSql = sql`DATE(COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate}))`;
+    const instRemainingSql = sql<number>`GREATEST(COALESCE(${paymentInstallments.calculatedAmountQar}, COALESCE(${paymentInstallments.calculatedAmount}, 0) * COALESCE(${paymentInstallments.exchangeRate}, 1.0)) - COALESCE(${paymentInstallments.paidAmount}, 0) * COALESCE(${paymentInstallments.exchangeRate}, 1.0), 0)`;
 
     const cashFlow = await db.select({
       date: sql`DATE_TRUNC('month', COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate}))`,
-      total: sum(paymentInstallments.calculatedAmount)
+      total: sum(instRemainingSql)
     }).from(paymentInstallments)
       .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
       .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(
-        eq(paymentInstallments.status, 'pending'),
-        gte(sql`COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate})`, today),
-        lte(sql`COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate})`, ninetyDays),
+        sql`${paymentInstallments.status} NOT IN ('cancelled', 'voided', 'paid')`,
+        isNotNull(sql`COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate})`),
+        sql`${effDateSql} >= ${asOfStr}::date`,
+        sql`${effDateSql} <= ${ninetyDaysStr}::date`,
         whereClause
       ))
       .groupBy(sql`DATE_TRUNC('month', COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate}))`)
@@ -170,6 +178,7 @@ export async function GET(req: NextRequest) {
     }));
 
     const response = NextResponse.json({
+      overview,
       kpis: {
         byStatus: kpis.map(k => ({
           status: k.status,

@@ -1,13 +1,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { 
-  Database, 
-  Archive, 
-  Download, 
-  RefreshCw, 
-  ShieldCheck, 
-  Cloud, 
+import {
+  Database,
+  Archive,
+  Download,
+  RefreshCw,
+  ShieldCheck,
+  Cloud,
   ArrowRight,
   History,
   AlertCircle,
@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/Input";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 interface BackupRecord {
   name: string;
@@ -35,12 +36,26 @@ interface BackupRecord {
  * Enterprise Backup Dashboard
  * Premium Admin interface for data preservation and cloud distribution management.
  */
-export default function BackupsPage() {
+export default function AdminBackupsPage() {
+  usePageTitle("Enterprise Backups");
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTriggering, setIsTriggering] = useState(false);
   const [vaultConfig, setVaultConfig] = useState({ primary: "", secondary: "" });
+  const [vaultStatus, setVaultStatus] = useState<any>(null);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+  const fetchVaultStatus = async () => {
+    try {
+      const res = await fetch("/api/admin/backups/status");
+      if (res.ok) {
+        const data = await res.json();
+        setVaultStatus(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch backup status:", err);
+    }
+  };
 
   const fetchBackups = async () => {
     setIsLoading(true);
@@ -65,9 +80,9 @@ export default function BackupsPage() {
       const res = await fetch("/api/admin/settings/backup");
       if (res.ok) {
         const data = await res.json();
-        setVaultConfig({ 
-          primary: data.primary || "", 
-          secondary: data.secondary || "" 
+        setVaultConfig({
+          primary: data.primary || "",
+          secondary: data.secondary || ""
         });
       }
     } catch (error) {
@@ -85,9 +100,10 @@ export default function BackupsPage() {
       });
 
       if (!res.ok) throw new Error("Update failed");
-      
+
       const data = await res.json();
       setVaultConfig({ primary: data.primaryId, secondary: data.secondaryId });
+      fetchVaultStatus();
       toast.success("Vault Configuration Secured", {
         description: "Google Drive destinations have been updated in the database.",
       });
@@ -101,6 +117,7 @@ export default function BackupsPage() {
   useEffect(() => {
     fetchBackups();
     fetchVaultConfig();
+    fetchVaultStatus();
   }, []);
 
   const triggerManualBackup = async () => {
@@ -112,11 +129,11 @@ export default function BackupsPage() {
     try {
       const response = await fetch("/api/admin/backups/manual", { method: "POST" });
       if (!response.ok) throw new Error("Sync failed");
-      
+
       toast.success("Background Snapshot Initiated", {
         description: "Distribution to R2 and Google Drive will complete shortly.",
       });
-      
+
       // Refresh list after a few seconds to allow R2 to process
       setTimeout(fetchBackups, 3000);
     } catch (error) {
@@ -162,12 +179,12 @@ export default function BackupsPage() {
           </div>
           <h1 className="text-4xl font-serif font-black text-foreground tracking-tight">Enterprise Backup Vault</h1>
           <p className="text-muted-foreground mt-2 max-w-xl text-sm leading-relaxed">
-            Automated multi-cloud synchronization for PurchaseTracker's institutional data. 
+            Automated multi-cloud synchronization for PurchaseTracker's institutional data.
             Redundant snapshots are distributed across Cloudflare R2 and Google Drive primary/secondary folders.
           </p>
         </div>
 
-        <Button 
+        <Button
           onClick={triggerManualBackup}
           disabled={isTriggering}
           className="bg-brand-primary hover:bg-brand-primary/90 text-white px-8 h-14 rounded-2xl shadow-2xl shadow-brand-primary/20 flex items-center gap-4 group"
@@ -186,33 +203,69 @@ export default function BackupsPage() {
       {/* Persistence Stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {[
-          { label: "Primary Storage", value: "Cloudflare R2", icon: <Cloud className="w-5 h-5" />, status: "Active", sub: "S3-Compatible Vault" },
-          { label: "Secondary Sync", value: "Google Drive", icon: <LucideHardDrive className="w-5 h-5" />, status: "Healthy", sub: "Redundant Repositories" },
-          { label: "Next Scheduled", value: "Daily 02:00 UTC", icon: <LucideClock className="w-5 h-5" />, status: "Armed", sub: "Automated Vercel Cron" }
-        ].map((stat, i) => (
-          <div key={i} className="glass-card p-6 border-white/5 relative overflow-hidden group">
-            <div className="flex items-start justify-between">
-              <div className="space-y-4">
-                <div className="p-3 rounded-xl bg-white/5 border border-white/10 w-fit">
-                  {stat.icon}
+          {
+            label: "Primary Storage",
+            value: "Cloudflare R2",
+            icon: <Cloud className="w-5 h-5" />,
+            status: vaultStatus?.primary?.status || (backups.length > 0 ? "Healthy" : "No verified backup"),
+            sub: vaultStatus?.primary?.sub || (backups.length > 0 ? `${backups.length} Verified Archive(s)` : "Awaiting archive verification")
+          },
+          {
+            label: "Secondary Sync",
+            value: "Google Drive",
+            icon: <LucideHardDrive className="w-5 h-5" />,
+            status: vaultStatus?.secondary?.status || (vaultConfig.primary ? "No verified backup" : "Not configured"),
+            sub: vaultStatus?.secondary?.sub || (vaultConfig.primary ? "Destination linked, awaiting archive" : "Vault destination not configured")
+          },
+          {
+            label: "Next Scheduled",
+            value: vaultStatus?.schedule?.scheduleText || "Daily 02:00 UTC",
+            icon: <LucideClock className="w-5 h-5" />,
+            status: vaultStatus?.schedule?.status || "Armed",
+            sub: vaultStatus?.schedule?.sub || "Automated Vercel Cron"
+          }
+        ].map((stat, i) => {
+          const badge = (() => {
+            switch (stat.status) {
+              case "Healthy":
+              case "Active":
+                return { bg: "bg-emerald-500/10", border: "border-emerald-500/20", text: "text-emerald-500", dot: "bg-emerald-500 animate-pulse" };
+              case "Armed":
+                return { bg: "bg-cyan-500/10", border: "border-cyan-500/20", text: "text-cyan-500", dot: "bg-cyan-500 animate-pulse" };
+              case "No verified backup":
+                return { bg: "bg-amber-500/10", border: "border-amber-500/20", text: "text-amber-500", dot: "bg-amber-500" };
+              case "Error":
+                return { bg: "bg-rose-500/10", border: "border-rose-500/20", text: "text-rose-500", dot: "bg-rose-500" };
+              default:
+                return { bg: "bg-secondary", border: "border-border", text: "text-muted-foreground", dot: "bg-muted-foreground/60" };
+            }
+          })();
+
+          return (
+            <div key={i} className="glass-card p-6 border-white/5 relative overflow-hidden group">
+              <div className="flex items-start justify-between">
+                <div className="space-y-4">
+                  <div className="p-3 rounded-xl bg-white/5 border border-white/10 w-fit">
+                    {stat.icon}
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{stat.label}</p>
+                    <p className="text-xl font-serif font-black text-foreground mt-1">{stat.value}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{stat.label}</p>
-                  <p className="text-xl font-serif font-black text-foreground mt-1">{stat.value}</p>
+                <div className={`flex items-center gap-2 px-2.5 py-1 rounded-full ${badge.bg} border ${badge.border}`}>
+                  <div className={`w-1.5 h-1.5 rounded-full ${badge.dot}`} />
+                  <span className={`text-[9px] font-black uppercase tracking-wider ${badge.text}`}>{stat.status}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-[8px] font-black text-emerald-500 uppercase tracking-tighter">{stat.status}</span>
-              </div>
+              <p className="text-[10px] text-muted-foreground font-medium mt-4 group-hover:text-brand-primary transition-colors">{stat.sub}</p>
             </div>
-            <p className="text-[10px] text-muted-foreground font-medium mt-4 group-hover:text-brand-primary transition-colors">{stat.sub}</p>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Vault Configuration (Dynamic Drive Setup) */}
-      <motion.div 
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         className="glass-card p-8 border-white/5 space-y-8"
@@ -241,7 +294,7 @@ export default function BackupsPage() {
               <span className="text-[9px] font-mono text-brand-primary/60">Auto-Extract Enabled</span>
             </div>
             <div className="relative group">
-              <Input 
+              <Input
                 placeholder="Paste Folder ID or full Google Drive Link"
                 value={vaultConfig.primary}
                 onChange={(e) => setVaultConfig(prev => ({ ...prev, primary: e.target.value }))}
@@ -259,7 +312,7 @@ export default function BackupsPage() {
               <span className="text-[9px] font-mono text-emerald-500/60 font-bold">Redundancy Layer</span>
             </div>
             <div className="relative group">
-              <Input 
+              <Input
                 placeholder="Paste Backup Folder ID or Link"
                 value={vaultConfig.secondary}
                 onChange={(e) => setVaultConfig(prev => ({ ...prev, secondary: e.target.value }))}
@@ -276,8 +329,8 @@ export default function BackupsPage() {
               <AlertCircle className="w-4 h-4" />
               <p className="text-[9px] font-black uppercase tracking-widest leading-none">Database Overrides Environment Variables Once Saved</p>
            </div>
-           
-           <Button 
+
+           <Button
             onClick={saveVaultConfig}
             disabled={isSavingConfig}
             className="w-full md:w-auto bg-[#5B4B8A] hover:bg-[#4A3B72] text-white px-10 h-14 rounded-2xl shadow-xl shadow-[#5B4B8A]/20 flex items-center gap-3 transition-all active:scale-[0.98]"
@@ -329,7 +382,7 @@ export default function BackupsPage() {
                   </tr>
                 ) : (
                   backups.map((backup, idx) => (
-                    <motion.tr 
+                    <motion.tr
                       key={backup.key}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -392,7 +445,7 @@ export default function BackupsPage() {
             </tbody>
           </table>
         </div>
-        
+
         {isLoading && (
           <div className="p-20 flex flex-col items-center justify-center gap-4">
             <RefreshCw className="w-8 h-8 text-brand-primary animate-spin" />
@@ -407,7 +460,7 @@ export default function BackupsPage() {
         <div className="space-y-1">
           <p className="text-[11px] font-black text-amber-500 uppercase tracking-widest">Security Protocol Note</p>
           <p className="text-[10px] text-amber-500/70 font-medium leading-relaxed">
-            Manual snapshots trigger intensive data extraction and multi-cloud synchronization. Downloads are restricted to institutional administrators via secure presigned URL protocols. 
+            Manual snapshots trigger intensive data extraction and multi-cloud synchronization. Downloads are restricted to institutional administrators via secure presigned URL protocols.
             All backup activities are tracked in the global audit trail.
           </p>
         </div>

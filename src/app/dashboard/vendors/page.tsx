@@ -28,8 +28,10 @@ import { useState, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { StarRating } from "@/components/shared/StarRating";
 import { VendorListView } from "@/components/vendors/VendorListView";
+import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 export default function VendorsDashboard() {
+  usePageTitle("Vendor Matrix");
   const queryClient = useQueryClient();
   const { isAdmin } = useAuth();
   const [isOnboarding, setIsOnboarding] = useState(false);

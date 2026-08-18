@@ -1,8 +1,8 @@
 "use client";
 
-import { 
-  Users, 
-  Shield, 
+import {
+  Users,
+  Shield,
   Lock,
   Globe,
   TrendingUp,
@@ -31,10 +31,12 @@ const CategorySpendChart = dynamic(() => import("@/components/admin/CategorySpen
 });
 import { PurgeRequestsModal } from "@/components/admin/PurgeRequestsModal";
 import { ShieldAlert } from "lucide-react";
+import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 export default function AdminOverviewPage() {
+  usePageTitle("Admin Overview");
   const { user, isLoading: isAuthLoading } = useAuth();
-  
+
   const { data: analytics, isLoading, error } = useQuery({
     queryKey: ["admin_analytics"],
     queryFn: async () => {
@@ -94,45 +96,45 @@ export default function AdminOverviewPage() {
       </div>
 
       {/* Top Level Stats */}
-      <motion.div 
+      <motion.div
         variants={container}
         initial="hidden"
         animate="show"
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
       >
         {[
-          { 
-            label: "Total Projects", 
-            value: analytics?.projects?.length || 0, 
-            sub: "Active Validated", 
+          {
+            label: "Total Projects",
+            value: analytics?.totalActiveProjects ?? analytics?.projects?.length ?? 0,
+            sub: "Active Validated",
             icon: <BarChart3 className="w-5 h-5 text-brand-primary" />,
             trend: "+12%"
           },
-          { 
-            label: "Categories", 
-            value: analytics?.categories?.length || 0, 
-            sub: "CAPEX / OPEX Split", 
+          {
+            label: "Categories",
+            value: analytics?.categories?.length || 0,
+            sub: "CAPEX / OPEX Split",
             icon: <PieChartIcon className="w-5 h-5 text-emerald-500" />,
             trend: "Optimal"
           },
-          { 
-            label: "Departments", 
-            value: analytics?.departmental?.length || 0, 
-            sub: "Involved in Spend", 
+          {
+            label: "Departments",
+            value: analytics?.departmental?.length || 0,
+            sub: "Involved in Spend",
             icon: <Users className="w-5 h-5 text-blue-500" />,
             trend: "Global"
           },
-          { 
-            label: "System Health", 
-            value: "100%", 
-            sub: "Serverless Native", 
+          {
+            label: "System Health",
+            value: "100%",
+            sub: "Serverless Native",
             icon: <Globe className="w-5 h-5 text-cyan-500" />,
             trend: "Stable"
           },
         ].map((stat, i) => (
-          <motion.div 
+          <motion.div
             variants={item}
-            key={i} 
+            key={i}
             className="glass p-6 rounded-3xl border border-border/40 shadow-xl hover:shadow-brand-primary/10 transition-all group relative overflow-hidden"
           >
              <div className="absolute top-0 right-0 w-24 h-24 bg-brand-primary/5 blur-3xl rounded-full -mr-12 -mt-12 group-hover:bg-brand-primary/10 transition-colors" />
@@ -163,7 +165,7 @@ export default function AdminOverviewPage() {
         </div>
 
         {/* Category Distribution */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}
@@ -200,7 +202,7 @@ export default function AdminOverviewPage() {
       </div>
 
       {/* System Tools & Quick Access */}
-      <motion.div 
+      <motion.div
         variants={item}
         initial="hidden"
         whileInView="show"
@@ -210,35 +212,35 @@ export default function AdminOverviewPage() {
         <div className="col-span-1 md:col-span-2 lg:col-span-4">
            <h3 className="text-sm font-black uppercase tracking-[0.3em] text-muted-foreground mb-4 pl-1">Institutional System Tools</h3>
         </div>
-        
+
         {[
-          { 
-            title: "Enterprise Backups", 
-            sub: "Cloud Vault & Orchestration", 
-            path: "/dashboard/admin/backups", 
-            icon: <Archive className="w-5 h-5" />, 
-            color: "brand-primary" 
+          {
+            title: "Enterprise Backups",
+            sub: "Cloud Vault & Orchestration",
+            path: "/dashboard/admin/backups",
+            icon: <Archive className="w-5 h-5" />,
+            color: "brand-primary"
           },
-          { 
-            title: "Identity Controls", 
-            sub: "User Access & Permissions", 
-            path: "/dashboard/admin/users", 
-            icon: <Users className="w-5 h-5" />, 
-            color: "blue-500" 
+          {
+            title: "Identity Controls",
+            sub: "User Access & Permissions",
+            path: "/dashboard/admin/users",
+            icon: <Users className="w-5 h-5" />,
+            color: "blue-500"
           },
-          { 
-            title: "Budget Taxonomy", 
-            sub: "Purpose & Category Matrix", 
-            path: "/dashboard/admin/purposes", 
-            icon: <BarChart3 className="w-5 h-5" />, 
-            color: "emerald-500" 
+          {
+            title: "Budget Taxonomy",
+            sub: "Purpose & Category Matrix",
+            path: "/dashboard/admin/purposes",
+            icon: <BarChart3 className="w-5 h-5" />,
+            color: "emerald-500"
           },
-          { 
-            title: "System Diagnostics", 
-            sub: "Heuristic & Audit Logs", 
-            path: "/dashboard/admin/diagnostics", 
-            icon: <AlertCircle className="w-5 h-5" />, 
-            color: "amber-500" 
+          {
+            title: "System Diagnostics",
+            sub: "Heuristic & Audit Logs",
+            path: "/dashboard/admin/diagnostics",
+            icon: <AlertCircle className="w-5 h-5" />,
+            color: "amber-500"
           }
         ].map((tool, i) => (
           <Link key={i} href={tool.path}>
@@ -262,7 +264,7 @@ export default function AdminOverviewPage() {
       </motion.div>
 
       {/* Dept Spend Summary Table */}
-      <motion.div 
+      <motion.div
         variants={item}
         initial="hidden"
         whileInView="show"
@@ -270,7 +272,7 @@ export default function AdminOverviewPage() {
         className="glass p-10 rounded-[2.5rem] border border-border/40 shadow-2xl relative overflow-hidden"
       >
          <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-primary/5 blur-[100px] rounded-full -mr-48 -mb-48" />
-         
+
          <div className="flex justify-between items-center mb-10 relative">
             <div>
               <h3 className="text-2xl font-serif font-black text-foreground tracking-tight">Departmental Breakdown</h3>
@@ -300,7 +302,7 @@ export default function AdminOverviewPage() {
                         <span className="text-[9px] font-black text-emerald-500 uppercase">Active</span>
                      </div>
                      <div className="h-1.5 bg-secondary/50 rounded-full overflow-hidden">
-                        <motion.div 
+                        <motion.div
                           initial={{ width: 0 }}
                           whileInView={{ width: '65%' }}
                           transition={{ duration: 1, delay: i * 0.05 }}
@@ -316,7 +318,7 @@ export default function AdminOverviewPage() {
       </motion.div>
 
       {/* Danger Zone: Institutional Purge */}
-      <motion.div 
+      <motion.div
         variants={item}
         initial="hidden"
         whileInView="show"
@@ -324,7 +326,7 @@ export default function AdminOverviewPage() {
         className="glass-card p-10 border-rose-500/20 bg-rose-500/5 shadow-2xl shadow-rose-500/5 relative overflow-hidden"
       >
          <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 blur-[80px] rounded-full -mr-32 -mt-32" />
-         
+
          <div className="flex flex-col md:flex-row justify-between items-center gap-8 relative">
             <div className="flex items-center gap-6">
                <div className="w-16 h-16 rounded-[2rem] bg-rose-500/10 flex items-center justify-center border border-rose-500/20 text-rose-500 shadow-xl shadow-rose-500/10">
@@ -338,7 +340,7 @@ export default function AdminOverviewPage() {
                   </p>
                </div>
             </div>
-            
+
             <div className="shrink-0">
                <PurgeRequestsModal />
             </div>

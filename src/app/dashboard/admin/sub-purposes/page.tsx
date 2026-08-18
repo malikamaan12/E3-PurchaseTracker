@@ -5,13 +5,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { useAuth } from "@/context/AuthContext";
-import { 
-  Projector, Plus, Trash2, Snowflake, 
-  Calendar, DollarSign, Users, Briefcase,
+import {
+  Projector, Plus, Trash2, Snowflake,
+  Calendar, DollarSign, Wallet, Users, Briefcase,
   ChevronRight, X, AlertCircle, Info, CheckCircle2
 } from "lucide-react";
+import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 export default function ProjectManagementPage() {
+  usePageTitle("Project Management");
   const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
   const [isAdding, setIsAdding] = useState(false);
@@ -124,7 +126,7 @@ export default function ProjectManagementPage() {
           <p className="text-sm text-muted-foreground mt-1 font-medium italic">Manage project-specific allocations and departmental budget caps.</p>
         </div>
 
-        <button 
+        <button
           onClick={() => setIsAdding(true)}
           className="bg-brand-primary hover:brightness-110 text-white px-8 py-3 rounded-2xl transition-all shadow-[0_10px_30px_rgba(111,42,230,0.3)] font-bold flex items-center gap-2 active:scale-95 group"
         >
@@ -134,25 +136,25 @@ export default function ProjectManagementPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-         <StatsCard 
-            label="Active Projects" 
-            value={projects.filter((p: any) => p.status === 'active').length} 
-            icon={<CheckCircle2 className="w-5 h-5 text-emerald-500" />} 
+         <StatsCard
+            label="Active Projects"
+            value={projects.filter((p: any) => p.status === 'active').length}
+            icon={<CheckCircle2 className="w-5 h-5 text-emerald-500" />}
           />
-          <StatsCard 
-            label="Total Exposure" 
-            value={`$${projects.reduce((sum: number, p: any) => sum + (p.totalBudget || 0), 0).toLocaleString()}`} 
-            icon={<DollarSign className="w-5 h-5 text-brand-primary" />} 
+          <StatsCard
+            label="Total Exposure"
+            value={`QAR ${projects.reduce((sum: number, p: any) => sum + (p.totalBudget || 0), 0).toLocaleString()}`}
+            icon={<Wallet className="w-5 h-5 text-brand-primary" />}
           />
-          <StatsCard 
-            label="Frozen Assets" 
-            value={projects.filter((p: any) => p.status === 'frozen').length} 
-            icon={<Snowflake className="w-5 h-5 text-cyan-500" />} 
+          <StatsCard
+            label="Frozen Assets"
+            value={projects.filter((p: any) => p.status === 'frozen').length}
+            icon={<Snowflake className="w-5 h-5 text-cyan-500" />}
           />
-          <StatsCard 
-             label="Expiring Soon" 
-             value={0} 
-             icon={<Calendar className="w-5 h-5 text-amber-500" />} 
+          <StatsCard
+             label="Expiring Soon"
+             value={0}
+             icon={<Calendar className="w-5 h-5 text-amber-500" />}
            />
       </div>
 
@@ -207,11 +209,11 @@ export default function ProjectManagementPage() {
                         </span>
                       </div>
                       <div className="w-full h-2 bg-secondary rounded-full overflow-hidden border border-white/5">
-                        <div 
+                        <div
                           className={`h-full transition-all duration-500 rounded-full ${
                             isOver ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
-                          }`} 
-                          style={{ width: `${Math.min(100, Math.max(0, pct))}%` }} 
+                          }`}
+                          style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
                         />
                       </div>
                       <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -232,18 +234,18 @@ export default function ProjectManagementPage() {
                       </div>
                   </td>
                   <td className="p-6 text-right space-x-1 whitespace-nowrap">
-                     <button 
+                     <button
                         onClick={() => updateStatusMutation.mutate({ id: proj.id, data: { status: proj.status === 'active' ? 'frozen' : 'active' }})}
                         className={`w-11 h-11 inline-flex items-center justify-center rounded-2xl transition-all shadow-none hover:shadow-xl active:scale-95 ${
-                          proj.status === 'frozen' 
-                            ? 'bg-cyan-500/20 text-cyan-500 border border-cyan-500/30' 
+                          proj.status === 'frozen'
+                            ? 'bg-cyan-500/20 text-cyan-500 border border-cyan-500/30'
                             : 'hover:bg-white text-muted-foreground hover:text-cyan-500'
                         }`}
                         title={proj.status === 'frozen' ? "Unfreeze Project" : "Freeze Project"}
                       >
                         <Snowflake className={`w-5 h-5 ${proj.status === 'frozen' ? 'animate-pulse' : ''}`} />
                       </button>
-                      <button 
+                      <button
                         onClick={() => setProjectToDelete(proj)}
                         className="w-11 h-11 inline-flex items-center justify-center hover:bg-rose-500/10 rounded-2xl text-muted-foreground hover:text-rose-500 transition-all shadow-none hover:shadow-xl active:scale-95"
                         title="Delete Project"
@@ -283,8 +285,8 @@ export default function ProjectManagementPage() {
                   {/* Basic Details */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <Field label="Project Title">
-                       <input 
-                          type="text" 
+                       <input
+                          type="text"
                           placeholder="Project Alpha..."
                           className="w-full bg-secondary/50 border border-border rounded-2xl px-5 py-4 outline-none focus:ring-4 focus:ring-brand-primary/10 transition-all font-black text-lg"
                           value={formData.name}
@@ -292,7 +294,7 @@ export default function ProjectManagementPage() {
                        />
                     </Field>
                     <Field label="Purpose Classification">
-                        <select 
+                        <select
                           className="w-full bg-secondary/50 border border-border rounded-2xl px-5 py-4 outline-none appearance-none font-bold"
                           value={formData.purposeCategoryId}
                           onChange={(e) => setFormData(s => ({ ...s, purposeCategoryId: e.target.value }))}
@@ -308,26 +310,26 @@ export default function ProjectManagementPage() {
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                      <Field label="Total Exposure Ceiling">
                         <div className="relative">
-                           <span className="absolute left-5 top-1/2 -translate-y-1/2 font-serif font-black text-xl text-muted-foreground">$</span>
-                           <input 
-                              type="number" 
-                              className="w-full bg-secondary/50 border border-border rounded-2xl pl-10 pr-5 py-4 outline-none font-serif text-xl font-black text-brand-primary"
+                           <span className="absolute left-4 top-1/2 -translate-y-1/2 font-sans font-bold text-xs text-muted-foreground">QAR</span>
+                           <input
+                              type="number"
+                              className="w-full bg-secondary/50 border border-border rounded-2xl pl-14 pr-5 py-4 outline-none font-serif text-xl font-black text-brand-primary"
                               value={formData.totalBudget}
                               onChange={(e) => setFormData(s => ({ ...s, totalBudget: Number(e.target.value) }))}
                            />
                         </div>
                      </Field>
                      <Field label="Validity From">
-                        <input 
-                          type="date" 
+                        <input
+                          type="date"
                           className="w-full bg-secondary/50 border border-border rounded-2xl px-5 py-4 outline-none font-bold text-sm"
                           value={formData.validFrom}
                           onChange={(e) => setFormData(s => ({ ...s, validFrom: e.target.value }))}
                         />
                      </Field>
                      <Field label="Validity To">
-                        <input 
-                          type="date" 
+                        <input
+                          type="date"
                           className="w-full bg-secondary/50 border border-border rounded-2xl px-5 py-4 outline-none font-bold text-sm"
                           value={formData.validTo}
                           onChange={(e) => setFormData(s => ({ ...s, validTo: e.target.value }))}
@@ -345,7 +347,7 @@ export default function ProjectManagementPage() {
                           </h4>
                           <p className="text-[10px] text-muted-foreground font-bold mt-1">Define specific budget caps for each participating department.</p>
                         </div>
-                        <button 
+                        <button
                            onClick={addBudgetSplit}
                            className="text-[10px] font-black uppercase tracking-widest text-brand-primary hover:bg-brand-primary/10 px-3 py-1.5 rounded-lg transition-all"
                         >
@@ -356,7 +358,7 @@ export default function ProjectManagementPage() {
                      <div className="space-y-3">
                         {formData.budgetSplits.map((split, index) => (
                            <div key={index} className="flex gap-3 animate-in fade-in slide-in-from-right-4 duration-300">
-                             <select 
+                             <select
                                 className="flex-1 bg-secondary/30 border border-border rounded-xl px-4 py-3 outline-none text-sm font-bold"
                                 value={split.departmentId}
                                 onChange={(e) => updateBudgetSplit(index, "departmentId", e.target.value)}
@@ -366,17 +368,17 @@ export default function ProjectManagementPage() {
                                  <option key={d.id} value={d.id}>{d.name}</option>
                                ))}
                              </select>
-                             <div className="relative w-40">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-serif font-black text-sm">$</span>
-                                <input 
-                                   type="number" 
+                             <div className="relative w-44">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground font-sans font-bold text-xs">QAR</span>
+                                <input
+                                   type="number"
                                    placeholder="0.00"
-                                   className="w-full bg-secondary/30 border border-border rounded-xl pl-7 pr-4 py-3 outline-none text-sm font-black font-serif"
+                                   className="w-full bg-secondary/30 border border-border rounded-xl pl-12 pr-4 py-3 outline-none text-sm font-black font-serif"
                                    value={split.amount}
                                    onChange={(e) => updateBudgetSplit(index, "amount", e.target.value)}
                                 />
                              </div>
-                             <button 
+                             <button
                                 onClick={() => removeBudgetSplit(index)}
                                 className="p-3 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-all"
                              >
@@ -390,19 +392,19 @@ export default function ProjectManagementPage() {
                      <div className={`p-4 rounded-2xl flex justify-between items-center transition-all ${isOverBudget ? 'bg-rose-500/10 border border-rose-500/30' : 'bg-emerald-500/5 border border-emerald-500/20'}`}>
                          <div className="flex items-center gap-3">
                             <div className={`p-2 rounded-xl ${isOverBudget ? 'bg-rose-500 text-white shadow-lg shadow-rose-500/30' : 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'}`}>
-                               {isOverBudget ? <AlertCircle className="w-5 h-5" /> : <DollarSign className="w-5 h-5" />}
+                               {isOverBudget ? <AlertCircle className="w-5 h-5" /> : <Wallet className="w-5 h-5" />}
                             </div>
                             <div>
                                <span className="text-[10px] font-black uppercase tracking-widest block opacity-70">Allocated Balance</span>
                                <span className={`text-xl font-serif font-black ${isOverBudget ? 'text-rose-500' : 'text-emerald-500'}`}>
-                                 ${totalAllocated.toLocaleString()}
+                                 QAR {totalAllocated.toLocaleString()}
                                </span>
                             </div>
                          </div>
                          <div className="text-right">
                              <span className="text-[10px] font-black uppercase tracking-widest block opacity-50">Ceiling Remaining</span>
                              <span className={`text-sm font-black ${isOverBudget ? 'text-rose-500' : 'text-muted-foreground'}`}>
-                               {isOverBudget ? `OVER BY $${(totalAllocated - formData.totalBudget).toLocaleString()}` : `$${(formData.totalBudget - totalAllocated).toLocaleString()}`}
+                               {isOverBudget ? `OVER BY QAR ${(totalAllocated - formData.totalBudget).toLocaleString()}` : `QAR ${(formData.totalBudget - totalAllocated).toLocaleString()}`}
                              </span>
                          </div>
                      </div>
@@ -410,13 +412,13 @@ export default function ProjectManagementPage() {
               </div>
 
               <div className="p-8 border-t border-border bg-secondary/20 flex gap-4">
-                  <button 
-                    onClick={() => setIsAdding(false)} 
+                  <button
+                    onClick={() => setIsAdding(false)}
                     className="flex-1 px-8 py-4 rounded-2xl font-bold hover:bg-secondary transition-all"
                   >
                     Cancel
                   </button>
-                  <button 
+                  <button
                     onClick={() => createMutation.mutate(formData)}
                     disabled={createMutation.isPending || isOverBudget || !formData.name || !formData.purposeCategoryId}
                     className="flex-[2] bg-brand-primary text-white py-4 rounded-2xl font-bold shadow-xl shadow-brand-primary/30 transition-all active:scale-95 disabled:opacity-50"
@@ -429,7 +431,7 @@ export default function ProjectManagementPage() {
       )}
 
       {/* Delete / Freeze Safeguard Modal with Keyboard Tab Focus Navigation */}
-      <DeleteSubPurposeModal 
+      <DeleteSubPurposeModal
         project={projectToDelete}
         isOpen={Boolean(projectToDelete)}
         onClose={() => setProjectToDelete(null)}
@@ -444,19 +446,19 @@ export default function ProjectManagementPage() {
   );
 }
 
-function DeleteSubPurposeModal({ 
-  project, 
-  isOpen, 
-  onClose, 
-  onConfirmDelete, 
-  onConfirmFreeze, 
-  isDeleting 
-}: { 
-  project: any; 
-  isOpen: boolean; 
-  onClose: () => void; 
-  onConfirmDelete: (id: number) => void; 
-  onConfirmFreeze: (id: number) => void; 
+function DeleteSubPurposeModal({
+  project,
+  isOpen,
+  onClose,
+  onConfirmDelete,
+  onConfirmFreeze,
+  isDeleting
+}: {
+  project: any;
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirmDelete: (id: number) => void;
+  onConfirmFreeze: (id: number) => void;
   isDeleting: boolean;
 }) {
   const cancelRef = useRef<HTMLButtonElement>(null);
@@ -512,7 +514,7 @@ function DeleteSubPurposeModal({
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-in fade-in duration-200"
       onKeyDown={handleKeyDown}
     >
@@ -635,15 +637,15 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 function FolderTreeIcon(props: any) {
   return (
-    <svg 
+    <svg
       {...props}
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 24 24" 
-      fill="none" 
-      stroke="currentColor" 
-      strokeWidth="3" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
     >
       <path d="M20 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z" />
       <path d="M12 2v8" />

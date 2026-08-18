@@ -3,6 +3,7 @@ import { db } from "@db";
 import { vendors, insertVendorSchema } from "@db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
+import { maskVendorList } from "@/lib/utils/masking";
 
 export const dynamic = 'force-dynamic';
 
@@ -38,7 +39,7 @@ export async function GET(req: NextRequest) {
       documents: allDocs.filter(d => d.vendorId === v.id)
     }));
 
-    return NextResponse.json(vendorsWithDocs);
+    return NextResponse.json(maskVendorList(vendorsWithDocs));
   } catch (error: any) {
     console.error("[Native API] Vendors GET Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

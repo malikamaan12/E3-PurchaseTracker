@@ -258,7 +258,7 @@ export default function AdminProjectsPage() {
               <div className="mt-6 flex items-center gap-2 overflow-x-auto pb-2 custom-scrollbar">
                  {Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="flex-shrink-0 bg-secondary/50 px-4 py-2 rounded-xl border border-border text-[9px] font-black uppercase tracking-widest text-muted-foreground">
-                       DEPT-{i+1}: $50,000
+                       DEPT-{i+1}: QAR 50,000
                     </div>
                  ))}
                  <button className="flex-shrink-0 text-primary text-[9px] font-black uppercase tracking-widest flex items-center gap-1 hover:underline ml-2">

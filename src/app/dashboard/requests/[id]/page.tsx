@@ -22,6 +22,7 @@ import { ExportDropdown } from "@/components/requests/ExportDropdown";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -48,6 +49,8 @@ export default function RequestDetailPage() {
     queryFn: () => apiClient.requests.get(requestId),
     retry: 1,
   });
+
+  usePageTitle(request?.requestNumber ? `${request.requestNumber} - ${request.title}` : `Request #${requestId}`);
 
   const approvalMutation = useMutation({
     mutationFn: ({ status, comments }: { status: string; comments: string }) =>
@@ -140,25 +143,26 @@ export default function RequestDetailPage() {
         isPending={approvalMutation.isPending}
       />
 
-      <header className="sticky top-0 z-50 bg-background/60 backdrop-blur-2xl border-b border-border/30 px-6 py-4 transition-all">
-        <div className="max-w-[1400px] mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-4">
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-2xl border-b border-border/30 px-4 sm:px-6 py-3 sm:py-4 transition-all">
+        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full md:w-auto">
             <button 
               onClick={() => router.back()}
-              className="p-2 hover:bg-muted/50 rounded-full text-muted-foreground hover:text-foreground transition-all duration-300"
+              aria-label="Navigate back"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 hover:bg-muted/50 rounded-xl text-muted-foreground hover:text-foreground transition-all shrink-0"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-mono font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20">
+            <div className="flex items-center flex-wrap gap-2 min-w-0 flex-1">
+              <span className="text-xs font-mono font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20 shrink-0">
                 {request.requestNumber}
               </span>
-              <h1 className="text-lg font-bold tracking-tight truncate max-w-md">{request.title}</h1>
+              <h1 className="text-base sm:text-lg font-bold tracking-tight line-clamp-2 md:truncate text-foreground max-w-full md:max-w-md">{request.title}</h1>
               <StatusBadge status={request.status} />
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center flex-wrap gap-2 w-full md:w-auto justify-end">
             <ExportDropdown 
               requestId={requestId} 
               requestNumber={request.requestNumber} 
@@ -175,7 +179,8 @@ export default function RequestDetailPage() {
                   variant="outline" 
                   size="sm" 
                   onClick={() => setShowEditModal(true)}
-                  className="gap-2 rounded-full px-4 border-border/50 hover:bg-muted/50 shadow-sm transition-all"
+                  aria-label="Edit Request"
+                  className="min-h-[40px] gap-2 rounded-xl px-4 border-border/50 hover:bg-muted/50 shadow-sm transition-all"
                 >
                   <Edit3 className="w-3.5 h-3.5" /> Edit
                 </Button>
@@ -183,13 +188,14 @@ export default function RequestDetailPage() {
                   variant="destructive" 
                   size="sm" 
                   onClick={() => setShowDeleteDialog(true)}
-                  className="gap-2 rounded-full px-4 shadow-sm"
+                  aria-label="Delete Request"
+                  className="min-h-[40px] gap-2 rounded-xl px-4 shadow-sm"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Delete
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-full text-muted-foreground text-xs font-semibold border border-border/50 shadow-sm" title="Locked from edits">
+              <div className="flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-xl text-muted-foreground text-xs font-semibold border border-border/50 shadow-sm" title="Locked from edits">
                 <Lock className="w-3.5 h-3.5" /> Locked
               </div>
             )}
@@ -197,7 +203,8 @@ export default function RequestDetailPage() {
             {canAct && (
               <Button 
                 onClick={() => setShowActionPanel(prev => !prev)}
-                className="gap-2 bg-primary text-primary-foreground rounded-full px-5 shadow-sm hover:shadow-md transition-all"
+                aria-label={showActionPanel ? "Close Review" : "Review Request"}
+                className="min-h-[40px] gap-2 bg-primary text-primary-foreground rounded-xl px-5 shadow-sm hover:shadow-md transition-all font-semibold"
                 size="sm"
               >
                 <ShieldCheck className="w-4 h-4" />

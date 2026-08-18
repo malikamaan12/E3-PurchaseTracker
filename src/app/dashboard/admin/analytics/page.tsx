@@ -12,8 +12,10 @@ const EntityUtilizationChart = dynamic(() => import("@/components/admin/EntityUt
 import { PieChart as PieChartIcon, TrendingUp, Building2, DownloadCloud, Printer, ArrowUpRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
+import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 export default function DepartmentAnalyticsPage() {
+  usePageTitle("Department Analytics");
   const { user, isLoading: isAuthLoading } = useAuth();
   
   const { data: analyticsGroups, isLoading } = useQuery({
@@ -25,12 +27,13 @@ export default function DepartmentAnalyticsPage() {
   const stats = (analyticsGroups as any)?.departmental || [];
   const colors = ["hsl(var(--brand-primary))", "hsl(var(--brand-secondary))", "#F59E0B", "#EF4444", "#10B981", "#06b6d4"];
 
-  const maxCost = Math.max(...(stats.length ? stats.map((s: any) => s.totalCost) : [1]));
-  const totalSpend = stats.reduce((acc: number, curr: any) => acc + curr.totalCost, 0);
+  const maxCost = Math.max(...(stats.length ? stats.map((s: any) => s.committedAmount ?? s.totalCost) : [1]));
+  const totalCommitted = stats.reduce((acc: number, curr: any) => acc + (curr.committedAmount ?? curr.totalCost ?? 0), 0);
+  const totalDisbursed = stats.reduce((acc: number, curr: any) => acc + (curr.disbursedAmount ?? 0), 0);
 
   const handlePrint = () => {
     toast.message("Executive Summary", {
-      description: "Generating formal PDF report of departmental spend...",
+      description: "Generating formal PDF report of departmental financial commitments...",
     });
 
     import('jspdf').then(({ default: jsPDF }) => {
@@ -40,7 +43,7 @@ export default function DepartmentAnalyticsPage() {
 
         // Title
         doc.setFontSize(20);
-        doc.text("Executive Analytics Report", 14, 22);
+        doc.text("Executive Financial Report", 14, 22);
         
         doc.setFontSize(10);
         doc.setTextColor(100);
@@ -53,32 +56,33 @@ export default function DepartmentAnalyticsPage() {
 
         autoTable(doc, {
           startY: 50,
-          head: [['Aggregate Spend (QAR)', 'Active Departments', 'Average Per Dept']],
+          head: [['Committed & Authorized (QAR)', 'Disbursed / Paid (QAR)', 'Active Departments']],
           body: [
             [
-              totalSpend.toLocaleString(),
-              stats.length.toString(),
-              (stats.length ? Math.round(totalSpend / stats.length) : 0).toLocaleString()
+              totalCommitted.toLocaleString(),
+              totalDisbursed.toLocaleString(),
+              stats.length.toString()
             ]
           ],
           theme: 'grid',
           headStyles: { fillColor: [16, 185, 129] }
         });
 
-        // Departmental Spend Table
+        // Departmental Table
         doc.text("Departmental Breakdown", 14, (doc as any).lastAutoTable.finalY + 15);
         
         const deptBody = stats
-          .sort((a: any, b: any) => b.totalCost - a.totalCost)
+          .sort((a: any, b: any) => (b.committedAmount ?? b.totalCost) - (a.committedAmount ?? a.totalCost))
           .map((stat: any) => [
             stat.department,
             stat.count.toString(),
-            `${stat.totalCost.toLocaleString()} QAR`
+            `${(stat.committedAmount ?? stat.totalCost).toLocaleString()} QAR`,
+            `${(stat.disbursedAmount ?? 0).toLocaleString()} QAR`
           ]);
 
         autoTable(doc, {
           startY: (doc as any).lastAutoTable.finalY + 20,
-          head: [['Department', 'Request Count', 'Total Spend']],
+          head: [['Department', 'Requests', 'Committed Value', 'Disbursed Amount']],
           body: deptBody,
           theme: 'striped',
           headStyles: { fillColor: [16, 185, 129] }
@@ -89,7 +93,7 @@ export default function DepartmentAnalyticsPage() {
         if (projects.length > 0) {
           doc.addPage();
           doc.setFontSize(14);
-          doc.text("Top 10 Project Utilization", 14, 22);
+          doc.text("Project Financial Utilization", 14, 22);
 
           const projectBody = projects.map((p: any) => [
             p.projectName,
@@ -100,7 +104,7 @@ export default function DepartmentAnalyticsPage() {
 
           autoTable(doc, {
             startY: 30,
-            head: [['Project Name', 'Total Budget', 'Spent', 'Utilization']],
+            head: [['Project Name', 'Total Budget', 'Committed Exposure', 'Utilization']],
             body: projectBody,
             theme: 'striped',
             headStyles: { fillColor: [59, 130, 246] }
@@ -144,14 +148,11 @@ export default function DepartmentAnalyticsPage() {
            animate={{ opacity: 1, scale: 1 }}
            className="glass p-6 rounded-3xl border border-border/40 shadow-xl"
          >
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Aggregate Spend</p>
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Committed & Authorized Value</p>
             <div className="flex items-end gap-2 mt-2">
-               <h3 className="text-3xl font-serif font-black text-foreground">QAR {totalSpend.toLocaleString()}</h3>
-               <span className="text-[10px] font-bold text-emerald-500 mb-1.5 flex items-center">
-                  <ArrowUpRight className="w-3 h-3" /> 12%
-               </span>
+               <h3 className="text-3xl font-serif font-black text-foreground">QAR {totalCommitted.toLocaleString()}</h3>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1 font-bold italic">Across {stats.length} entities</p>
+            <p className="text-[10px] text-muted-foreground mt-1 font-bold italic">Active procurement across {stats.length} departments</p>
          </motion.div>
          <motion.div 
            initial={{ opacity: 0, scale: 0.95 }}
@@ -159,9 +160,9 @@ export default function DepartmentAnalyticsPage() {
            transition={{ delay: 0.1 }}
            className="glass p-6 rounded-3xl border border-border/40 shadow-xl"
          >
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Active Departments</p>
-            <h3 className="text-3xl font-serif font-black text-foreground mt-2 tracking-tight">{stats.length}</h3>
-            <p className="text-[10px] text-muted-foreground mt-1 font-bold italic font-mono uppercase tracking-tighter">Verified in ledger</p>
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Disbursed / Paid Out</p>
+            <h3 className="text-3xl font-serif font-black text-foreground mt-2 tracking-tight">QAR {totalDisbursed.toLocaleString()}</h3>
+            <p className="text-[10px] text-muted-foreground mt-1 font-bold italic uppercase tracking-tighter">Settled payment installments</p>
          </motion.div>
          <motion.div 
            initial={{ opacity: 0, scale: 0.95 }}
@@ -169,9 +170,9 @@ export default function DepartmentAnalyticsPage() {
            transition={{ delay: 0.2 }}
            className="glass p-6 rounded-3xl border border-border/40 shadow-xl"
          >
-            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Average Per Dept</p>
-            <h3 className="text-3xl font-serif font-black text-foreground mt-2 tracking-tight">QAR {(stats.length ? Math.round(totalSpend / stats.length) : 0).toLocaleString()}</h3>
-            <p className="text-[10px] text-muted-foreground mt-1 font-bold italic uppercase tracking-tighter">Budget Allocation Mean</p>
+            <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Active Departments</p>
+            <h3 className="text-3xl font-serif font-black text-foreground mt-2 tracking-tight">{stats.length}</h3>
+            <p className="text-[10px] text-muted-foreground mt-1 font-bold italic font-mono uppercase tracking-tighter">Registered cost centers</p>
          </motion.div>
       </div>
 
@@ -214,8 +215,8 @@ export default function DepartmentAnalyticsPage() {
                       <TrendingUp className="w-6 h-6 text-emerald-500" />
                    </div>
                    <div>
-                      <h2 className="text-xl font-black text-foreground leading-none">Capital Leakage</h2>
-                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Total expenditure velocity</p>
+                      <h2 className="text-xl font-black text-foreground leading-none">Committed Allocation</h2>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Departmental committed exposure</p>
                    </div>
                </div>
            </div>
@@ -226,16 +227,16 @@ export default function DepartmentAnalyticsPage() {
              </div>
            ) : stats.length > 0 ? (
              <div className="space-y-6 pt-4 relative">
-               {stats.sort((a: any, b: any) => b.totalCost - a.totalCost).slice(0, 6).map((stat: any, i: number) => (
+               {stats.sort((a: any, b: any) => (b.committedAmount ?? b.totalCost) - (a.committedAmount ?? a.totalCost)).slice(0, 6).map((stat: any, i: number) => (
                  <div key={i} className="group/row">
                    <div className="flex justify-between text-[11px] mb-2 font-black uppercase tracking-widest">
                      <span className="text-foreground group-hover/row:text-brand-primary transition-colors">{stat.department}</span>
-                     <span className="text-muted-foreground">QAR {(stat.totalCost).toLocaleString()}</span>
+                     <span className="text-muted-foreground">QAR {(stat.committedAmount ?? stat.totalCost).toLocaleString()}</span>
                    </div>
                    <div className="h-2.5 bg-secondary/50 rounded-full overflow-hidden border border-border/30">
                      <motion.div 
                        initial={{ width: 0 }}
-                       animate={{ width: `${(stat.totalCost / maxCost) * 100}%` }}
+                       animate={{ width: `${((stat.committedAmount ?? stat.totalCost) / maxCost) * 100}%` }}
                        transition={{ duration: 1.5, ease: "easeOut", delay: i * 0.1 }}
                        className="h-full rounded-full transition-all relative"
                        style={{ 

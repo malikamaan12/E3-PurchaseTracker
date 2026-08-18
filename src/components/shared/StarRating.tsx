@@ -19,10 +19,11 @@ export function StarRating({ rating, onRate, readonly = false, size = 16 }: Star
         <button
           key={star}
           type="button"
+          aria-label={readonly ? `${rating} stars` : `Rate ${star} out of 5 stars`}
           onClick={() => !readonly && onRate?.(star)}
           onMouseEnter={() => !readonly && setHover(star)}
           onMouseLeave={() => !readonly && setHover(0)}
-          className={`transition-transform duration-150 ease-out ${
+          className={`p-1.5 rounded-md min-w-[28px] min-h-[28px] flex items-center justify-center transition-transform duration-150 ease-out focus:outline-none focus:ring-2 focus:ring-primary/20 ${
             readonly
               ? "cursor-default"
               : "cursor-pointer hover:scale-125 active:scale-90"
@@ -36,7 +37,7 @@ export function StarRating({ rating, onRate, readonly = false, size = 16 }: Star
             className={`${
               star <= (hover || rating)
                 ? "fill-amber-400 text-amber-400"
-                : "fill-zinc-800 text-zinc-600"
+                : "fill-muted/40 text-muted-foreground/40"
             } transition-colors duration-200`}
           />
         </button>

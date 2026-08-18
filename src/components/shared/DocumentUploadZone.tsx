@@ -263,6 +263,8 @@ export default function DocumentUploadZone({ onUploadComplete, initialFiles }: D
           <input
             type="file"
             multiple
+            accept=".pdf,.jpg,.jpeg,.png,.docx,application/pdf,image/jpeg,image/png,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            aria-label="Upload supporting document files (PDF, JPG, PNG, DOCX)"
             onChange={(e) => e.target.files && processFiles(e.target.files)}
             className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
           />

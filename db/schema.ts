@@ -53,6 +53,7 @@ export const notifications = pgTable("notifications", {
   isRead: boolean("is_read").notNull().default(false),
   isAcknowledged: boolean("is_acknowledged").notNull().default(false),
   link: text("link"),
+  idempotencyKey: text("idempotency_key"),
   actionType: text("action_type"), // Optional field for indicating action required
   actionData: jsonb("action_data").$type<Record<string, any>>(), // Optional data for action
   expiresAt: timestamp("expires_at"), // Optional expiration time

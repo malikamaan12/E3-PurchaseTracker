@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
-import { 
-  purchaseRequests, 
-  users, 
-  paymentInstallments, 
-  subPurposes, 
-  departments, 
+import {
+  purchaseRequests,
+  users,
+  paymentInstallments,
+  subPurposes,
+  departments,
   purposeCategories,
   approvals,
   vendors
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
     // 1. Build Base Filters with NaN Mitigation
     const filters: any[] = [];
-    
+
     const parseId = (val: string | null) => {
       if (!val) return null;
       const parsed = parseInt(val);
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     if (purpId) filters.push(eq(purchaseRequests.purposeCategoryId, purpId));
     if (vId) filters.push(eq(purchaseRequests.vendorId, vId));
     if (prStatus) filters.push(eq(purchaseRequests.status, prStatus));
-    
+
     // Department filtering requires join with users or departments
     const deptId = parseId(departmentId);
     if (deptId) {
@@ -65,14 +65,15 @@ export async function GET(req: NextRequest) {
     // ─── AGGREGATION 1: CASH FLOW PROJECTION ────────────────────────────────
     // Aggregate pending installments to forecast liquidity needs
     const cashFlow = await db.select({
-      bucket: sql`DATE_TRUNC(${sql.raw(timeframe === 'weekly' ? "'week'" : "'month'")}, ${paymentInstallments.dueDate})`,
-      amount: sql`SUM(COALESCE(${paymentInstallments.calculatedAmountQar}, COALESCE(${paymentInstallments.calculatedAmount}, 0) * COALESCE(${paymentInstallments.exchangeRate}, 1.0)))`,
+      bucket: sql`DATE_TRUNC(${sql.raw(timeframe === 'weekly' ? "'week'" : "'month'")}, COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate}))`,
+      amount: sql`SUM(GREATEST(COALESCE(${paymentInstallments.calculatedAmountQar}, COALESCE(${paymentInstallments.calculatedAmount}, 0) * COALESCE(${paymentInstallments.exchangeRate}, 1.0)) - COALESCE(${paymentInstallments.paidAmount}, 0) * COALESCE(${paymentInstallments.exchangeRate}, 1.0), 0))`,
     })
     .from(paymentInstallments)
     .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
     .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
     .where(and(
-      eq(paymentInstallments.status, 'pending'),
+      sql`${paymentInstallments.status} NOT IN ('cancelled', 'voided', 'paid')`,
+      isNotNull(sql`COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate})`),
       baseWhere
     ))
     .groupBy(sql`1`)
@@ -111,13 +112,18 @@ export async function GET(req: NextRequest) {
     .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
     .where(and(eq(paymentInstallments.status, 'paid'), baseWhere));
 
+    const totalPRCount = Number(complianceBase[0]?.totalPRs || 0);
+    const variedPRCount = Number(complianceBase[0]?.variedPRs || 0);
+    const totalPaymentsCount = Number(onTimePayments[0]?.total || 0);
+    const onTimePaymentsCount = Number(onTimePayments[0]?.onTime || 0);
+
     const complianceScore = {
-      budgetAdherence: complianceBase[0]?.totalPRs 
-        ? Math.round(((Number(complianceBase[0].totalPRs) - Number(complianceBase[0].variedPRs)) / Number(complianceBase[0].totalPRs)) * 100) 
-        : 100,
-      paymentOnTime: onTimePayments[0]?.total 
-        ? Math.round((Number(onTimePayments[0].onTime) / Number(onTimePayments[0].total)) * 100) 
-        : 100
+      budgetAdherence: totalPRCount > 0
+        ? Math.round(((totalPRCount - variedPRCount) / totalPRCount) * 100)
+        : null,
+      paymentOnTime: totalPaymentsCount > 0
+        ? Math.round((onTimePaymentsCount / totalPaymentsCount) * 100)
+        : null
     };
 
     // ─── AGGREGATION 4: RESOURCE UTILIZATION INDEX (RUI) ─────────────────────
@@ -184,7 +190,7 @@ export async function GET(req: NextRequest) {
         department: r.department,
         velocity: Number(r.totalSpent || 0)
       })),
-      cycleTime: Math.round(Number(cycleTime[0]?.avgDays || 0) * 10) / 10,
+      cycleTime: cycleTime[0]?.avgDays != null ? Math.round(Number(cycleTime[0].avgDays) * 10) / 10 : null,
       distribution: {
         vendor: vendorDist.map(v => ({ name: v.name, value: Number(v.value || 0) })),
         purpose: purposeDist.map(p => ({ name: p.name, value: Number(p.value || 0) })),
@@ -198,8 +204,8 @@ export async function GET(req: NextRequest) {
       cause: error.cause,
       name: error.name
     });
-    return NextResponse.json({ 
-      error: "Aggregation Failed", 
+    return NextResponse.json({
+      error: "Aggregation Failed",
       message: error.message,
       diagnostics: {
         code: error.code,

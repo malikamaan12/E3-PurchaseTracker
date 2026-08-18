@@ -26,13 +26,13 @@ interface Department {
   isApprover: boolean;
 }
 
-function CreateUserModal({ 
-  isOpen, 
-  onClose, 
-  departments 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
+function CreateUserModal({
+  isOpen,
+  onClose,
+  departments
+}: {
+  isOpen: boolean;
+  onClose: () => void;
   departments: Department[];
 }) {
   const queryClient = useQueryClient();
@@ -65,20 +65,20 @@ function CreateUserModal({
           <h2 className="text-xl font-bold text-white font-serif">Create New User</h2>
           <p className="text-xs text-zinc-400 mt-1">Onboard a new system user with specific role and department.</p>
         </div>
-        
+
         <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate(formData); }} className="p-6 space-y-4">
           <div className="space-y-4">
             <div>
               <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5 ml-1">Account Info</label>
               <div className="grid grid-cols-2 gap-3">
-                <input 
+                <input
                   placeholder="Username"
                   className="bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
                   value={formData.username}
                   onChange={e => setFormData({...formData, username: e.target.value})}
                   required
                 />
-                <input 
+                <input
                   placeholder="Password"
                   type="password"
                   className="bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
@@ -89,7 +89,7 @@ function CreateUserModal({
               </div>
             </div>
 
-            <input 
+            <input
               placeholder="Email Address"
               type="email"
               className="w-full bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
@@ -99,7 +99,7 @@ function CreateUserModal({
             />
 
             <div className="grid grid-cols-2 gap-3">
-              <select 
+              <select
                 className="bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors appearance-none"
                 value={formData.role}
                 onChange={e => setFormData({...formData, role: e.target.value})}
@@ -109,7 +109,7 @@ function CreateUserModal({
                 <option value="admin">Admin</option>
               </select>
 
-              <select 
+              <select
                 className="bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors appearance-none"
                 value={formData.department}
                 onChange={e => setFormData({...formData, department: e.target.value})}
@@ -122,7 +122,7 @@ function CreateUserModal({
               </select>
             </div>
 
-            <input 
+            <input
               placeholder="Contact Number"
               className="w-full bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
               value={formData.contact_number}
@@ -131,14 +131,14 @@ function CreateUserModal({
           </div>
 
           <div className="flex gap-3 pt-4">
-            <button 
+            <button
               type="button"
               onClick={onClose}
               className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
             >
               Cancel
             </button>
-            <button 
+            <button
               type="submit"
               disabled={createMutation.isPending}
               className="flex-1 px-4 py-2.5 bg-brand-primary rounded-xl text-sm font-bold text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
@@ -152,14 +152,14 @@ function CreateUserModal({
   );
 }
 
-function ResetPasswordModal({ 
-  isOpen, 
-  user, 
-  onClose 
-}: { 
-  isOpen: boolean; 
-  user: User | null; 
-  onClose: () => void; 
+function ResetPasswordModal({
+  isOpen,
+  user,
+  onClose
+}: {
+  isOpen: boolean;
+  user: User | null;
+  onClose: () => void;
 }) {
   const [password, setPassword] = useState("");
   const resetPasswordMutation = useMutation({
@@ -180,7 +180,7 @@ function ResetPasswordModal({
       <div className="bg-zinc-950 border border-white/10 rounded-3xl w-[95vw] md:max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-300">
         <h2 className="text-xl font-bold text-white font-serif">Reset User Password</h2>
         <p className="text-xs text-zinc-400 mt-1 mb-4">Set a new password for user <span className="text-white font-bold">{user.username}</span> ({user.email}).</p>
-        
+
         <form onSubmit={(e) => {
           e.preventDefault();
           if (password.length < 6) {
@@ -220,7 +220,10 @@ function ResetPasswordModal({
   );
 }
 
+import { usePageTitle } from "@/lib/hooks/usePageTitle";
+
 export default function UserManagementPage() {
+  usePageTitle("User Management");
   const { user, isLoading: isAuthLoading } = useAuth();
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -268,7 +271,7 @@ export default function UserManagementPage() {
             <Users className="w-5 h-5 text-brand-primary" />
             <span className="text-foreground font-bold">{users.length} Total Users</span>
           </div>
-          <button 
+          <button
             onClick={() => setIsCreateModalOpen(true)}
             className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
           >
@@ -278,9 +281,9 @@ export default function UserManagementPage() {
         </div>
       </div>
 
-      <CreateUserModal 
-        isOpen={isCreateModalOpen} 
-        onClose={() => setIsCreateModalOpen(false)} 
+      <CreateUserModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
         departments={departments}
       />
 
@@ -290,18 +293,86 @@ export default function UserManagementPage() {
         onClose={() => setResetTargetUser(null)}
       />
 
-      <div className="bg-card rounded-3xl border border-border overflow-hidden shadow-xl">
+      {/* Mobile User Cards */}
+      <div className="md:hidden space-y-4">
+        {users.map((u: User) => (
+          <div key={u.id} className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-3.5">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-foreground truncate">{u.username}</p>
+                <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                  u.role === 'admin' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' :
+                  u.role === 'approver' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' :
+                  'bg-muted text-muted-foreground border-border'
+                }`}>
+                  {u.role}
+                </span>
+                <span className="px-2 py-0.5 bg-secondary rounded text-[10px] font-medium text-foreground border border-border">
+                  {u.department}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/50">
+              <div className="flex items-center gap-1.5">
+                {u.isActive ? (
+                  <><CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /><span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">Active</span></>
+                ) : (
+                  <><XCircle className="w-3.5 h-3.5 text-rose-500" /><span className="text-xs text-rose-600 dark:text-rose-400 font-medium">Disabled</span></>
+                )}
+              </div>
+              <button
+                onClick={() => updateMutation.mutate({ id: u.id, data: { canManageVendors: !u.canManageVendors } })}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                  u.canManageVendors
+                    ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                    : 'bg-secondary text-muted-foreground border-border'
+                }`}
+              >
+                {u.canManageVendors ? 'Vendor Mgr' : 'No Extra Rights'}
+              </button>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
+              <button
+                onClick={() => setResetTargetUser(u)}
+                aria-label={`Reset password for ${u.username}`}
+                className="min-h-[44px] px-3.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-semibold border border-border flex items-center gap-1.5"
+              >
+                <Key className="w-3.5 h-3.5 text-amber-500" /> Reset Password
+              </button>
+              <button
+                onClick={() => updateMutation.mutate({ id: u.id, data: { isActive: !u.isActive } })}
+                aria-label={u.isActive ? `Deactivate ${u.username}` : `Activate ${u.username}`}
+                className={`min-h-[44px] px-3.5 rounded-xl text-xs font-semibold border ${
+                  u.isActive
+                    ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/20'
+                    : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                }`}
+              >
+                {u.isActive ? 'Deactivate' : 'Activate'}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-card rounded-3xl border border-border overflow-hidden shadow-xl">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-border bg-secondary/30">
-                <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">User</th>
-                <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Contact</th>
-                <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Department</th>
-                <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Role</th>
-                <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Permissions</th>
-                <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Status</th>
-                <th className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap text-right">Actions</th>
+                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">User</th>
+                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Contact</th>
+                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Department</th>
+                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Role</th>
+                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Permissions</th>
+                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Status</th>
+                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -329,11 +400,11 @@ export default function UserManagementPage() {
                     </span>
                   </td>
                   <td className="p-4">
-                    <button 
+                    <button
                       onClick={() => updateMutation.mutate({ id: u.id, data: { canManageVendors: !u.canManageVendors } })}
                       className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all ${
-                        u.canManageVendors 
-                          ? 'bg-amber-500/20 text-amber-500 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]' 
+                        u.canManageVendors
+                          ? 'bg-amber-500/20 text-amber-500 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
                           : 'bg-zinc-800/50 text-zinc-500 border-white/5 opacity-50 hover:opacity-80'
                       }`}
                     >
@@ -358,9 +429,9 @@ export default function UserManagementPage() {
                       </DropdownMenu.Trigger>
                       <DropdownMenu.Portal>
                         <DropdownMenu.Content align="end" className="glass bg-zinc-950/95 border border-white/10 p-2 rounded-xl shadow-2xl min-w-[200px] z-50 text-sm animate-in fade-in zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95">
-                          
+
                           <div className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Security</div>
-                          <DropdownMenu.Item 
+                          <DropdownMenu.Item
                              onSelect={() => setResetTargetUser(u)}
                              className="px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 text-zinc-300 hover:text-white focus:bg-white/10 focus:text-white"
                            >
@@ -374,7 +445,7 @@ export default function UserManagementPage() {
 
                           <div className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Change Role</div>
                           {["user", "approver", "admin"].map(role => (
-                             <DropdownMenu.Item 
+                             <DropdownMenu.Item
                                key={role}
                                onSelect={() => updateMutation.mutate({ id: u.id, data: { role } })}
                                className={`px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 text-zinc-300 hover:text-white focus:bg-white/10 focus:text-white capitalize ${u.role === role ? 'font-bold text-brand-primary' : ''}`}
@@ -407,10 +478,10 @@ export default function UserManagementPage() {
                               </DropdownMenu.SubContent>
                             </DropdownMenu.Portal>
                           </DropdownMenu.Sub>
-                          
+
                           <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
-                          
-                          <DropdownMenu.Item 
+
+                          <DropdownMenu.Item
                             onSelect={() => updateMutation.mutate({ id: u.id, data: { isActive: !u.isActive } })}
                             className={`px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 ${u.isActive ? 'text-rose-500 hover:text-rose-400' : 'text-emerald-500 hover:text-emerald-400'}`}
                           >
