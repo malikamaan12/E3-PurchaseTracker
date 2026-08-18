@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
 import { users, purchaseRequests } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { eq, ne, and, sql, ilike } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 
 export const dynamic = 'force-dynamic';
@@ -53,8 +53,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
 /**
  * PATCH /api/admin/users/[id]
- * Standardized update for user details (role, isActive, permissions).
- * Access: Admin only.
+ * Standardized update for user details (username, email, role, isActive, permissions, departments).
+ * Access: Super Admin only.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -71,16 +71,66 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const body = await req.json();
     
-    // Governance Guard: Only Super Admin can change user roles
-    if (body.role !== undefined && admin.role !== 'super_admin') {
-      return NextResponse.json(
-        { error: "Access denied. Only Super Admin has governance authority to modify user roles." },
-        { status: 403 }
-      );
+    // Payload Sanitization & Validation
+    const updateData: any = {};
+
+    // Username Update with Uniqueness Check
+    if (body.username !== undefined) {
+      const trimmedUsername = typeof body.username === 'string' ? body.username.trim() : '';
+      if (!trimmedUsername || trimmedUsername.length < 2) {
+        return NextResponse.json(
+          { error: "Invalid Username", message: "Username must be at least 2 characters long." },
+          { status: 400 }
+        );
+      }
+
+      // Check if username is already taken by another user (case-insensitive)
+      const [existingUser] = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(
+          and(
+            ilike(users.username, trimmedUsername),
+            ne(users.id, userId)
+          )
+        )
+        .limit(1);
+
+      if (existingUser) {
+        return NextResponse.json(
+          { error: "Username Taken", message: `The username "${trimmedUsername}" is already taken by another account.` },
+          { status: 400 }
+        );
+      }
+
+      updateData.username = trimmedUsername;
     }
 
-    // Payload Sanitization: Only allow specific fields
-    const updateData: any = {};
+    // Email Update with Validation
+    if (body.email !== undefined) {
+      const trimmedEmail = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+      if (trimmedEmail) {
+        const [existingEmail] = await db
+          .select({ id: users.id })
+          .from(users)
+          .where(
+            and(
+              eq(users.email, trimmedEmail),
+              ne(users.id, userId)
+            )
+          )
+          .limit(1);
+
+        if (existingEmail) {
+          return NextResponse.json(
+            { error: "Email Taken", message: `The email "${trimmedEmail}" is already registered to another account.` },
+            { status: 400 }
+          );
+        }
+        updateData.email = trimmedEmail;
+      }
+    }
+
     if (body.role !== undefined) updateData.role = body.role;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
     if (body.canManageVendors !== undefined) updateData.canManageVendors = body.canManageVendors;

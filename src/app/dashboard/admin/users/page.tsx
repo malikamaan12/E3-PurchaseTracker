@@ -15,7 +15,9 @@ import {
   Building2, 
   Snowflake, 
   Trash2, 
-  Flame 
+  Flame,
+  UserCog,
+  Pencil
 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -795,6 +797,124 @@ function ResetPasswordModal({
   );
 }
 
+function EditUserModal({
+  isOpen,
+  user,
+  onClose
+}: {
+  isOpen: boolean;
+  user: User | null;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [contactNumber, setContactNumber] = useState("");
+
+  useEffect(() => {
+    if (user) {
+      setUsername(user.username || "");
+      setEmail(user.email || "");
+      setContactNumber(user.contact_number || "");
+    }
+  }, [user]);
+
+  const editUserMutation = useMutation({
+    mutationFn: (data: { username: string; email: string; contact_number: string }) =>
+      apiClient.admin.users.update(user!.id, data),
+    onSuccess: (res: any) => {
+      toast.success(res.message || "User details updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["admin_users"] });
+      onClose();
+    },
+    onError: (error: any) => toast.error(error.message || "Failed to update user details"),
+  });
+
+  if (!isOpen || !user) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-zinc-950 border border-white/10 rounded-3xl w-[95vw] md:max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+          <div className="p-2.5 rounded-xl bg-brand-primary/10 border border-brand-primary/20 text-brand-primary">
+            <UserCog className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white font-serif">Edit User Details</h2>
+            <p className="text-xs text-zinc-400">Change username, email address, or contact details.</p>
+          </div>
+        </div>
+
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          if (!username.trim() || username.trim().length < 2) {
+            toast.error("Username must be at least 2 characters");
+            return;
+          }
+          editUserMutation.mutate({
+            username: username.trim(),
+            email: email.trim(),
+            contact_number: contactNumber.trim()
+          });
+        }} className="space-y-4 pt-4">
+          <div>
+            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5 ml-1">Username</label>
+            <input
+              type="text"
+              placeholder="Username"
+              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              minLength={2}
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5 ml-1">Email Address</label>
+            <input
+              type="email"
+              placeholder="Email Address"
+              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5 ml-1">Contact Number</label>
+            <input
+              type="text"
+              placeholder="Contact Number"
+              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
+              value={contactNumber}
+              onChange={(e) => setContactNumber(e.target.value)}
+            />
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={editUserMutation.isPending}
+              className="flex-1 px-4 py-2.5 bg-brand-primary rounded-xl text-sm font-bold text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+            >
+              {editUserMutation.isPending ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function UserManagementPage() {
   usePageTitle("User Management");
   const { user, isLoading: isAuthLoading, isSuperAdmin } = useAuth();
@@ -802,6 +922,7 @@ export default function UserManagementPage() {
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isCreateDeptModalOpen, setIsCreateDeptModalOpen] = useState(false);
+  const [editTargetUser, setEditTargetUser] = useState<User | null>(null);
   const [resetTargetUser, setResetTargetUser] = useState<User | null>(null);
   const [deptTargetUser, setDeptTargetUser] = useState<User | null>(null);
 
@@ -888,6 +1009,12 @@ export default function UserManagementPage() {
         onOpenCreateDept={() => setIsCreateDeptModalOpen(true)}
       />
 
+      <EditUserModal
+        isOpen={!!editTargetUser}
+        user={editTargetUser}
+        onClose={() => setEditTargetUser(null)}
+      />
+
       <ManageDepartmentsModal
         isOpen={!!deptTargetUser}
         user={deptTargetUser}
@@ -910,7 +1037,16 @@ export default function UserManagementPage() {
             <div key={u.id} className="bg-card p-5 rounded-2xl border border-border shadow-sm space-y-3.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-foreground truncate">{u.username}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-bold text-foreground truncate">{u.username}</p>
+                    <button
+                      onClick={() => setEditTargetUser(u)}
+                      className="p-1 text-muted-foreground hover:text-brand-primary rounded"
+                      title="Edit user / Change username"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                   <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -971,6 +1107,12 @@ export default function UserManagementPage() {
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
                 <button
+                  onClick={() => setEditTargetUser(u)}
+                  className="px-3 py-1.5 text-xs font-semibold text-zinc-300 bg-secondary rounded-lg hover:bg-secondary/80 flex items-center gap-1.5"
+                >
+                  <UserCog className="w-3.5 h-3.5 text-brand-primary" /> Edit
+                </button>
+                <button
                   onClick={() => setDeptTargetUser(u)}
                   className="px-3 py-1.5 text-xs font-semibold text-zinc-300 bg-secondary rounded-lg hover:bg-secondary/80 flex items-center gap-1.5"
                 >
@@ -1010,7 +1152,16 @@ export default function UserManagementPage() {
                   <tr key={u.id} className="hover:bg-secondary/50 transition-colors group">
                     <td className="p-4">
                       <div className="min-w-0">
-                        <p className="text-sm font-bold text-foreground transition-colors truncate whitespace-nowrap" title={u.username}>{u.username}</p>
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-bold text-foreground transition-colors truncate whitespace-nowrap" title={u.username}>{u.username}</p>
+                          <button
+                            onClick={() => setEditTargetUser(u)}
+                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-secondary rounded-md text-muted-foreground hover:text-brand-primary transition-all"
+                            title="Edit user details / change username"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                         <p className="text-xs text-muted-foreground truncate whitespace-nowrap" title={u.email}>{u.email}</p>
                       </div>
                     </td>
@@ -1099,6 +1250,14 @@ export default function UserManagementPage() {
                         </DropdownMenu.Trigger>
                         <DropdownMenu.Portal>
                           <DropdownMenu.Content className="glass bg-zinc-950 border border-white/10 p-2 rounded-2xl shadow-2xl min-w-[200px] z-50 animate-in fade-in-50 zoom-in-95">
+                            <DropdownMenu.Item
+                              onSelect={() => setEditTargetUser(u)}
+                              className="px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 text-zinc-300 hover:text-white flex items-center gap-2"
+                            >
+                              <UserCog className="w-4 h-4 text-brand-primary" />
+                              Edit User / Username
+                            </DropdownMenu.Item>
+
                             <DropdownMenu.Item
                               onSelect={() => setDeptTargetUser(u)}
                               className="px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 text-zinc-300 hover:text-white flex items-center gap-2"
