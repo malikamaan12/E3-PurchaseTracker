@@ -829,6 +829,7 @@ function StatusBadge({ status }: { status: string }) {
   const normalized = (status || "").toLowerCase().trim();
   const configs: Record<string, string> = {
     pending: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
+    pending_dept_head: "bg-cyan-500/10 text-cyan-800 dark:text-cyan-300 border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)]",
     approved: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
     rejected: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30",
     draft: "bg-secondary text-muted-foreground border-border",
@@ -837,7 +838,8 @@ function StatusBadge({ status }: { status: string }) {
     variation_pending: "bg-orange-500/10 text-orange-800 dark:text-orange-300 border-orange-500/30",
   };
 
-  const label = normalized === 'partially_approved' ? 'Partially Approved'
+  const label = normalized === 'pending_dept_head' ? 'Pending Dept Head'
+    : normalized === 'partially_approved' ? 'Partially Approved'
     : normalized === 'changes_requested' ? 'Changes Requested'
     : normalized === 'variation_pending' ? 'Variation Pending'
     : (status || "").replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());

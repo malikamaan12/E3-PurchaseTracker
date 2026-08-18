@@ -111,6 +111,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       requestAuditLogs
     ] = await Promise.race([dataFetchPromise, timeoutPromise]) as any;
 
+    // ── STAGE 1 VISIBILITY GUARD ──────────────────────────────────────────────
+    // If request is pending_dept_head, only the requester, their department members, or super_admin may access it.
+    if (request.status === 'pending_dept_head') {
+      const isSuperAdmin = authenticatedUser.role === 'super_admin';
+      const isRequester = request.requesterId === authenticatedUser.id;
+      const isSameDept = requester?.department?.toLowerCase().trim() === authenticatedUser.department?.toLowerCase().trim();
+
+      if (!isSuperAdmin && !isRequester && !isSameDept) {
+        return NextResponse.json(
+          { 
+            error: "Access Denied", 
+            message: "This request is pending Stage 1 Department Head sign-off and is not yet available for mandatory review." 
+          }, 
+          { status: 403 }
+        );
+      }
+    }
+
     // --- DATA ASSEMBLY & HARDENING ---
     try {
       const safeApprovals = Array.isArray(requestApprovals) ? requestApprovals : [];

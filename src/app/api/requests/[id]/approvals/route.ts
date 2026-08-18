@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
-import { purchaseRequests, approvals, auditLogs, paymentInstallments } from "@db/schema";
-import { eq, and } from "drizzle-orm";
+import { purchaseRequests, approvals, auditLogs, paymentInstallments, users } from "@db/schema";
+import { eq, and, inArray } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { notificationService } from "@/lib/services/NotificationService";
 import { getExchangeRateToQAR } from "@/lib/utils/currency";
@@ -47,7 +47,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     // ── SELF-APPROVAL GUARD ──────────────────────────────────────────────────
     // A user cannot approve their own purchase request (unless super_admin executive override).
     const [reqHeader] = await db
-      .select({ requesterId: purchaseRequests.requesterId, baseAmountQar: purchaseRequests.baseAmountQar, totalEstimatedCost: purchaseRequests.totalEstimatedCost })
+      .select({ 
+        requesterId: purchaseRequests.requesterId, 
+        status: purchaseRequests.status, 
+        title: purchaseRequests.title, 
+        baseAmountQar: purchaseRequests.baseAmountQar, 
+        totalEstimatedCost: purchaseRequests.totalEstimatedCost 
+      })
       .from(purchaseRequests)
       .where(eq(purchaseRequests.id, requestId))
       .limit(1);
@@ -106,6 +112,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!targetApproval) {
       return NextResponse.json(
         { error: `No approval slot exists for your department (${user.department}) on this request. You cannot approve on behalf of another department.` },
+        { status: 403 }
+      );
+    }
+
+    // ── STAGE 1 GATEKEEPER FOR SUPERVISOR REQUESTS ────────────────────────────
+    // If request is pending_dept_head, mandatory approvers cannot approve until Stage 1 (Dept Head) is approved.
+    if (reqHeader.status === 'pending_dept_head' && targetApproval.isMandatory && user.role !== 'super_admin') {
+      return NextResponse.json(
+        { 
+          error: "Stage 1 Locked", 
+          message: "This request was submitted by a supervisor and is awaiting Stage 1 Department Head sign-off before mandatory review is unlocked." 
+        }, 
         { status: 403 }
       );
     }
@@ -177,9 +195,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const allAdditionalApproved = additionalApprovals.every(a => a.status === 'approved');
 
       // The request is ONLY fully approved when every single row is resolved.
-      // Until then it stays in 'partially_approved'.
+      // If advancing from pending_dept_head, it becomes active 'pending' (unveiled to mandatory approvers).
       if (allMandatoryApproved && allAdditionalApproved) {
         nextRequestStatus = "approved";
+      } else if (reqHeader.status === 'pending_dept_head') {
+        nextRequestStatus = "pending";
       } else {
         nextRequestStatus = "partially_approved";
       }
@@ -289,6 +309,31 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         requestId,
         priority: status === 'rejected' ? 'high' : 'normal',
       });
+
+      // If advancing from Stage 1 (pending_dept_head) to Stage 2, unveil to Mandatory Approvers
+      if (reqHeader.status === 'pending_dept_head' && status === 'approved') {
+        try {
+          const mandatoryApprovers = await db.select({ id: users.id })
+            .from(users)
+            .where(
+              and(
+                inArray(users.department, ["Management", "Finance", "CEO Office", "Ceo Office"]),
+                inArray(users.role, ["admin", "approver"])
+              )
+            );
+          const mandatoryIds = mandatoryApprovers.map(a => a.id).filter(id => id !== user.id);
+          if (mandatoryIds.length > 0) {
+            await notificationService.createNewSubmissionNotification({
+              requestId,
+              requestTitle: updatedRequest.title,
+              requesterName: `${user.username} (Dept Head Sign-off)`,
+              adminIds: mandatoryIds,
+            });
+          }
+        } catch (unveilErr) {
+          console.warn("[Supervisor Unveil Notification Failed]:", unveilErr);
+        }
+      }
     } catch (notifErr) {
       console.warn("[Lifecycle] Notification failure (Async):", notifErr);
     }

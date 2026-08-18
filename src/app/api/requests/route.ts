@@ -118,7 +118,16 @@ export async function GET(req: NextRequest) {
     }
 
     // Role-based visibility
-    const isAdmin = user.role === 'admin';
+    const isSuperAdmin = user.role === 'super_admin';
+    const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+
+    // 1. Isolation for pending_dept_head requests:
+    // Only super_admin, the supervisor (requester), or someone from the supervisor's department can see it.
+    if (!isSuperAdmin) {
+      whereConditions.push(
+        sql`(${purchaseRequests.status} != 'pending_dept_head' OR ${users.department} = ${user.department} OR ${purchaseRequests.requesterId} = ${user.id})`
+      );
+    }
 
     if (!isAdmin) {
       whereConditions.push(
@@ -303,6 +312,11 @@ export async function POST(req: NextRequest) {
       sequence: nextNum
     });
 
+    const isSupervisor = user.role === 'supervisor';
+    const initialStatus = requestedStatus === "pending"
+      ? (isSupervisor ? "pending_dept_head" : "pending")
+      : "draft";
+
     // --- Sequential Inserts (Neon HTTP driver is incompatible with db.transaction()) ---
     // 1. Insert the Purchase Request
     console.log("[POST /api/requests] Step 1: Inserting purchase request for user", user.id);
@@ -326,13 +340,13 @@ export async function POST(req: NextRequest) {
         items: JSON.stringify(items || []) as any,
         additionalApprovers: JSON.stringify(additionalApprovers || []) as any,
         paymentStructure: paymentStructure || "POST_PROJECT",
-        status: requestedStatus === "pending" ? "pending" : "draft",
+        status: initialStatus,
         isLocked: requestedStatus === "pending",
         createdAt: new Date(),
         updatedAt: new Date(),
       })
       .returning();
-    console.log("[POST /api/requests] Step 1 OK: request id", newRequest.id);
+    console.log("[POST /api/requests] Step 1 OK: request id", newRequest.id, "initialStatus:", initialStatus);
 
     // 1.5 Learn Items for Catalog
     if (items && Array.isArray(items) && items.length > 0) {
@@ -411,16 +425,38 @@ export async function POST(req: NextRequest) {
       // 5. Dispatch Notifications
       try {
         const { notificationService } = await import("@/lib/services/NotificationService");
-        const admins = await db.select({ id: users.id }).from(users).where(inArray(users.role, ['admin', 'approver']));
-        const adminIds = admins.map(a => a.id).filter(id => id !== user.id);
-        
-        if (adminIds.length > 0) {
-          await notificationService.createNewSubmissionNotification({
-            requestId: newRequest.id,
-            requestTitle: newRequest.title,
-            requesterName: user.username || 'System User',
-            adminIds
-          });
+        if (isSupervisor) {
+          // Notify only the supervisor's Department Approver(s)
+          const deptApprovers = await db.select({ id: users.id })
+            .from(users)
+            .where(
+              and(
+                ilike(users.department, user.department),
+                inArray(users.role, ['admin', 'approver'])
+              )
+            );
+          const deptApproverIds = deptApprovers.map(a => a.id).filter(id => id !== user.id);
+          if (deptApproverIds.length > 0) {
+            await notificationService.createNewSubmissionNotification({
+              requestId: newRequest.id,
+              requestTitle: `[Dept Review] ${newRequest.title}`,
+              requesterName: `${user.username} (Supervisor)`,
+              adminIds: deptApproverIds,
+            });
+          }
+        } else {
+          // Standard submission: notify admins and approvers
+          const admins = await db.select({ id: users.id }).from(users).where(inArray(users.role, ['admin', 'approver']));
+          const adminIds = admins.map(a => a.id).filter(id => id !== user.id);
+          
+          if (adminIds.length > 0) {
+            await notificationService.createNewSubmissionNotification({
+              requestId: newRequest.id,
+              requestTitle: newRequest.title,
+              requesterName: user.username || 'System User',
+              adminIds
+            });
+          }
         }
       } catch (err) {
         console.error("[Notification] Failed to dispatch push notifications:", err);

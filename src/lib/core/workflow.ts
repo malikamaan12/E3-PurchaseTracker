@@ -28,8 +28,16 @@ export async function seedInitialApprovals(
     }
   } catch (e: any) {}
 
+  const isSupervisor = userRole === 'supervisor';
+  
+  // For supervisor requests: always ensure the supervisor's department is the first preliminary step
+  let preliminaryDepts = [...additionalDepts];
+  if (isSupervisor && !preliminaryDepts.some(d => d.toLowerCase().trim() === userDepartment.toLowerCase().trim())) {
+    preliminaryDepts.unshift(userDepartment);
+  }
+
   // Filter out any overlap with mandatory departments
-  const filteredAdditional = additionalDepts.filter(d => !MANDATORY_DEPARTMENTS.includes(d));
+  const filteredAdditional = preliminaryDepts.filter(d => !MANDATORY_DEPARTMENTS.includes(d));
   const allRequiredDepts = [...filteredAdditional, ...MANDATORY_DEPARTMENTS];
 
   for (const dept of allRequiredDepts) {
@@ -43,10 +51,11 @@ export async function seedInitialApprovals(
       const isMandatory = MANDATORY_DEPARTMENTS.includes(dept);
 
       // Auto-approval is ONLY allowed for non-mandatory (additional) approver steps
-      // where the requester has authority in that specific department.
+      // where the requester has authority in that specific department (supervisors never auto-approve).
       const canAutoApprove =
         !isMandatory &&
-        userDepartment === dept &&
+        !isSupervisor &&
+        userDepartment.toLowerCase().trim() === dept.toLowerCase().trim() &&
         (userRole === 'approver' || userRole === 'admin');
 
       const [newApproval] = await db.insert(approvals).values({

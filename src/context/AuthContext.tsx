@@ -20,6 +20,7 @@ interface AuthContextValue {
   isSuperAdmin: boolean;
   isAdmin: boolean;
   isApprover: boolean;
+  isSupervisor: boolean;
   refetch: () => void;
   setUser: (user: AuthUser | null) => void;
 }
@@ -31,6 +32,7 @@ const AuthContext = createContext<AuthContextValue>({
   isSuperAdmin: false,
   isAdmin: false,
   isApprover: false,
+  isSupervisor: false,
   refetch: () => {},
   setUser: () => {},
 });
@@ -116,6 +118,7 @@ export function AuthProvider({
   const isSuperAdmin = useMemo(() => user?.role?.toLowerCase() === "super_admin", [user]);
   const isAdmin = useMemo(() => user?.role?.toLowerCase() === "admin" || user?.role?.toLowerCase() === "super_admin", [user]);
   const isApprover = useMemo(() => user?.role?.toLowerCase() === "approver" || user?.isApprover === true, [user]);
+  const isSupervisor = useMemo(() => user?.role?.toLowerCase() === "supervisor", [user]);
 
   const value = useMemo(() => ({
     user,
@@ -124,9 +127,10 @@ export function AuthProvider({
     isSuperAdmin,
     isAdmin,
     isApprover,
+    isSupervisor,
     refetch: () => fetchUser(false),
     setUser,
-  }), [user, isLoading, isRevalidating, isSuperAdmin, isAdmin, isApprover, fetchUser]);
+  }), [user, isLoading, isRevalidating, isSuperAdmin, isAdmin, isApprover, isSupervisor, fetchUser]);
 
   return (
     <AuthContext.Provider value={value}>

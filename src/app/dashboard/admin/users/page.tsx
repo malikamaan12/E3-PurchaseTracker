@@ -107,6 +107,7 @@ function CreateUserModal({
                 onChange={e => setFormData({...formData, role: e.target.value})}
               >
                 <option value="user">User</option>
+                <option value="supervisor">Supervisor</option>
                 <option value="approver">Approver</option>
                 <option value="admin">Admin</option>
                 {isSuperAdmin && <option value="super_admin">Super Admin</option>}
@@ -311,6 +312,7 @@ export default function UserManagementPage() {
                   u.role === 'super_admin' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' :
                   u.role === 'admin' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' :
                   u.role === 'approver' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' :
+                  u.role === 'supervisor' ? 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20' :
                   'bg-muted text-muted-foreground border-border'
                 }`}>
                   {u.role.replace('_', ' ')}
@@ -388,6 +390,7 @@ export default function UserManagementPage() {
                       u.role === 'super_admin' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' :
                       u.role === 'admin' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
                       u.role === 'approver' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
+                      u.role === 'supervisor' ? 'bg-cyan-500/10 text-cyan-500 border-cyan-500/20' :
                       'bg-muted text-muted-foreground border-border'
                     }`}>
                       {u.role.replace('_', ' ')}
@@ -408,39 +411,38 @@ export default function UserManagementPage() {
                   <td className="p-4">
                     <div className="flex items-center gap-2">
                       {u.isActive ? (
-                        <><CheckCircle2 className="w-4 h-4 text-emerald-500" /><span className="text-xs text-emerald-500 font-medium">Active</span></>
+                        <span className="flex items-center gap-1 text-xs font-semibold text-emerald-500">
+                          <CheckCircle2 className="w-4 h-4" /> Active
+                        </span>
                       ) : (
-                        <><XCircle className="w-4 h-4 text-rose-500" /><span className="text-xs text-rose-500 font-medium">Disabled</span></>
+                        <span className="flex items-center gap-1 text-xs font-semibold text-rose-500">
+                          <XCircle className="w-4 h-4" /> Suspended
+                        </span>
                       )}
                     </div>
                   </td>
                   <td className="p-4 text-right">
                     <DropdownMenu.Root>
                       <DropdownMenu.Trigger asChild>
-                        <button className="w-11 h-11 flex items-center justify-center hover:bg-white/10 rounded-lg transition-colors text-zinc-400 hover:text-white">
-                          <MoreHorizontal className="w-5 h-5" />
+                        <button className="p-2 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors outline-none">
+                          <MoreHorizontal className="w-4 h-4" />
                         </button>
                       </DropdownMenu.Trigger>
                       <DropdownMenu.Portal>
-                        <DropdownMenu.Content align="end" className="glass bg-zinc-950/95 border border-white/10 p-2 rounded-xl shadow-2xl min-w-[200px] z-50 text-sm animate-in fade-in zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out data-[state=closed]:zoom-out-95">
-
-                          <div className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Security</div>
+                        <DropdownMenu.Content className="glass bg-zinc-950 border border-white/10 p-2 rounded-2xl shadow-2xl min-w-[200px] z-50 animate-in fade-in-50 zoom-in-95">
                           <DropdownMenu.Item
-                             onSelect={() => setResetTargetUser(u)}
-                             className="px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 text-zinc-300 hover:text-white focus:bg-white/10 focus:text-white"
-                           >
-                             <div className="flex items-center gap-2">
-                               <Key className="w-4 h-4 text-amber-400" />
-                               Reset Password
-                             </div>
-                           </DropdownMenu.Item>
+                            onSelect={() => setResetTargetUser(u)}
+                            className="px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 text-zinc-300 hover:text-white flex items-center gap-2"
+                          >
+                            <Key className="w-4 h-4 text-amber-400" />
+                            Reset Password
+                          </DropdownMenu.Item>
 
-                          {/* Change Role — Super Admin Exclusive */}
                           {isSuperAdmin && (
                             <>
                               <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
                               <div className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Change Role (Super Admin)</div>
-                              {["user", "approver", "admin", "super_admin"].map(role => (
+                              {["user", "supervisor", "approver", "admin", "super_admin"].map(role => (
                                  <DropdownMenu.Item
                                    key={role}
                                    onSelect={() => updateMutation.mutate({ id: u.id, data: { role } })}

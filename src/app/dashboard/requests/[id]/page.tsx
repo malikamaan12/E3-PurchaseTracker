@@ -149,12 +149,15 @@ export default function RequestDetailPage() {
   // canAct:
   // - Super Admin can act on ANY pending approval slot
   // - Admin & Approver can act only if their own department slot is pending
+  // - If request is pending_dept_head, only the supervisor's Department Head or Super Admin can act!
+  const isSupervisorGate = request.status === "pending_dept_head";
+  const isMyDeptPending = myDeptApproval?.status === "pending";
+  const isDeptHeadForStage1 = isSupervisorGate && isMyDeptPending && (isAdmin || isApprover);
+
   const canAct =
-    (request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
-    (
-      (isSuperAdmin && pendingApprovals.length > 0) ||
-      (myDeptApproval?.status === "pending" && (isAdmin || isApprover))
-    );
+    ((request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
+      ((isSuperAdmin && pendingApprovals.length > 0) || (isMyDeptPending && (isAdmin || isApprover)))) ||
+    (isSupervisorGate && (isSuperAdmin || isDeptHeadForStage1));
 
   const isFinanceOrAdmin = isAdmin || user?.department?.toLowerCase() === "finance";
 
@@ -1053,14 +1056,20 @@ function PriorityBadge({ priority }: { priority: string }) {
 function StatusBadge({ status }: { status: string }) {
   const configs: Record<string, string> = {
     pending: "bg-orange-500/10 text-orange-600 border-orange-500/20 shadow-sm",
+    pending_dept_head: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20 shadow-sm",
     approved: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 shadow-sm",
     rejected: "bg-destructive/10 text-destructive border-destructive/20 shadow-sm",
     draft: "bg-muted text-muted-foreground border-border/50 shadow-sm",
     changes_requested: "bg-amber-500/10 text-amber-600 border-amber-500/20 shadow-sm",
+    partially_approved: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20 shadow-sm",
+    variation_pending: "bg-orange-500/10 text-orange-600 border-orange-500/20 shadow-sm",
   };
+  const label = status === 'pending_dept_head' ? 'Pending Dept Head'
+    : typeof status === 'string' ? status.replace(/_/g, ' ') : 'N/A';
+
   return (
     <span className={`px-3 py-1 rounded-full text-xs font-bold border ${configs[status] || configs.draft} uppercase tracking-wider`}>
-      {typeof status === 'string' ? status.replace(/_/g, ' ') : 'N/A'}
+      {label}
     </span>
   );
 }
