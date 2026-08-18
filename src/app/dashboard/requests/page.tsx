@@ -124,6 +124,18 @@ function RequestsDashboardContent() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [deleteRequest, setDeleteRequest] = useState<any | null>(null);
+  const [myQueueMode, setMyQueueMode] = useState(false);
+
+  // "My Queue" — requests where logged-in user's dept has a pending approval slot
+  const myQueueRequests = (requests || []).filter((req: any) =>
+    Array.isArray(req.approvals) &&
+    req.approvals.some((a: any) =>
+      a.department?.toLowerCase().trim() === user?.department?.toLowerCase().trim() &&
+      a.status === 'pending'
+    )
+  );
+
+  const displayedRequests = myQueueMode ? myQueueRequests : (requests || []);
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiClient.requests.delete(id),
@@ -186,6 +198,39 @@ function RequestsDashboardContent() {
       </header>
 
       <SpendAnalytics data={analytics} isLoading={analyticsLoading} />
+
+      {/* My Queue Tab — only shown to users in approver-flagged departments */}
+      {isApprover && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMyQueueMode(false)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              !myQueueMode
+                ? "bg-primary text-primary-foreground shadow-sm"
+                : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
+            }`}
+          >
+            All Requests
+          </button>
+          <button
+            onClick={() => setMyQueueMode(true)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
+              myQueueMode
+                ? "bg-amber-500 text-white shadow-sm"
+                : "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20"
+            }`}
+          >
+            <span>⏳</span> My Queue
+            {myQueueRequests.length > 0 && (
+              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
+                myQueueMode ? "bg-white/30 text-white" : "bg-amber-500 text-white"
+              }`}>
+                {myQueueRequests.length}
+              </span>
+            )}
+          </button>
+        </div>
+      )}
 
       <RequestFilters
         filters={filters}
@@ -270,17 +315,30 @@ function RequestsDashboardContent() {
           <>
             {/* Mobile View: Request Cards */}
             <div className="md:hidden space-y-4">
-              {requests?.map((req: any) => (
-                <RequestMobileCard
-                  key={req.id}
-                  request={req}
-                  isSelected={selectedIds.includes(req.id)}
-                  onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
-                  onApprove={() => approveMutation.mutate(req.id)}
-                  onEdit={() => setEditingId(req.id)}
-                  onDelete={() => setDeleteRequest(req)}
-                />
-              ))}
+              {displayedRequests.map((req: any) => {
+                const awaitingMyApproval = isApprover && Array.isArray(req.approvals) &&
+                  req.approvals.some((a: any) =>
+                    a.department?.toLowerCase().trim() === user?.department?.toLowerCase().trim() &&
+                    a.status === 'pending'
+                  );
+                return (
+                  <div key={req.id} className="relative">
+                    {awaitingMyApproval && (
+                      <div className="absolute -top-2 left-3 z-10 flex items-center gap-1 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm">
+                        <span>⏳</span> Awaiting Your Approval
+                      </div>
+                    )}
+                    <RequestMobileCard
+                      request={req}
+                      isSelected={selectedIds.includes(req.id)}
+                      onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
+                      onApprove={() => approveMutation.mutate(req.id)}
+                      onEdit={() => setEditingId(req.id)}
+                      onDelete={() => setDeleteRequest(req)}
+                    />
+                  </div>
+                );
+              })}
             </div>
 
             {/* Desktop / Tablet View: Full Table */}
@@ -305,17 +363,25 @@ function RequestsDashboardContent() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {requests?.map((req: any) => (
-                    <RequestRow
-                      key={req.id}
-                      request={req}
-                      isSelected={selectedIds.includes(req.id)}
-                      onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
-                      onApprove={() => approveMutation.mutate(req.id)}
-                      onEdit={() => setEditingId(req.id)}
-                      onDelete={() => setDeleteRequest(req)}
-                    />
-                  ))}
+                  {displayedRequests.map((req: any) => {
+                    const awaitingMyApproval = isApprover && Array.isArray(req.approvals) &&
+                      req.approvals.some((a: any) =>
+                        a.department?.toLowerCase().trim() === user?.department?.toLowerCase().trim() &&
+                        a.status === 'pending'
+                      );
+                    return (
+                      <RequestRow
+                        key={req.id}
+                        request={req}
+                        isSelected={selectedIds.includes(req.id)}
+                        onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
+                        onApprove={() => approveMutation.mutate(req.id)}
+                        onEdit={() => setEditingId(req.id)}
+                        onDelete={() => setDeleteRequest(req)}
+                        awaitingMyApproval={awaitingMyApproval}
+                      />
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -654,7 +720,7 @@ function RequestMobileCard({ request, isSelected, onSelect, onApprove, onEdit, o
   );
 }
 
-function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete }: any) {
+function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete, awaitingMyApproval }: any) {
   const router = useRouter();
   const { highPerformanceMode } = usePerformance();
   const { user, isAdmin } = useAuth();
@@ -687,7 +753,14 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
         </div>
       </td>
       <td className="px-6 py-5">
-        <StatusBadge status={request.status} />
+        <div className="flex flex-col gap-1.5">
+          <StatusBadge status={request.status} />
+          {awaitingMyApproval && (
+            <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full w-max flex items-center gap-1">
+              <span>⏳</span> Action Required
+            </span>
+          )}
+        </div>
       </td>
       <td className="px-6 py-5 font-semibold text-foreground">
         {request.totalEstimatedCost?.toLocaleString()} <span className="text-xs text-muted-foreground font-normal">QAR</span>

@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const admin = await getAuthenticatedUser(req);
     if (!admin) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    if (admin.role !== 'admin') {
+    if (admin.role !== 'admin' && admin.role !== 'super_admin') {
       return NextResponse.json({ error: "Access denied. Admin only route." }, { status: 403 });
     }
 
@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const admin = await getAuthenticatedUser(req);
     if (!admin) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    if (admin.role !== 'admin') {
+    if (admin.role !== 'admin' && admin.role !== 'super_admin') {
       return NextResponse.json({ error: "Access denied. Admin only." }, { status: 403 });
     }
 
@@ -70,6 +70,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     const body = await req.json();
     
+    // Governance Guard: Only Super Admin can change user roles
+    if (body.role !== undefined && admin.role !== 'super_admin') {
+      return NextResponse.json(
+        { error: "Access denied. Only Super Admin has governance authority to modify user roles." },
+        { status: 403 }
+      );
+    }
+
     // Payload Sanitization: Only allow specific fields
     const updateData: any = {};
     if (body.role !== undefined) updateData.role = body.role;
@@ -110,7 +118,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const admin = await getAuthenticatedUser(req);
     if (!admin) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    if (admin.role !== 'admin') {
+    if (admin.role !== 'admin' && admin.role !== 'super_admin') {
       return NextResponse.json({ error: "Access denied. Admin only route." }, { status: 403 });
     }
 

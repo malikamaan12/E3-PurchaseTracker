@@ -38,21 +38,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
-    const { status, comments } = body;
+    const { status, comments, approvalId: requestedApprovalId, department: requestedDept } = body;
 
     if (!['approved', 'rejected', 'changes_requested'].includes(status)) {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
+    // ── SELF-APPROVAL GUARD ──────────────────────────────────────────────────
+    // A user cannot approve their own purchase request (unless super_admin executive override).
+    const [reqHeader] = await db
+      .select({ requesterId: purchaseRequests.requesterId, baseAmountQar: purchaseRequests.baseAmountQar, totalEstimatedCost: purchaseRequests.totalEstimatedCost })
+      .from(purchaseRequests)
+      .where(eq(purchaseRequests.id, requestId))
+      .limit(1);
+
+    if (!reqHeader) return NextResponse.json({ error: "Purchase request not found." }, { status: 404 });
+
+    if (reqHeader.requesterId === user.id && user.role !== 'super_admin') {
+      return NextResponse.json(
+        { error: "Self-approval is not permitted. You cannot approve a request you submitted." },
+        { status: 403 }
+      );
+    }
+
     // High-Value Approval Safeguard (> 50,000 QAR)
     if (status === 'approved') {
-      const [reqCheck] = await db
-        .select({ baseAmountQar: purchaseRequests.baseAmountQar, totalEstimatedCost: purchaseRequests.totalEstimatedCost })
-        .from(purchaseRequests)
-        .where(eq(purchaseRequests.id, requestId))
-        .limit(1);
-      
-      const requestCost = reqCheck?.baseAmountQar ?? reqCheck?.totalEstimatedCost ?? 0;
+      const requestCost = reqHeader.baseAmountQar ?? reqHeader.totalEstimatedCost ?? 0;
       if (requestCost >= 50000 && (!comments || comments.trim().length < 5)) {
         return NextResponse.json(
           {
@@ -64,69 +75,79 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       }
     }
 
-    // 2. Resolve target approval record for this user's department
-    let targetApproval = (await db
+    // ── 2. DEPARTMENT APPROVAL LOOKUP ────────────────────────────────────────
+    // For super_admin: can approve any department slot (by requestedApprovalId, requestedDept, or first pending).
+    // For admin & approver: strict exact case-insensitive match on user.department ONLY.
+    let targetApproval: any = null;
+    const allApprovalsForReq = await db
       .select()
       .from(approvals)
-      .where(
-        and(
-          eq(approvals.requestId, requestId),
-          eq(approvals.department, user.department || '')
-        )
-      )
-      .limit(1))[0];
+      .where(eq(approvals.requestId, requestId))
+      .orderBy(approvals.id);
+
+    if (user.role === 'super_admin') {
+      if (requestedApprovalId) {
+        targetApproval = allApprovalsForReq.find(a => a.id === Number(requestedApprovalId));
+      } else if (requestedDept) {
+        targetApproval = allApprovalsForReq.find(a => a.department.toLowerCase().trim() === requestedDept.toLowerCase().trim());
+      } else {
+        // Match user's own department first, otherwise pick the first pending approval slot
+        const userDept = (user.department || '').toLowerCase().trim();
+        targetApproval = allApprovalsForReq.find(a => a.department.toLowerCase().trim() === userDept && a.status === 'pending')
+          || allApprovalsForReq.find(a => a.department.toLowerCase().trim() === userDept)
+          || allApprovalsForReq.find(a => a.status === 'pending')
+          || allApprovalsForReq[0];
+      }
+    } else {
+      const userDept = (user.department || '').toLowerCase().trim();
+      targetApproval = allApprovalsForReq.find(a => a.department.toLowerCase().trim() === userDept);
+    }
 
     if (!targetApproval) {
-      // Fuzzy match or fallback for Admins
-      const allApprovalsForReq = await db
-        .select()
-        .from(approvals)
-        .where(eq(approvals.requestId, requestId))
-        .orderBy(approvals.id);
-
-      targetApproval = allApprovalsForReq.find(a => 
-        (user.department && a.department.toLowerCase().includes(user.department.toLowerCase())) ||
-        (user.department && user.department.toLowerCase().includes(a.department.toLowerCase()))
-      ) as typeof targetApproval;
-
-      // If still not found, and user is an admin acting as an approver, default to the FIRST pending approval
-      if (!targetApproval && user.role === 'admin') {
-        targetApproval = allApprovalsForReq.find(a => a.status === 'pending') as typeof targetApproval;
-      }
+      return NextResponse.json(
+        { error: `No approval slot exists for your department (${user.department}) on this request. You cannot approve on behalf of another department.` },
+        { status: 403 }
+      );
     }
 
-    if (!targetApproval && user.role !== 'admin') {
-      return NextResponse.json({ error: "No pending approval for your department." }, { status: 403 });
-    }
-
-    // ── FIX 1: RBAC Gate ────────────────────────────────────────────────────
-    // A mandatory gatekeeper step may only be satisfied by role='approver'
-    // or role='admin'. Regular users (e.g. Accountants) are rejected here.
-    if (targetApproval?.isMandatory && user.role === 'user') {
+    // ── RBAC GATE ────────────────────────────────────────────────────────────
+    // A mandatory gatekeeper step may only be satisfied by role='super_admin', role='admin', or role='approver'.
+    // Regular users (e.g. Accountants) are rejected here.
+    if (targetApproval.isMandatory && user.role === 'user') {
       return NextResponse.json(
         {
-          error: "Insufficient authority. Only designated department approvers or admins can satisfy mandatory gatekeeper steps.",
-          hint: "Your role does not have approval authority for this step. Contact your Finance Head to proceed."
+          error: "Insufficient authority. Only designated department approvers, admins, or super admins can satisfy mandatory gatekeeper steps.",
+          hint: "Your role does not have approval authority for this step. Contact your department head to proceed."
         },
         { status: 403 }
       );
     }
 
-    // 3. SEQUENTIAL UPDATES — update only the specific approval record
-    const approvalId = targetApproval?.id;
-
-    if (approvalId) {
-      await db
-        .update(approvals)
-        .set({
-          status,
-          comments: comments || null,
-          approverId: user.id,
-          processedAt: new Date(),
-          updatedAt: new Date(),
-        })
-        .where(eq(approvals.id, approvalId));
+    // ── ALREADY-PROCESSED GUARD ──────────────────────────────────────────────
+    // Prevent double-approving. If the slot is not pending, block the action.
+    if (targetApproval.status !== 'pending') {
+      return NextResponse.json(
+        {
+          error: `This approval stage is already ${targetApproval.status}.`,
+          hint: targetApproval.status === 'approved'
+            ? "Contact an admin to revoke this approval if it was made in error."
+            : "The request may have been rejected or changes were requested."
+        },
+        { status: 409 }
+      );
     }
+
+    // 3. SEQUENTIAL UPDATES — update only the specific approval record
+    await db
+      .update(approvals)
+      .set({
+        status,
+        comments: comments || null,
+        approverId: user.id,
+        processedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(approvals.id, targetApproval.id));
 
     // ── FIX 2: Strict Array Validation ──────────────────────────────────────
     // Re-fetch the latest state of ALL approval rows (mandatory + additional)
@@ -245,8 +266,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           status: status,
           finalStatus: finalRequest.status,
           processedBy: user.username,
-          isMandatoryStep: targetApproval?.isMandatory ?? false,
-          isAdminBypass: user.role === 'admin',
+          isMandatoryStep: targetApproval.isMandatory ?? false,
+          approvalId: targetApproval.id,
         },
         timestamp: new Date(),
       });

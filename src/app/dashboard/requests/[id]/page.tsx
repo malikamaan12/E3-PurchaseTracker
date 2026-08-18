@@ -28,10 +28,11 @@ export default function RequestDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, isAdmin, isApprover } = useAuth();
+  const { user, isAdmin, isApprover, isSuperAdmin } = useAuth();
   const requestId = parseInt(params.id as string);
   const [activeAttachment, setActiveAttachment] = useState<any>(null);
   const [approvalComments, setApprovalComments] = useState("");
+  const [targetApprovalId, setTargetApprovalId] = useState<number | null>(null);
   const [showActionPanel, setShowActionPanel] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showAuditModal, setShowAuditModal] = useState(false);
@@ -43,6 +44,14 @@ export default function RequestDetailPage() {
     title: string;
     desc: string;
   } | null>(null);
+  
+  // Revoke state (Super Admin exclusive)
+  const [revokeTarget, setRevokeTarget] = useState<{ approvalId: number; department: string; approverName: string } | null>(null);
+  const [revokeReason, setRevokeReason] = useState("");
+
+  // Clarification state (Approver / Super Admin)
+  const [clarificationTarget, setClarificationTarget] = useState<{ approvalId: number; department: string; existingComments: string } | null>(null);
+  const [clarificationNote, setClarificationNote] = useState("");
 
   const { data: request, isLoading, error: queryError } = useQuery({
     queryKey: ["request", requestId],
@@ -53,8 +62,8 @@ export default function RequestDetailPage() {
   usePageTitle(request?.requestNumber ? `${request.requestNumber} - ${request.title}` : `Request #${requestId}`);
 
   const approvalMutation = useMutation({
-    mutationFn: ({ status, comments }: { status: string; comments: string }) =>
-      apiClient.requests.submitApproval(requestId, { status, comments }),
+    mutationFn: ({ status, comments, approvalId }: { status: string; comments: string; approvalId?: number | null }) =>
+      apiClient.requests.submitApproval(requestId, { status, comments, approvalId }),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["request", requestId] });
       queryClient.invalidateQueries({ queryKey: ["requests"] });
@@ -62,9 +71,58 @@ export default function RequestDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
       toast.success(data.message || "Action submitted successfully");
       setApprovalComments("");
+      setTargetApprovalId(null);
       setShowActionPanel(false);
     },
     onError: (err: any) => toast.error(err.message || "Failed to submit action"),
+  });
+
+  const revokeApprovalMutation = useMutation({
+    mutationFn: ({ approvalId, reason }: { approvalId: number; reason: string }) =>
+      fetch(`/api/requests/${requestId}/approvals/${approvalId}/revoke`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reason }),
+        credentials: "include",
+      }).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to revoke approval");
+        return data;
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["request", requestId] });
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
+      toast.success(data.message || "Approval revoked successfully");
+      setRevokeTarget(null);
+      setRevokeReason("");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to revoke approval"),
+  });
+
+  const clarificationMutation = useMutation({
+    mutationFn: ({ approvalId, clarification }: { approvalId: number; clarification: string }) =>
+      fetch(`/api/requests/${requestId}/approvals/${approvalId}/clarification`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ clarification }),
+        credentials: "include",
+      }).then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to save clarification");
+        return data;
+      }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["request", requestId] });
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
+      toast.success(data.message || "Clarification added successfully");
+      setClarificationTarget(null);
+      setClarificationNote("");
+    },
+    onError: (err: any) => toast.error(err.message || "Failed to save clarification"),
   });
 
   const deleteMutation = useMutation({
@@ -80,16 +138,23 @@ export default function RequestDetailPage() {
   if (isLoading) return <LoadingState />;
   if (queryError || !request) return <ErrorState error={queryError} />;
 
-  const myDeptApproval = request.approvals?.find(
-    (a: any) => {
-      const aDept = a.department?.toLowerCase().trim() || "";
-      const uDept = user?.department?.toLowerCase().trim() || "";
-      return aDept === uDept || aDept.includes(uDept) || uDept.includes(aDept);
-    }
+  // Pending approval slots
+  const pendingApprovals = request.approvals?.filter((a: any) => a.status === "pending") || [];
+
+  // Exact department match — for standard admin / approver
+  const myDeptApproval = request.approvals?.find((a: any) =>
+    a.department?.toLowerCase().trim() === user?.department?.toLowerCase().trim()
   );
+
+  // canAct:
+  // - Super Admin can act on ANY pending approval slot
+  // - Admin & Approver can act only if their own department slot is pending
   const canAct =
     (request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
-    (isAdmin || (isApprover && myDeptApproval && myDeptApproval.status === "pending"));
+    (
+      (isSuperAdmin && pendingApprovals.length > 0) ||
+      (myDeptApproval?.status === "pending" && (isAdmin || isApprover))
+    );
 
   const isFinanceOrAdmin = isAdmin || user?.department?.toLowerCase() === "finance";
 
@@ -123,7 +188,8 @@ export default function RequestDetailPage() {
     if (!confirmData) return;
     approvalMutation.mutate({ 
       status: confirmData.status, 
-      comments: approvalComments 
+      comments: approvalComments,
+      approvalId: targetApprovalId || (isSuperAdmin && pendingApprovals.length > 0 ? (targetApprovalId || pendingApprovals[0]?.id) : undefined)
     });
     setShowConfirmAction(false);
   };
@@ -217,11 +283,37 @@ export default function RequestDetailPage() {
         {showActionPanel && canAct && (
           <div className="max-w-[1400px] mx-auto mt-4 animate-fade-scale-in">
             <div className="bg-card/80 backdrop-blur-md border border-primary/20 rounded-2xl p-5 flex flex-col gap-4 shadow-xl">
-                <div className="flex items-center gap-2">
-                  <div className="bg-primary/10 p-1.5 rounded-lg">
-                    <ShieldCheck className="w-5 h-5 text-primary" />
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-primary/10 p-1.5 rounded-lg">
+                      <ShieldCheck className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="text-sm font-semibold tracking-tight">
+                      Reviewing as {isSuperAdmin ? (
+                        <span className="text-primary font-bold">Super Admin (Universal Access)</span>
+                      ) : (
+                        <span className="text-primary">{user?.department}</span>
+                      )}
+                    </span>
                   </div>
-                  <span className="text-sm font-semibold tracking-tight">Reviewing as <span className="text-primary">{user?.department}</span></span>
+
+                  {/* Super Admin Department Stage Selector */}
+                  {isSuperAdmin && pendingApprovals.length > 1 && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-xs text-muted-foreground font-medium">Acting on stage:</label>
+                      <select
+                        value={targetApprovalId || pendingApprovals[0]?.id}
+                        onChange={(e) => setTargetApprovalId(Number(e.target.value))}
+                        className="bg-background border border-border/50 rounded-lg px-2.5 py-1 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        {pendingApprovals.map((pa: any) => (
+                          <option key={pa.id} value={pa.id}>
+                            {pa.department} (Pending)
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <textarea
@@ -603,7 +695,7 @@ export default function RequestDetailPage() {
                     if (name.includes("management")) return 2;
                     if (name.includes("finance")) return 3;
                     if (name.includes("ceo")) return 4;
-                    return 1; // Additional approvers (e.g. IT, Legal, Marketing, Operations)
+                    return 1;
                   };
 
                   const sortedApprovals = Array.isArray(request.approvals)
@@ -616,13 +708,58 @@ export default function RequestDetailPage() {
                     const isRejected = approval.status === 'rejected';
                     
                     return (
-                      <TimelineItem 
-                        key={approval.id}
-                        title={`${approval.department} Approval`}
-                        desc={isApproved ? `Approved by ${approval.approver?.username}` : isRejected ? "Rejected" : "Pending Action"}
-                        time={approval.processedAt ? format(new Date(approval.processedAt), "MMM dd, yyyy") : undefined}
-                        status={isApproved ? 'completed' : isRejected ? 'error' : isPending ? 'current' : 'pending'}
-                      />
+                      <div key={approval.id} className="relative group/approval">
+                        <TimelineItem 
+                          title={`${approval.department} Approval`}
+                          desc={
+                            <div className="space-y-1 mt-0.5">
+                              <div>{isApproved ? `Approved by ${approval.approver?.username}` : isRejected ? "Rejected" : "Pending Action"}</div>
+                              {approval.comments && (
+                                <div className="text-[11px] bg-muted/40 border border-border/40 rounded-lg p-2 text-foreground/80 font-normal whitespace-pre-line mt-1">
+                                  {approval.comments}
+                                </div>
+                              )}
+                            </div>
+                          }
+                          time={approval.processedAt ? format(new Date(approval.processedAt), "MMM dd, yyyy") : undefined}
+                          status={isApproved ? 'completed' : isRejected ? 'error' : isPending ? 'current' : 'pending'}
+                        />
+
+                        {/* Actions for Approved stage */}
+                        {isApproved && (
+                          <div className="absolute right-0 top-0 flex items-center gap-1.5">
+                            {/* Approver / Super Admin Add Clarification Button */}
+                            {(isSuperAdmin || approval.approverId === user?.id) && (
+                              <button
+                                onClick={() => setClarificationTarget({
+                                  approvalId: approval.id,
+                                  department: approval.department,
+                                  existingComments: approval.comments || "",
+                                })}
+                                className="text-[10px] font-semibold tracking-wide text-primary hover:text-primary-foreground border border-primary/30 hover:border-primary hover:bg-primary rounded-full px-2.5 py-0.5 transition-all flex items-center gap-1"
+                                title="Add clarification / condition to this approval"
+                              >
+                                <MessageSquare className="w-2.5 h-2.5" /> Clarify
+                              </button>
+                            )}
+
+                            {/* Super Admin Exclusive Revoke Button */}
+                            {isSuperAdmin && (
+                              <button
+                                onClick={() => setRevokeTarget({
+                                  approvalId: approval.id,
+                                  department: approval.department,
+                                  approverName: approval.approver?.username || `User #${approval.approverId}`,
+                                })}
+                                className="text-[10px] font-bold uppercase tracking-widest text-rose-500 hover:text-rose-600 border border-rose-500/30 hover:border-rose-500 hover:bg-rose-500/10 rounded-full px-2.5 py-0.5 transition-all flex items-center gap-1"
+                                title={`Revoke ${approval.department} approval (Super Admin only)`}
+                              >
+                                <RotateCcw className="w-2.5 h-2.5" /> Revoke
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     );
                   });
                 })()}
@@ -638,6 +775,128 @@ export default function RequestDetailPage() {
         </div>
 
       </main>
+
+      {/* ── REVOKE APPROVAL MODAL (Super Admin Exclusive) ─────────────────── */}
+      {revokeTarget && isSuperAdmin && (
+        <div className="fixed inset-0 z-[200] bg-background/80 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center shrink-0">
+                <RotateCcw className="w-5 h-5 text-rose-500" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base tracking-tight">Revoke {revokeTarget.department} Approval</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Originally approved by <span className="font-semibold text-foreground">{revokeTarget.approverName}</span></p>
+              </div>
+            </div>
+
+            <div className="bg-rose-500/5 border border-rose-500/20 rounded-xl p-3">
+              <p className="text-xs text-rose-600 dark:text-rose-400 font-medium">
+                This will reset the {revokeTarget.department} approval to pending and drop the request status back to partially approved. The original approver and the requester will be notified.
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Reason for revocation <span className="text-rose-500">*</span></label>
+              <textarea
+                value={revokeReason}
+                onChange={(e) => setRevokeReason(e.target.value)}
+                placeholder="e.g. Approved in error — Finance Head was unavailable and approved without full review..."
+                rows={3}
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500/50 transition-all resize-none"
+              />
+              <p className="text-[10px] text-muted-foreground">{revokeReason.trim().length}/10 characters minimum</p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <button
+                onClick={() => { setRevokeTarget(null); setRevokeReason(""); }}
+                className="px-5 py-2 rounded-xl border border-border/50 text-sm font-medium hover:bg-muted/50 transition-colors"
+                disabled={revokeApprovalMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (revokeReason.trim().length < 10) {
+                    toast.error("Please provide a reason of at least 10 characters.");
+                    return;
+                  }
+                  revokeApprovalMutation.mutate({ approvalId: revokeTarget.approvalId, reason: revokeReason.trim() });
+                }}
+                disabled={revokeApprovalMutation.isPending || revokeReason.trim().length < 10}
+                className="px-5 py-2 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {revokeApprovalMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+                Confirm Revoke
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── CLARIFICATION / MODIFICATION MODAL (Approver / Super Admin) ─────── */}
+      {clarificationTarget && (
+        <div className="fixed inset-0 z-[200] bg-background/80 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-5">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
+                <MessageSquare className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base tracking-tight">Add Clarification / Condition</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">{clarificationTarget.department} Approval Remarks</p>
+              </div>
+            </div>
+
+            {clarificationTarget.existingComments && (
+              <div className="bg-muted/30 border border-border/50 rounded-xl p-3 max-h-32 overflow-y-auto">
+                <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Current Remarks:</p>
+                <p className="text-xs text-foreground/80 whitespace-pre-line">{clarificationTarget.existingComments}</p>
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Clarification or Addendum <span className="text-primary">*</span></label>
+              <textarea
+                value={clarificationNote}
+                onChange={(e) => setClarificationNote(e.target.value)}
+                placeholder="e.g. Approved subject to 30-day credit terms on milestone 2 delivery..."
+                rows={3}
+                className="w-full bg-background border border-border/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50 transition-all resize-none"
+              />
+              <p className="text-[10px] text-muted-foreground">This note will be timestamped and appended to the permanent audit record.</p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-1">
+              <button
+                onClick={() => { setClarificationTarget(null); setClarificationNote(""); }}
+                className="px-5 py-2 rounded-xl border border-border/50 text-sm font-medium hover:bg-muted/50 transition-colors"
+                disabled={clarificationMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (clarificationNote.trim().length < 3) {
+                    toast.error("Please enter a note of at least 3 characters.");
+                    return;
+                  }
+                  clarificationMutation.mutate({
+                    approvalId: clarificationTarget.approvalId,
+                    clarification: clarificationNote.trim(),
+                  });
+                }}
+                disabled={clarificationMutation.isPending || clarificationNote.trim().length < 3}
+                className="px-5 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-sm font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                {clarificationMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                Save Clarification
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <CreateRequestModal 
         isOpen={showEditModal}
@@ -747,7 +1006,7 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function TimelineItem({ title, desc, time, status }: { title: string, desc: string, time?: string, status: string }) {
+function TimelineItem({ title, desc, time, status }: { title: string, desc: React.ReactNode, time?: string, status: string }) {
   const configs = {
     completed: "bg-emerald-500 border-emerald-200 dark:border-emerald-900 shadow-[0_0_0_4px_rgba(16,185,129,0.1)]",
     error: "bg-destructive border-red-200 dark:border-red-900 shadow-[0_0_0_4px_rgba(239,68,68,0.1)]",
@@ -762,7 +1021,7 @@ function TimelineItem({ title, desc, time, status }: { title: string, desc: stri
       <div className="flex justify-between items-start group">
         <div>
           <p className={`text-sm font-bold tracking-tight ${status === 'pending' ? 'text-muted-foreground' : 'text-foreground'}`}>{title}</p>
-          <p className="text-xs text-muted-foreground mt-1">{desc}</p>
+          <div className="text-xs text-muted-foreground mt-1">{desc}</div>
         </div>
         {time && <span className="text-[10px] uppercase font-mono tracking-wider font-semibold text-muted-foreground/70">{time}</span>}
       </div>

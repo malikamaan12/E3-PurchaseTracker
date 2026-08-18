@@ -17,6 +17,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
   isRevalidating: boolean; // Exposed for subtle UI indicators if needed
+  isSuperAdmin: boolean;
   isAdmin: boolean;
   isApprover: boolean;
   refetch: () => void;
@@ -27,6 +28,7 @@ const AuthContext = createContext<AuthContextValue>({
   user: null,
   isLoading: true,
   isRevalidating: false,
+  isSuperAdmin: false,
   isAdmin: false,
   isApprover: false,
   refetch: () => {},
@@ -111,18 +113,20 @@ export function AuthProvider({
     fetchUser(!!initialUserId);
   }, [fetchUser]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isAdmin = useMemo(() => user?.role?.toLowerCase() === "admin", [user]);
+  const isSuperAdmin = useMemo(() => user?.role?.toLowerCase() === "super_admin", [user]);
+  const isAdmin = useMemo(() => user?.role?.toLowerCase() === "admin" || user?.role?.toLowerCase() === "super_admin", [user]);
   const isApprover = useMemo(() => user?.role?.toLowerCase() === "approver" || user?.isApprover === true, [user]);
 
   const value = useMemo(() => ({
     user,
     isLoading,
     isRevalidating,
+    isSuperAdmin,
     isAdmin,
     isApprover,
     refetch: () => fetchUser(false),
     setUser,
-  }), [user, isLoading, isRevalidating, isAdmin, isApprover, fetchUser]);
+  }), [user, isLoading, isRevalidating, isSuperAdmin, isAdmin, isApprover, fetchUser]);
 
   return (
     <AuthContext.Provider value={value}>

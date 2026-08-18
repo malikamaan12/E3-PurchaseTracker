@@ -74,9 +74,9 @@ class ApiClient {
     create: (data: any) => this.request<any>("/requests", { method: "POST", body: JSON.stringify(data) }),
     update: (id: number, data: any) => this.request<any>(`/requests/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     delete: (id: number) => this.request<any>(`/requests/${id}`, { method: "DELETE" }),
-    approve: (id: number, data: { status: string; comments?: string }) => 
+    approve: (id: number, data: { status: string; comments?: string; approvalId?: number | null; department?: string }) => 
       this.request<any>(`/requests/${id}/approvals`, { method: "POST", body: JSON.stringify(data) }),
-    submitApproval: (id: number, data: { status: string; comments: string }) =>
+    submitApproval: (id: number, data: { status: string; comments?: string; approvalId?: number | null; department?: string }) =>
       this.request<any>(`/requests/${id}/approvals`, { method: "POST", body: JSON.stringify(data) }),
     updatePayment: (id: number, paymentId: number, data: any) =>
       this.request<any>(`/requests/${id}/payments/${paymentId}`, { method: "PATCH", body: JSON.stringify(data) }),

@@ -5,7 +5,7 @@ import { JWT_SECRET, TOKEN_COOKIE_NAME } from "./utils/config";
 export interface AuthenticatedUser {
   id: number;
   username: string;
-  role: 'admin' | 'approver' | 'user';
+  role: 'super_admin' | 'admin' | 'approver' | 'user';
   department: string;
   isApprover?: boolean;
   canManageVendors?: boolean; // New permission flag
@@ -48,8 +48,15 @@ export function hasRole(user: AuthenticatedUser, ...roles: string[]): boolean {
 }
 
 /**
- * Helper to check for approver authority (admin or isApprover flag).
+ * Helper to check if a user is super_admin.
+ */
+export function isSuperAdmin(user: AuthenticatedUser): boolean {
+  return user.role === 'super_admin';
+}
+
+/**
+ * Helper to check for approver authority (super_admin, admin or isApprover flag).
  */
 export function hasApprovalAuthority(user: AuthenticatedUser): boolean {
-  return user.role === 'admin' || user.isApprover === true;
+  return user.role === 'super_admin' || user.role === 'admin' || user.isApprover === true;
 }

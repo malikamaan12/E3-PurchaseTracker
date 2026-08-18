@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
-import { paymentInstallments, purchaseRequests } from "@db/schema";
+import { paymentInstallments, purchaseRequests, auditLogs } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 
@@ -13,6 +13,7 @@ export const dynamic = 'force-dynamic';
  *   1. Backend Gatekeeper: Forcefully prevent overpayment via real-time DB total check.
  *   2. Two-Row Differential: Consolidate partials into the final row (Minimizes connection spam).
  *   3. Inline Savings: Uses savingsAmount column instead of spawning rows.
+ *   4. Immutable Audit Trail: Record before/after values and notes for every modification.
  */
 export async function PATCH(
   req: NextRequest,
@@ -27,10 +28,10 @@ export async function PATCH(
     }
 
     const isFinance = user.department?.toLowerCase() === 'finance';
-    const isAdmin = user.role === 'admin';
+    const isAdmin = user.role === 'admin' || user.role === 'super_admin';
     if (!isFinance && !isAdmin) {
       return NextResponse.json(
-        { error: "Access denied. Only Finance can update payment ledgers." },
+        { error: "Access denied. Only Finance or Super Admin can update payment ledgers." },
         { status: 403 }
       );
     }
@@ -161,6 +162,42 @@ export async function PATCH(
       .set(updatePayload)
       .where(and(eq(paymentInstallments.id, paymentId), eq(paymentInstallments.requestId, requestId)))
       .returning();
+
+    // ── 6. Record Immutable Audit Trail ──────────────────────────────────────
+    try {
+      await db.insert(auditLogs).values({
+        resourceId: requestId,
+        resourceType: "payment_installment",
+        action: "PAYMENT_MODIFIED",
+        userId: user.id,
+        details: {
+          installmentId: paymentId,
+          installmentName: existing.installmentName,
+          previous: {
+            paidAmount: existing.paidAmount,
+            status: existing.status,
+            transactionReference: existing.transactionReference,
+            actualPaymentDate: existing.actualPaymentDate,
+            financeNotes: existing.financeNotes,
+            attachmentUrl: existing.attachmentUrl,
+          },
+          updated: {
+            paidAmount: updatePayload.paidAmount,
+            status: updatePayload.status,
+            transactionReference: updatePayload.transactionReference,
+            actualPaymentDate: updatePayload.actualPaymentDate,
+            financeNotes: updatePayload.financeNotes,
+            attachmentUrl: updatePayload.attachmentUrl,
+          },
+          author: user.username,
+          role: user.role,
+          department: user.department,
+        },
+        timestamp: new Date(),
+      });
+    } catch (auditErr) {
+      console.warn("[Finance Ledger API] Non-fatal audit log error:", auditErr);
+    }
 
     return NextResponse.json({
       success: true,

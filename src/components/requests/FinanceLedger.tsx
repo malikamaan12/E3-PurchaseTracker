@@ -1,15 +1,15 @@
-"use client";
-
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import {
   Calendar, CheckCircle2, Calculator, SplitSquareVertical, 
-  Lock, TrendingDown, ShieldAlert, Landmark, Coins, Loader2, AlertCircle, Save, X, Edit3
+  Lock, TrendingDown, ShieldAlert, Landmark, Coins, Loader2, AlertCircle, Save, X, Edit3,
+  Paperclip, FileText, UploadCloud, Trash2, ExternalLink, MessageSquare, Clock
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
+import { format } from "date-fns";
 
 interface FinanceLedgerProps {
   request: any;
@@ -72,8 +72,10 @@ function FinancialHealthSummary({ totalBudget, totalPaid, currency }: { totalBud
 
 export function FinanceLedger({ request }: FinanceLedgerProps) {
   const queryClient = useQueryClient();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [editingPayment, setEditingPayment] = useState<number | null>(null);
   const [formData, setFormData] = useState<any>({});
+  const [isUploadingReceipt, setIsUploadingReceipt] = useState(false);
   const [isFinalSettlement, setIsFinalSettlement] = useState(false);
   const [variationAmount, setVariationAmount] = useState<string>("");
   const [showVariationConfirm, setShowVariationConfirm] = useState(false);
@@ -118,7 +120,42 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
       financeNotes: payment.financeNotes || "",
       actualPaymentDate: payment.actualPaymentDate ? new Date(payment.actualPaymentDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
       transactionReference: payment.transactionReference || "",
+      attachmentUrl: payment.attachmentUrl || "",
     });
+  }
+
+  async function handleReceiptUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingReceipt(true);
+    const toastId = toast.loading("Uploading payment document...");
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append("files", file);
+
+      const res = await fetch("/api/attachments/upload", {
+        method: "POST",
+        body: uploadFormData,
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.message || errData.error || "Upload failed");
+      }
+
+      const uploaded = await res.json();
+      const url = uploaded[0]?.fileUrl || uploaded[0]?.fileName;
+      setFormData((prev: any) => ({ ...prev, attachmentUrl: url }));
+      toast.success("Document attached successfully", { id: toastId });
+    } catch (err: any) {
+      console.error("[Receipt Upload Error]:", err);
+      toast.error(err.message || "Failed to upload document", { id: toastId });
+    } finally {
+      setIsUploadingReceipt(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   }
 
   const payments: any[] = Array.isArray(request.paymentInstallments) ? request.paymentInstallments : [];
@@ -128,7 +165,6 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
   
   const globalPaidQar = payments.reduce((sum: number, p: any) => sum + ((Number(p.paidAmount) || 0) * activeExchangeRate), 0);
   
-  const installmentTargetRaw = payments.find((p: any) => p.id === editingPayment)?.calculatedAmount ?? 0;
   const currentItemPaidRaw = payments.find((p: any) => p.id === editingPayment)?.paidAmount ?? 0;
   const currentEntryValueRaw = Number(formData.paidAmount || 0);
   const newGlobalPaidQar = globalPaidQar - (currentItemPaidRaw * activeExchangeRate) + (currentEntryValueRaw * activeExchangeRate);
@@ -214,7 +250,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
           <table className="w-full text-sm">
             <thead className="bg-muted/20 border-b border-border/50 text-xs text-muted-foreground">
               <tr>
-                <th className="px-6 py-4 text-left font-bold uppercase tracking-wider">Milestone Phase</th>
+                <th className="px-6 py-4 text-left font-bold uppercase tracking-wider">Milestone & Details</th>
                 <th className="px-6 py-4 text-left font-bold uppercase tracking-wider">Clearance Status</th>
                 <th className="px-6 py-4 text-right font-bold uppercase tracking-wider">Financial Value</th>
                 <th className="px-6 py-4 text-right font-bold uppercase tracking-wider">Action</th>
@@ -224,50 +260,156 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
               {payments.map((p: any) => {
                 const cfg = getStatusCfg(p.status);
                 const isEditing = editingPayment === p.id;
+                const wasModified = p.updatedAt && p.createdAt && new Date(p.updatedAt).getTime() - new Date(p.createdAt).getTime() > 1000;
                 
                 return (
                   <tr key={p.id} className={cn("transition-colors", isEditing ? "bg-muted/10" : "hover:bg-muted/5")}>
                     {isEditing ? (
                       <td colSpan={4} className="p-6">
-                        <div className="bg-background border border-border/50 rounded-xl p-5 shadow-inner">
-                          <h4 className="text-sm font-bold mb-4 flex items-center gap-2 text-primary">
-                            <Edit3 className="w-4 h-4" /> Editing {p.installmentName}
-                          </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div className="bg-background border border-border/50 rounded-2xl p-6 shadow-inner flex flex-col gap-6">
+                          <div className="flex items-center justify-between border-b border-border/50 pb-3">
+                            <h4 className="text-sm font-bold flex items-center gap-2 text-primary">
+                              <Edit3 className="w-4 h-4" /> Editing {p.installmentName}
+                            </h4>
+                            <span className="text-xs text-muted-foreground font-mono">ID #{p.id}</span>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
                             <div className="space-y-2">
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Clearance Status</label>
-                              <select value={formData.status} onChange={(e) => { setFormData({ ...formData, status: e.target.value }); setIsFinalSettlement(false); }}
-                                className="w-full bg-background border border-border/50 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                              <select 
+                                value={formData.status} 
+                                onChange={(e) => { setFormData({ ...formData, status: e.target.value }); setIsFinalSettlement(false); }}
+                                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                               >
                                 <option value="pending">Pending</option>
                                 <option value="partial">Partial</option>
                                 <option value="paid">Fully Paid</option>
                               </select>
                             </div>
+
                             <div className="space-y-2">
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Paid Amount ({request.currency || 'QAR'})</label>
-                              <input type="number" value={formData.paidAmount} onChange={(e) => setFormData({ ...formData, paidAmount: e.target.value })}
-                                className={cn("w-full bg-background border rounded-lg px-4 py-2.5 text-sm font-mono font-bold focus:ring-2 outline-none transition-all", isOverpaid ? "border-destructive focus:ring-destructive/20 text-destructive" : "border-border/50 focus:ring-primary/20")}
+                              <input 
+                                type="number" 
+                                value={formData.paidAmount} 
+                                onChange={(e) => setFormData({ ...formData, paidAmount: e.target.value })}
+                                className={cn("w-full bg-background border rounded-xl px-4 py-2.5 text-sm font-mono font-bold focus:ring-2 outline-none transition-all", isOverpaid ? "border-destructive focus:ring-destructive/20 text-destructive" : "border-border/50 focus:ring-primary/20")}
                               />
                             </div>
+
                             <div className="space-y-2">
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Execution Date</label>
-                              <input type="date" value={formData.actualPaymentDate} onChange={(e) => setFormData({ ...formData, actualPaymentDate: e.target.value })}
-                                className="w-full bg-background border border-border/50 rounded-lg px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                              <input 
+                                type="date" 
+                                value={formData.actualPaymentDate} 
+                                onChange={(e) => setFormData({ ...formData, actualPaymentDate: e.target.value })}
+                                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                               />
                             </div>
+
                             <div className="space-y-2">
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Transaction Ref</label>
-                              <input type="text" value={formData.transactionReference} onChange={(e) => setFormData({ ...formData, transactionReference: e.target.value })} placeholder="e.g. TRF-10293"
-                                className="w-full bg-background border border-border/50 rounded-lg px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                              <input 
+                                type="text" 
+                                value={formData.transactionReference} 
+                                onChange={(e) => setFormData({ ...formData, transactionReference: e.target.value })} 
+                                placeholder="e.g. TRF-10293 or Cheque #"
+                                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                               />
                             </div>
                           </div>
+
+                          {/* Notes & Document Upload Section */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2 border-t border-border/40">
+                            {/* Finance Comment / Revision Reason */}
+                            <div className="space-y-2">
+                              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                                <MessageSquare className="w-3.5 h-3.5 text-primary" /> Finance Notes & Reason for Change
+                              </label>
+                              <textarea
+                                value={formData.financeNotes || ""}
+                                onChange={(e) => setFormData({ ...formData, financeNotes: e.target.value })}
+                                placeholder="Add explanation or audit rationale for this disbursement entry..."
+                                rows={3}
+                                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all resize-none shadow-inner"
+                              />
+                            </div>
+
+                            {/* Optional Supporting Receipt Upload */}
+                            <div className="space-y-2 flex flex-col justify-between">
+                              <div>
+                                <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 mb-2">
+                                  <Paperclip className="w-3.5 h-3.5 text-primary" /> Supporting Receipt / Bank Voucher (Optional)
+                                </label>
+                                <input
+                                  type="file"
+                                  ref={fileInputRef}
+                                  onChange={handleReceiptUpload}
+                                  accept=".pdf,.png,.jpg,.jpeg"
+                                  className="hidden"
+                                />
+
+                                {formData.attachmentUrl ? (
+                                  <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/20 rounded-xl">
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                      <FileText className="w-4 h-4 text-primary shrink-0" />
+                                      <span className="text-xs font-medium text-foreground truncate max-w-[200px]">
+                                        {formData.attachmentUrl.split('/').pop()}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => window.open(formData.attachmentUrl, '_blank')}
+                                        className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold"
+                                      >
+                                        <ExternalLink className="w-3 h-3" /> View
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => setFormData({ ...formData, attachmentUrl: "" })}
+                                        className="p-1 text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                                        title="Remove attachment"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploadingReceipt}
+                                    className="w-full h-24 border-2 border-dashed border-border hover:border-primary/50 bg-muted/20 hover:bg-muted/40 rounded-xl flex flex-col items-center justify-center gap-1.5 text-muted-foreground hover:text-foreground transition-all cursor-pointer disabled:opacity-50"
+                                  >
+                                    {isUploadingReceipt ? (
+                                      <>
+                                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                                        <span className="text-xs font-medium">Uploading Document...</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <UploadCloud className="w-5 h-5 text-primary" />
+                                        <span className="text-xs font-semibold text-foreground">Upload Receipt / Slip</span>
+                                        <span className="text-[10px] text-muted-foreground">PDF, PNG, JPG up to 10MB</span>
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
                           
-                          <div className="mt-6 flex justify-end gap-3 pt-4 border-t border-border/50">
+                          <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
                              <Button variant="ghost" size="sm" className="rounded-full px-6" onClick={() => setEditingPayment(null)}>Cancel</Button>
-                             <Button size="sm" className="rounded-full px-6 shadow-sm" variant={isOverpaid ? "destructive" : "default"} 
-                               onClick={() => updatePaymentMutation.mutate({ paymentId: p.id, data: { ...formData, isFinalSettlement } })} disabled={updatePaymentMutation.isPending || isOverpaid}>
+                             <Button 
+                               size="sm" 
+                               className="rounded-full px-6 shadow-sm" 
+                               variant={isOverpaid ? "destructive" : "default"} 
+                               onClick={() => updatePaymentMutation.mutate({ paymentId: p.id, data: { ...formData, isFinalSettlement } })} 
+                               disabled={updatePaymentMutation.isPending || isOverpaid || isUploadingReceipt}
+                             >
                                {updatePaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
                                {updatePaymentMutation.isPending ? "Saving..." : "Commit Journal Entry"}
                              </Button>
@@ -278,15 +420,51 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                       <>
                         <td className="px-6 py-4">
                            <div className="font-bold text-foreground">{p.installmentName}</div>
-                           <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-                             <Calendar className="w-3 h-3" /> Due: {new Date(p.dueDate).toLocaleDateString()}
+                           <div className="text-xs text-muted-foreground mt-1 flex items-center gap-3 flex-wrap">
+                             <span className="flex items-center gap-1"><Calendar className="w-3 h-3" /> Due: {new Date(p.dueDate).toLocaleDateString()}</span>
+                             {p.transactionReference && (
+                               <span className="font-mono text-foreground font-semibold bg-muted/50 px-2 py-0.5 rounded text-[11px]">
+                                 Ref: {p.transactionReference}
+                               </span>
+                             )}
                            </div>
+
+                           {/* Notes Box */}
+                           {p.financeNotes && (
+                             <div className="mt-2 text-xs bg-muted/40 border border-border/40 rounded-xl p-2.5 text-foreground/90 flex items-start gap-2 max-w-md">
+                               <MessageSquare className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                               <span className="whitespace-pre-line text-[11px] leading-relaxed">{p.financeNotes}</span>
+                             </div>
+                           )}
+
+                           {/* Modified Timestamp Badge */}
+                           {wasModified && (
+                             <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
+                               <Clock className="w-3 h-3 text-muted-foreground/70" />
+                               <span>Modified on {format(new Date(p.updatedAt), "MMM dd, yyyy • hh:mm a")}</span>
+                             </div>
+                           )}
                         </td>
                         <td className="px-6 py-4">
                            <span className={cn("px-3 py-1 rounded-full text-xs font-bold border flex w-max items-center gap-1.5 tracking-wide", cfg.bg)}>
                              {cfg.icon} {cfg.label}
                            </span>
-                           {p.actualPaymentDate && <div className="text-[11px] text-muted-foreground mt-1.5 font-mono bg-muted/50 w-max px-2 py-0.5 rounded">Archived: {new Date(p.actualPaymentDate).toLocaleDateString()}</div>}
+                           {p.actualPaymentDate && (
+                             <div className="text-[11px] text-muted-foreground mt-1.5 font-mono bg-muted/50 w-max px-2 py-0.5 rounded">
+                               Cleared: {new Date(p.actualPaymentDate).toLocaleDateString()}
+                             </div>
+                           )}
+
+                           {/* Receipt Link Badge */}
+                           {p.attachmentUrl && (
+                             <button
+                               onClick={() => window.open(p.attachmentUrl, '_blank')}
+                               className="mt-2 flex items-center gap-1.5 text-[11px] text-primary hover:text-primary/80 font-bold bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full w-max hover:bg-primary/20 transition-colors"
+                               title="View attached payment receipt"
+                             >
+                               <Paperclip className="w-3 h-3" /> View Receipt
+                             </button>
+                           )}
                         </td>
                         <td className="px-6 py-4 text-right">
                            <div className="text-xs font-bold text-muted-foreground font-mono">Auth: {Number(p.calculatedAmount || 0).toLocaleString()}</div>

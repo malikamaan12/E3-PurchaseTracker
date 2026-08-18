@@ -29,11 +29,13 @@ interface Department {
 function CreateUserModal({
   isOpen,
   onClose,
-  departments
+  departments,
+  isSuperAdmin
 }: {
   isOpen: boolean;
   onClose: () => void;
   departments: Department[];
+  isSuperAdmin?: boolean;
 }) {
   const queryClient = useQueryClient();
   const [formData, setFormData] = useState({
@@ -107,6 +109,7 @@ function CreateUserModal({
                 <option value="user">User</option>
                 <option value="approver">Approver</option>
                 <option value="admin">Admin</option>
+                {isSuperAdmin && <option value="super_admin">Super Admin</option>}
               </select>
 
               <select
@@ -224,7 +227,7 @@ import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 export default function UserManagementPage() {
   usePageTitle("User Management");
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, isSuperAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [resetTargetUser, setResetTargetUser] = useState<User | null>(null);
@@ -285,6 +288,7 @@ export default function UserManagementPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         departments={departments}
+        isSuperAdmin={isSuperAdmin}
       />
 
       <ResetPasswordModal
@@ -304,11 +308,12 @@ export default function UserManagementPage() {
               </div>
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                  u.role === 'super_admin' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' :
                   u.role === 'admin' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' :
                   u.role === 'approver' ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' :
                   'bg-muted text-muted-foreground border-border'
                 }`}>
-                  {u.role}
+                  {u.role.replace('_', ' ')}
                 </span>
                 <span className="px-2 py-0.5 bg-secondary rounded text-[10px] font-medium text-foreground border border-border">
                   {u.department}
@@ -339,40 +344,28 @@ export default function UserManagementPage() {
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
               <button
                 onClick={() => setResetTargetUser(u)}
-                aria-label={`Reset password for ${u.username}`}
-                className="min-h-[44px] px-3.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-semibold border border-border flex items-center gap-1.5"
+                className="px-3 py-1.5 text-xs font-semibold text-zinc-300 bg-secondary rounded-lg hover:bg-secondary/80 flex items-center gap-1.5"
               >
-                <Key className="w-3.5 h-3.5 text-amber-500" /> Reset Password
-              </button>
-              <button
-                onClick={() => updateMutation.mutate({ id: u.id, data: { isActive: !u.isActive } })}
-                aria-label={u.isActive ? `Deactivate ${u.username}` : `Activate ${u.username}`}
-                className={`min-h-[44px] px-3.5 rounded-xl text-xs font-semibold border ${
-                  u.isActive
-                    ? 'bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500/20'
-                    : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
-                }`}
-              >
-                {u.isActive ? 'Deactivate' : 'Activate'}
+                <Key className="w-3.5 h-3.5 text-amber-400" /> Reset PW
               </button>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Desktop Table */}
-      <div className="hidden md:block bg-card rounded-3xl border border-border overflow-hidden shadow-xl">
+      {/* Desktop User Table */}
+      <div className="hidden md:block bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-border bg-secondary/30">
-                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">User</th>
-                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Contact</th>
-                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Department</th>
-                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Role</th>
-                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Permissions</th>
-                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap">Status</th>
-                <th scope="col" className="p-4 text-xs font-bold text-muted-foreground uppercase tracking-widest whitespace-nowrap text-right">Actions</th>
+              <tr className="border-b border-border bg-secondary/50 text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                <th className="p-4">User</th>
+                <th className="p-4">Contact</th>
+                <th className="p-4">Department</th>
+                <th className="p-4">Role</th>
+                <th className="p-4">Vendor Access</th>
+                <th className="p-4">Status</th>
+                <th className="p-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -392,11 +385,12 @@ export default function UserManagementPage() {
                   </td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider border ${
+                      u.role === 'super_admin' ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' :
                       u.role === 'admin' ? 'bg-rose-500/10 text-rose-500 border-rose-500/20' :
                       u.role === 'approver' ? 'bg-blue-500/10 text-blue-500 border-blue-500/20' :
                       'bg-muted text-muted-foreground border-border'
                     }`}>
-                      {u.role}
+                      {u.role.replace('_', ' ')}
                     </span>
                   </td>
                   <td className="p-4">
@@ -441,18 +435,22 @@ export default function UserManagementPage() {
                              </div>
                            </DropdownMenu.Item>
 
-                          <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
-
-                          <div className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Change Role</div>
-                          {["user", "approver", "admin"].map(role => (
-                             <DropdownMenu.Item
-                               key={role}
-                               onSelect={() => updateMutation.mutate({ id: u.id, data: { role } })}
-                               className={`px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 text-zinc-300 hover:text-white focus:bg-white/10 focus:text-white capitalize ${u.role === role ? 'font-bold text-brand-primary' : ''}`}
-                             >
-                               Make {role}
-                             </DropdownMenu.Item>
-                          ))}
+                          {/* Change Role — Super Admin Exclusive */}
+                          {isSuperAdmin && (
+                            <>
+                              <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
+                              <div className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Change Role (Super Admin)</div>
+                              {["user", "approver", "admin", "super_admin"].map(role => (
+                                 <DropdownMenu.Item
+                                   key={role}
+                                   onSelect={() => updateMutation.mutate({ id: u.id, data: { role } })}
+                                   className={`px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 text-zinc-300 hover:text-white focus:bg-white/10 focus:text-white capitalize ${u.role === role ? 'font-bold text-brand-primary' : ''}`}
+                                 >
+                                   Make {role.replace('_', ' ')}
+                                 </DropdownMenu.Item>
+                              ))}
+                            </>
+                          )}
 
                           <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
 
