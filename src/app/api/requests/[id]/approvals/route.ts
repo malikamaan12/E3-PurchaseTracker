@@ -322,17 +322,43 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     // B. Notifications
     try {
+      // 1. Automatically clear the approver's pending task notification from their bell icon
+      await notificationService.markPendingActionsCompleted(requestId, user.id);
+
+      // If request reached terminal/unlock state, clear all remaining pending action notifications for this request
+      if (status === 'rejected' || status === 'changes_requested' || finalRequest.status === 'approved') {
+        await notificationService.markPendingActionsCompleted(requestId);
+      }
+
+      // 2. Notify the requester with specific status details
       let type = 'purchase_request_updated';
-      if (status === 'approved') type = 'purchase_request_approved';
-      if (status === 'rejected') type = 'purchase_request_rejected';
+      let notifTitle = `Request Status Updated`;
+      let notifMessage = `Your request "${updatedRequest.title}" is now ${status.replace(/_/g, ' ')}.`;
+      let notifPriority: 'normal' | 'high' = 'normal';
+
+      if (status === 'approved') {
+        type = 'purchase_request_approved';
+        notifTitle = `Request Approved`;
+        notifMessage = `Your request "${updatedRequest.title}" was approved by ${user.username} (${user.department}).`;
+      } else if (status === 'rejected') {
+        type = 'purchase_request_rejected';
+        notifTitle = `Request Rejected`;
+        notifMessage = `Your request "${updatedRequest.title}" was rejected by ${user.username}.${comments ? ` Reason: ${comments}` : ''}`;
+        notifPriority = 'high';
+      } else if (status === 'changes_requested') {
+        type = 'purchase_request_changes_requested';
+        notifTitle = `Changes Requested`;
+        notifMessage = `Modifications requested on "${updatedRequest.title}" by ${user.username}.${comments ? ` Notes: ${comments}` : ''}`;
+        notifPriority = 'high';
+      }
 
       await notificationService.createNotification({
         userId: updatedRequest.requesterId,
-        title: `Request ${status === 'approved' ? 'Approved' : 'Status Updated'}`,
-        message: `Your request "${updatedRequest.title}" is now ${status.replace(/_/g, ' ')}.`,
+        title: notifTitle,
+        message: notifMessage,
         type,
         requestId,
-        priority: status === 'rejected' ? 'high' : 'normal',
+        priority: notifPriority,
       });
 
       // If advancing from Stage 1 (pending_dept_head) to Stage 2, unveil to Mandatory Approvers
@@ -343,16 +369,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
             .where(
               and(
                 inArray(users.department, ["Management", "Finance", "CEO Office", "Ceo Office"]),
-                inArray(users.role, ["admin", "approver"])
+                inArray(users.role, ["admin", "approver", "super_admin"])
               )
             );
           const mandatoryIds = mandatoryApprovers.map(a => a.id).filter(id => id !== user.id);
           if (mandatoryIds.length > 0) {
-            await notificationService.createNewSubmissionNotification({
+            await notificationService.createPendingApprovalNotification({
               requestId,
               requestTitle: updatedRequest.title,
               requesterName: `${user.username} (Dept Head Sign-off)`,
-              adminIds: mandatoryIds,
+              requesterDepartment: user.department || "Procurement",
+              approverIds: mandatoryIds,
             });
           }
         } catch (unveilErr) {

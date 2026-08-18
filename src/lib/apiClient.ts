@@ -149,6 +149,7 @@ class ApiClient {
       return this.request<any[]>(`/notifications${search ? '?' + search : ''}`);
     },
     markRead: (id: number) => this.request<any>(`/notifications/${id}/read`, { method: "PATCH" }),
+    markAsRead: (id: number) => this.request<any>(`/notifications/${id}/read`, { method: "PATCH" }),
     markAllRead: () => this.request<any>("/notifications/mark-all-read", { method: "PATCH" }),
     getUnreadCount: () => this.request<{ count: number}>("/notifications/unread-count"),
     getPreferences: () => this.request<any[]>("/notification-preferences"),

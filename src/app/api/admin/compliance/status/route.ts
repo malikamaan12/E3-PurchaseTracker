@@ -1,25 +1,22 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
-import { vendors, fileAttachments, purchaseRequests } from "@db/schema";
-import { eq, desc, inArray, sql } from "drizzle-orm";
-import { cookies } from "next/headers";
-import { TOKEN_COOKIE_NAME } from "@/lib/utils/config";
-import { decodeJwtPayload } from "@/lib/utils/jwt";
+import { vendors } from "@db/schema";
+import { desc } from "drizzle-orm";
+import { getAuthenticatedUser } from "@/lib/auth-next";
 
 export const dynamic = 'force-dynamic';
 
 /**
  * Compliance Status API
  * Aggregates vendor document coverage by pulling pre-calculated scores from the DB.
+ * Access: super_admin, admin, approver
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    // 1. Auth Guard (Admin/Approver Only)
-    const cookieStore = await cookies();
-    const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
-    const user = token ? decodeJwtPayload(token) : null;
+    // 1. Auth Guard (Super Admin, Admin, Approver)
+    const user = await getAuthenticatedUser(req);
 
-    if (!user || (user.role !== "admin" && user.role !== "approver")) {
+    if (!user || (user.role !== "admin" && user.role !== "super_admin" && user.role !== "approver")) {
       return NextResponse.json({ error: "Unauthorized access to compliance vault" }, { status: 403 });
     }
 

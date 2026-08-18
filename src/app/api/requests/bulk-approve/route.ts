@@ -3,6 +3,7 @@ import { db } from "@db";
 import { purchaseRequests, approvals, auditLogs } from "@db/schema";
 import { eq, and, inArray } from "drizzle-orm";
 import { getAuthenticatedUser, canApproveInDepartment } from "@/lib/auth-next";
+import { notificationService } from "@/lib/services/NotificationService";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +81,23 @@ export async function POST(req: NextRequest) {
         },
         timestamp: new Date(),
       });
+
+      // Clear pending action notification for this approver
+      try {
+        await notificationService.markPendingActionsCompleted(id, user.id);
+
+        // Notify requester
+        await notificationService.createNotification({
+          userId: request.requesterId,
+          title: "Request Approved",
+          message: `Your request "${request.title}" was approved by ${user.username} (${targetApproval.department || 'Management'}).`,
+          type: "purchase_request_approved",
+          requestId: id,
+          priority: "normal",
+        });
+      } catch (notifErr) {
+        console.warn("[Bulk Approve] Notification error:", notifErr);
+      }
 
       approvedList.push(id);
     }

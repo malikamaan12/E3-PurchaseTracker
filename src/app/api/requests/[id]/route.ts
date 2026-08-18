@@ -449,7 +449,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const allRequiredDepts = [...mandatoryDepts, ...filteredAdditional];
 
       const deptApprovers = await db.select().from(users).where(and(inArray(users.department, allRequiredDepts), eq(users.isActive, true)));
-      const adminUsers = await db.select().from(users).where(and(eq(users.role, 'admin'), eq(users.isActive, true)));
+      const adminUsers = await db.select().from(users).where(and(inArray(users.role, ['admin', 'super_admin', 'approver']), eq(users.isActive, true)));
 
       const targetUserIds = new Set<number>();
       deptApprovers.forEach((a: any) => targetUserIds.add(a.id));

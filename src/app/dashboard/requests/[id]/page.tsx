@@ -69,6 +69,9 @@ export default function RequestDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
       queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-live-feed"] });
       toast.success(data.message || "Action submitted successfully");
       setApprovalComments("");
       setTargetApprovalId(null);
@@ -94,6 +97,9 @@ export default function RequestDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
       queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-live-feed"] });
       toast.success(data.message || "Approval revoked successfully");
       setRevokeTarget(null);
       setRevokeReason("");
@@ -118,6 +124,9 @@ export default function RequestDetailPage() {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
       queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-unread-count"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-live-feed"] });
       toast.success(data.message || "Clarification added successfully");
       setClarificationTarget(null);
       setClarificationNote("");

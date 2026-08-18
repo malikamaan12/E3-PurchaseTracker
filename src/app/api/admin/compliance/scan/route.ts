@@ -1,19 +1,17 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
 import { vendors } from "@db/schema";
 import { complianceService } from "@/lib/services/ComplianceService";
-import { cookies } from "next/headers";
-import { TOKEN_COOKIE_NAME } from "@/lib/utils/config";
-import { decodeJwtPayload } from "@/lib/utils/jwt";
+import { getAuthenticatedUser } from "@/lib/auth-next";
 
-export async function POST() {
+export const dynamic = 'force-dynamic';
+
+export async function POST(req: NextRequest) {
   try {
-    // 1. Auth Guard (Admin/Approver Only)
-    const cookieStore = await cookies();
-    const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
-    const user = token ? decodeJwtPayload(token) : null;
+    // 1. Auth Guard (Super Admin, Admin, Approver)
+    const user = await getAuthenticatedUser(req);
 
-    if (!user || (user.role !== "admin" && user.role !== "approver")) {
+    if (!user || (user.role !== "admin" && user.role !== "super_admin" && user.role !== "approver")) {
       return NextResponse.json({ error: "Unauthorized access to compliance vault" }, { status: 403 });
     }
 

@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from "next-themes";
 import { AuthProvider } from "@/context/AuthContext";
 import { PerformanceProvider } from "@/context/PerformanceContext";
 import { PWAProvider } from "@/context/PWAContext";
+import { NotificationToastWatcher } from "@/components/notifications/NotificationToastWatcher";
 
 import { useEffect } from "react";
 
@@ -65,6 +66,7 @@ export default function Providers({
             <PWAProvider>
               {children}
             </PWAProvider>
+            <NotificationToastWatcher />
             <ThemeAwareToaster />
           </AuthProvider>
         </PerformanceProvider>

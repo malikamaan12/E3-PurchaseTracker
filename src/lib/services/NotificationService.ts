@@ -331,7 +331,7 @@ export class NotificationService {
           requestId
         },
         // For approval notifications, restrict to approver roles and specific department
-        roleRestrictions: ['approver', 'manager', 'admin'],
+        roleRestrictions: ['approver', 'manager', 'admin', 'super_admin'],
         departmentRestrictions: department,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Expires in 7 days
       });
@@ -374,7 +374,7 @@ export class NotificationService {
           requesterDepartment
         },
         // Only approver roles should see these notifications
-        roleRestrictions: ['approver', 'manager', 'admin'],
+        roleRestrictions: ['approver', 'manager', 'admin', 'super_admin'],
         // Approvers from the same department as the requester or managers/admins
         departmentRestrictions: [requesterDepartment, 'Management', 'Finance']
       });
@@ -386,7 +386,7 @@ export class NotificationService {
   }
 
   /**
-   * Create a new submission notification for admins
+   * Create a new submission notification for admins and approvers
    */
   public async createNewSubmissionNotification({
     requestId,
@@ -413,8 +413,8 @@ export class NotificationService {
         actionData: {
           requestId
         },
-        // Only admins and managers should see these notifications
-        roleRestrictions: ['admin', 'manager']
+        // Admins, approvers, and super admins should see these notifications
+        roleRestrictions: ['admin', 'manager', 'approver', 'super_admin']
       });
 
       results.push(notification);
@@ -633,6 +633,42 @@ export class NotificationService {
       .returning();
 
     return updated;
+  }
+
+  /**
+   * Mark pending action notifications (e.g. approval_required, purchase_request_submitted)
+   * for a request as completed and read once an action is taken.
+   */
+  public async markPendingActionsCompleted(requestId: number, approverId?: number) {
+    try {
+      const filters: any[] = [
+        eq(notifications.requestId, requestId),
+        eq(notifications.isRead, false),
+        or(
+          eq(notifications.type, 'approval_required'),
+          eq(notifications.type, 'purchase_request_submitted')
+        )
+      ];
+
+      if (approverId) {
+        filters.push(eq(notifications.userId, approverId));
+      }
+
+      await db
+        .update(notifications)
+        .set({
+          isRead: true,
+          isAcknowledged: true,
+          updatedAt: new Date()
+        })
+        .where(and(...filters));
+
+      if (approverId) {
+        this.cache.delete(`notifications_${approverId}`);
+      }
+    } catch (error) {
+      console.error('[NotificationService] Error marking pending actions completed:', error);
+    }
   }
 
   /**
