@@ -33,29 +33,30 @@ export default function DiagnosticsPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 sm:gap-6">
         <div>
-          <h1 className="text-4xl font-serif font-black text-foreground tracking-tight flex items-center gap-3">
-             <Zap className="w-8 h-8 text-brand-primary" />
+          <h1 className="text-2xl sm:text-4xl font-serif font-black text-foreground tracking-tight flex items-center gap-3">
+             <Zap className="w-7 h-7 sm:w-8 sm:h-8 text-brand-primary shrink-0" />
              System Diagnostics
           </h1>
-          <p className="text-sm text-muted-foreground mt-2 font-medium">Audit logs, system events, and real-time runtime diagnostics.</p>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2 font-medium">Audit logs, system events, and real-time runtime diagnostics.</p>
         </div>
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex items-center gap-3 w-full sm:w-auto">
           <button 
             onClick={handleExport}
-            className="flex items-center gap-2 bg-brand-primary text-white font-black px-6 py-2.5 rounded-2xl hover:brightness-110 shadow-lg shadow-brand-primary/20 transition-all group"
+            aria-label="Export Diagnostics as CSV"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-brand-primary text-white font-black px-6 py-3 rounded-2xl hover:brightness-110 shadow-lg shadow-brand-primary/20 transition-all group min-h-[44px] touch-target text-xs sm:text-sm"
           >
             <DownloadCloud className="w-5 h-5 group-hover:scale-110 transition-transform" />
             Export Diagnostics (CSV)
           </button>
-          <div className="bg-secondary/50 p-2.5 rounded-2xl border border-border">
+          <div className="bg-secondary/50 p-3 rounded-2xl border border-border shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center">
             <BugPlay className="w-5 h-5 text-indigo-500" />
           </div>
         </div>
       </div>
 
-       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <div className="bg-card p-5 rounded-2xl border border-border shadow-lg transition-colors">
             <div className="flex gap-3 items-center mb-2">
                <Activity className="w-5 h-5 text-emerald-500"/>
@@ -79,13 +80,13 @@ export default function DiagnosticsPage() {
           </div>
        </div>
 
-      <div className="glass rounded-[2rem] border border-border/40 p-10 shadow-2xl relative overflow-hidden">
+      <div className="glass rounded-2xl sm:rounded-[2rem] border border-border/40 p-5 sm:p-10 shadow-2xl relative overflow-hidden">
         {/* Decorative background element */}
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-brand-primary/5 blur-[120px] rounded-full -mr-64 -mt-64 pointer-events-none" />
 
-        <div className="flex justify-between items-center mb-10 relative">
-          <h2 className="text-xl font-black text-foreground flex items-center gap-3">
-            <Activity className="w-6 h-6 text-brand-primary animate-pulse" />
+        <div className="flex justify-between items-center mb-6 sm:mb-10 relative">
+          <h2 className="text-lg sm:text-xl font-black text-foreground flex items-center gap-3">
+            <Activity className="w-5 h-5 sm:w-6 sm:h-6 text-brand-primary animate-pulse" />
             Live Audit Stream
           </h2>
           <span className="text-[10px] font-black bg-emerald-500/10 text-emerald-500 px-3 py-1 rounded-full border border-emerald-500/20 uppercase tracking-widest">

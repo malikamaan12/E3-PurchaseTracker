@@ -243,21 +243,21 @@ export default function RequestDetailPage() {
         isPending={approvalMutation.isPending}
       />
 
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-2xl border-b border-border/30 px-4 sm:px-6 py-3 sm:py-4 transition-all">
-        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-start md:items-center gap-3 md:gap-4">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0 w-full md:w-auto">
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-2xl border-b border-border/30 px-3.5 sm:px-6 py-3 sm:py-4 transition-all">
+        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row justify-between items-stretch md:items-center gap-3 md:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-4 min-w-0 flex-1">
             <button 
               onClick={() => router.back()}
               aria-label="Navigate back"
-              className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 hover:bg-muted/50 rounded-xl text-muted-foreground hover:text-foreground transition-all shrink-0"
+              className="min-h-[44px] min-w-[44px] flex items-center justify-center p-2 hover:bg-muted/50 rounded-xl text-muted-foreground hover:text-foreground transition-all shrink-0 touch-target"
             >
               <ChevronLeft className="w-5 h-5" />
             </button>
             <div className="flex items-center flex-wrap gap-2 min-w-0 flex-1">
-              <span className="text-xs font-mono font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-md border border-primary/20 shrink-0">
+              <span className="text-xs font-mono font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20 shrink-0">
                 {request.requestNumber}
               </span>
-              <h1 className="text-base sm:text-lg font-bold tracking-tight line-clamp-2 md:truncate text-foreground max-w-full md:max-w-md">{request.title}</h1>
+              <h1 className="text-sm sm:text-lg font-bold tracking-tight line-clamp-2 md:truncate text-foreground max-w-full md:max-w-md">{request.title}</h1>
               <StatusBadge status={request.status} />
             </div>
           </div>
@@ -269,14 +269,14 @@ export default function RequestDetailPage() {
             />
 
             {(canEdit || canDelete) ? (
-              <div className="flex gap-2">
+              <div className="flex items-center gap-2">
                 {canEdit && (
                   <Button 
                     variant="outline" 
                     size="sm" 
                     onClick={() => setShowEditModal(true)}
                     aria-label="Edit Request"
-                    className="min-h-[40px] gap-2 rounded-xl px-4 border-border/50 hover:bg-muted/50 shadow-sm transition-all"
+                    className="min-h-[44px] gap-2 rounded-xl px-4 border-border/50 hover:bg-muted/50 shadow-sm transition-all font-semibold touch-target text-xs"
                   >
                     <Edit3 className="w-3.5 h-3.5" /> Edit
                   </Button>
@@ -287,14 +287,14 @@ export default function RequestDetailPage() {
                     size="sm" 
                     onClick={() => setShowDeleteDialog(true)}
                     aria-label="Delete Request"
-                    className="min-h-[40px] gap-2 rounded-xl px-4 shadow-sm"
+                    className="min-h-[44px] gap-2 rounded-xl px-4 shadow-sm font-semibold touch-target text-xs"
                   >
                     <Trash2 className="w-3.5 h-3.5" /> Delete
                   </Button>
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-xl text-muted-foreground text-xs font-semibold border border-border/50 shadow-sm" title="Locked from edits">
+              <div className="flex items-center gap-2 bg-secondary/50 px-3.5 py-2 rounded-xl text-muted-foreground text-xs font-semibold border border-border/50 shadow-sm min-h-[44px]" title="Locked from edits">
                 <Lock className="w-3.5 h-3.5" /> Locked
               </div>
             )}
@@ -303,7 +303,7 @@ export default function RequestDetailPage() {
               <Button 
                 onClick={() => setShowActionPanel(prev => !prev)}
                 aria-label={showActionPanel ? "Close Review" : "Review Request"}
-                className="min-h-[40px] gap-2 bg-primary text-primary-foreground rounded-xl px-5 shadow-sm hover:shadow-md transition-all font-semibold"
+                className="min-h-[44px] gap-2 bg-primary text-primary-foreground rounded-xl px-5 shadow-sm hover:shadow-md transition-all font-bold text-xs touch-target"
                 size="sm"
               >
                 <ShieldCheck className="w-4 h-4" />
@@ -625,18 +625,47 @@ export default function RequestDetailPage() {
                 <h2 className="font-semibold text-sm tracking-tight">Line Items</h2>
               </div>
               <div className="flex gap-2">
-                 <Button variant="outline" size="sm" className="h-8 text-xs rounded-full border-border/50 hover:bg-muted/50" onClick={() => {
+                 <Button variant="outline" size="sm" className="min-h-[44px] text-xs rounded-xl border-border/50 hover:bg-muted/50 font-semibold touch-target" onClick={() => {
                    if (!Array.isArray(request.items)) return toast.error("No items to export");
                    const rows = ['Item,Qty,Price,Total'];
                    request.items.forEach((i: any) => rows.push(`"${i.name}","${i.quantity}","${i.estimatedCost}","${i.quantity*i.estimatedCost}"`));
-                   const url = window.URL.createObjectURL(new Blob([rows.join('\\n')], { type: 'text/csv' }));
+                   const url = window.URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
                    const a = document.createElement('a'); a.href = url; a.download = `items-${request.id}.csv`; a.click(); window.URL.revokeObjectURL(url);
                  }}>
-                    <Download className="w-3.5 h-3.5 mr-2" /> Export CSV
+                    <Download className="w-4 h-4 mr-1.5" /> Export CSV
                  </Button>
               </div>
             </div>
-            <div className="overflow-x-auto">
+
+            {/* Mobile Line Item Cards (< md) */}
+            <div className="md:hidden p-4 space-y-3">
+              {Array.isArray(request.items) && request.items.length > 0 ? (
+                request.items.map((item: any, idx: number) => (
+                  <div key={idx} className="p-4 rounded-2xl border border-border/60 bg-secondary/20 space-y-2 shadow-sm">
+                    <div className="flex justify-between items-start gap-2">
+                      <p className="font-bold text-sm text-foreground">{item.name || "Unnamed Item"}</p>
+                      <span className="text-xs font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 shrink-0">
+                        Qty: {item.quantity || 0}
+                      </span>
+                    </div>
+                    {item.remarks && (
+                      <p className="text-xs text-muted-foreground">{item.remarks}</p>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-border/40 text-xs">
+                      <span className="text-muted-foreground">Unit: {Number(item.estimatedCost || 0).toLocaleString()} QAR</span>
+                      <span className="font-bold text-foreground text-sm">
+                        {((item.quantity || 0) * (item.estimatedCost || 0)).toLocaleString()} QAR
+                      </span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="p-8 text-center text-muted-foreground text-xs font-medium">No line items specified</div>
+              )}
+            </div>
+
+            {/* Desktop Table (>= md) */}
+            <div className="hidden md:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-muted/20 border-b border-border/50 text-xs text-muted-foreground">
                   <tr>
@@ -828,10 +857,11 @@ export default function RequestDetailPage() {
                                   department: approval.department,
                                   existingComments: approval.comments || "",
                                 })}
-                                className="text-[10px] font-semibold tracking-wide text-primary hover:text-primary-foreground border border-primary/30 hover:border-primary hover:bg-primary rounded-full px-2.5 py-0.5 transition-all flex items-center gap-1"
+                                className="text-xs font-bold text-primary hover:text-primary-foreground border border-primary/30 hover:border-primary hover:bg-primary rounded-xl px-3 py-2 transition-all flex items-center gap-1.5 min-h-[44px] touch-target"
                                 title="Add clarification / condition to this approval"
+                                aria-label="Add clarification"
                               >
-                                <MessageSquare className="w-2.5 h-2.5" /> Clarify
+                                <MessageSquare className="w-3.5 h-3.5" /> Clarify
                               </button>
                             )}
 
@@ -843,10 +873,11 @@ export default function RequestDetailPage() {
                                   department: approval.department,
                                   approverName: approval.approver?.username || `User #${approval.approverId}`,
                                 })}
-                                className="text-[10px] font-bold uppercase tracking-widest text-rose-500 hover:text-rose-600 border border-rose-500/30 hover:border-rose-500 hover:bg-rose-500/10 rounded-full px-2.5 py-0.5 transition-all flex items-center gap-1"
+                                className="text-xs font-bold text-rose-500 hover:text-rose-600 border border-rose-500/30 hover:border-rose-500 hover:bg-rose-500/10 rounded-xl px-3 py-2 transition-all flex items-center gap-1.5 min-h-[44px] touch-target"
                                 title={`Revoke ${approval.department} approval (Super Admin only)`}
+                                aria-label={`Revoke ${approval.department} approval`}
                               >
-                                <RotateCcw className="w-2.5 h-2.5" /> Revoke
+                                <RotateCcw className="w-3.5 h-3.5" /> Revoke
                               </button>
                             )}
                           </div>

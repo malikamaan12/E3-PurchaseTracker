@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
@@ -9,12 +9,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useAuth } from "@/context/AuthContext";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
+import { ActionConfirmDialog } from "@/components/ui/ActionConfirmDialog";
 
 export default function AccountRequestsPage() {
   usePageTitle("Account Requests");
   const { user, isLoading: isAuthLoading, isSuperAdmin } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
+  const [confirmAction, setConfirmAction] = useState<{ request: any; type: 'approve' | 'reject' } | null>(null);
 
   useEffect(() => {
     if (!isAuthLoading && user && !isSuperAdmin) {
@@ -44,13 +46,13 @@ export default function AccountRequestsPage() {
     onSuccess: () => {
       toast.success("Account request rejected");
       queryClient.invalidateQueries({ queryKey: ["admin_account_requests"] });
+      setConfirmAction(null);
     },
-    onError: (error: any) => toast.error(error.message || "Failed to reject request"),
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to reject request");
+      setConfirmAction(null);
+    },
   });
-
-  if (isAuthLoading || (user && !isSuperAdmin)) {
-    return null;
-  }
 
   if (isLoading) {
     return (
@@ -61,29 +63,19 @@ export default function AccountRequestsPage() {
   }
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-serif font-bold text-foreground tracking-tight">Account Requests</h1>
-          <p className="text-sm text-muted-foreground mt-1 font-medium italic">Review and approve new user registrations pending access.</p>
-        </div>
-        <div className="bg-secondary/50 px-4 py-2 rounded-xl flex items-center gap-2 border border-border transition-colors">
-          <ShieldPlus className="w-5 h-5 text-amber-500" />
-          <span className="text-foreground font-bold">{requests.length} Pending</span>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-serif font-bold text-foreground tracking-tight">Account Requests</h1>
+        <p className="text-sm text-muted-foreground mt-1">Review and approve self-service employee registration requests.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {requests.map((req: any) => (
-          <div key={req.id} className="bg-card p-6 rounded-3xl border border-border flex flex-col justify-between hover:border-brand-primary/20 transition-all shadow-xl group min-w-0">
-            
+          <div key={req.id} className="bg-card border border-border rounded-3xl p-6 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between group">
             <div className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
                 <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary font-bold text-lg uppercase border border-brand-primary/20">
                   {req.username.substring(0,2)}
-                </div>
-                <div className="px-2 py-1 rounded bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[10px] uppercase font-bold tracking-widest">
-                  Pending
                 </div>
               </div>
               
@@ -103,18 +95,20 @@ export default function AccountRequestsPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
+            <div className="flex gap-2.5 mt-6 pt-4 border-t border-border/50">
               <button 
-                onClick={() => approveMutation.mutate(req.id)}
+                onClick={() => setConfirmAction({ request: req, type: 'approve' })}
                 disabled={approveMutation.isPending || rejectMutation.isPending}
-                className="flex-1 py-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-500 font-bold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                aria-label={`Approve request for ${req.username}`}
+                className="flex-[1.5] min-h-[44px] py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50 touch-target shadow-sm"
               >
                 <Check className="w-4 h-4"/> Approve
               </button>
               <button 
-                onClick={() => rejectMutation.mutate(req.id)}
+                onClick={() => setConfirmAction({ request: req, type: 'reject' })}
                 disabled={approveMutation.isPending || rejectMutation.isPending}
-                className="flex-1 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-500 font-bold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                aria-label={`Reject request for ${req.username}`}
+                className="flex-1 min-h-[44px] py-2.5 px-3 rounded-xl bg-secondary/80 hover:bg-rose-500/10 hover:border-rose-500/20 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 border border-border font-bold text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 touch-target"
               >
                 <X className="w-4 h-4"/> Reject
               </button>
@@ -128,6 +122,51 @@ export default function AccountRequestsPage() {
           </div>
         )}
       </div>
+
+      <ActionConfirmDialog
+        isOpen={!!confirmAction}
+        onOpenChange={(open) => { if (!open) setConfirmAction(null); }}
+        title={confirmAction?.type === "approve" ? "Approve Account Request" : "Reject Account Request"}
+        variant={confirmAction?.type === "approve" ? "success" : "danger"}
+        confirmText={confirmAction?.type === "approve" ? "Grant Access & Activate" : "Reject Request"}
+        isLoading={approveMutation.isPending || rejectMutation.isPending}
+        onConfirm={() => {
+          if (confirmAction) {
+            if (confirmAction.type === "approve") {
+              approveMutation.mutate(confirmAction.request.id);
+            } else {
+              rejectMutation.mutate(confirmAction.request.id);
+            }
+          }
+        }}
+        description={
+          <div className="space-y-3 text-left">
+            <p>
+              {confirmAction?.type === "approve"
+                ? `Are you sure you want to approve and provision access for this user?`
+                : `Are you sure you want to reject this registration request?`}
+            </p>
+            <div className="p-3 bg-secondary/40 rounded-xl border border-border space-y-1.5 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground font-medium">Username:</span>
+                <span className="font-bold text-foreground">{confirmAction?.request?.username}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground font-medium">Email:</span>
+                <span className="text-foreground truncate max-w-[200px]">{confirmAction?.request?.email}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground font-medium">Department:</span>
+                <span className="font-bold text-foreground">{confirmAction?.request?.department}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground font-medium">Requested Role:</span>
+                <span className="font-bold capitalize text-brand-primary">{confirmAction?.request?.role}</span>
+              </div>
+            </div>
+          </div>
+        }
+      />
     </div>
   );
 }

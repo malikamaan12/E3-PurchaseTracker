@@ -24,6 +24,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/context/AuthContext";
 import { normalizeDepartmentAssignments, type DepartmentAssignment } from "@/lib/auth-shared";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
+import { ActionConfirmDialog } from "@/components/ui/ActionConfirmDialog";
 
 interface User {
   id: number;
@@ -925,6 +926,8 @@ export default function UserManagementPage() {
   const [editTargetUser, setEditTargetUser] = useState<User | null>(null);
   const [resetTargetUser, setResetTargetUser] = useState<User | null>(null);
   const [deptTargetUser, setDeptTargetUser] = useState<User | null>(null);
+  const [userActionMenu, setUserActionMenu] = useState<User | null>(null);
+  const [confirmResetUser, setConfirmResetUser] = useState<User | null>(null);
 
   useEffect(() => {
     if (!isAuthLoading && user && !isSuperAdmin) {
@@ -975,20 +978,22 @@ export default function UserManagementPage() {
           <p className="text-sm text-muted-foreground mt-1 font-medium">Manage system access, department alignment, and roles.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          <div className="bg-secondary/50 px-4 py-2 rounded-xl flex items-center gap-2 border border-border transition-colors">
+          <div className="bg-secondary/50 px-4 py-2 rounded-xl flex items-center gap-2 border border-border transition-colors min-h-[44px]">
             <Users className="w-5 h-5 text-brand-primary" />
             <span className="text-foreground font-bold">{users.length} Total Users</span>
           </div>
           <button
             onClick={() => setIsCreateDeptModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-secondary text-foreground hover:bg-secondary/80 rounded-xl font-bold border border-border transition-all"
+            aria-label="Add Department"
+            className="flex items-center gap-2 px-4 py-2.5 bg-secondary text-foreground hover:bg-secondary/80 rounded-xl font-bold border border-border transition-all min-h-[44px] touch-target text-xs sm:text-sm"
           >
             <Building2 className="w-4 h-4 text-brand-primary" />
             + Add Department
           </button>
           <button
             onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-95 transition-all"
+            aria-label="Create User"
+            className="flex items-center gap-2 px-4 py-2.5 bg-brand-primary text-white rounded-xl font-bold shadow-lg shadow-brand-primary/20 hover:scale-[1.02] active:scale-95 transition-all min-h-[44px] touch-target text-xs sm:text-sm"
           >
             <Plus className="w-5 h-5" />
             Create User
@@ -1041,8 +1046,9 @@ export default function UserManagementPage() {
                     <p className="text-sm font-bold text-foreground truncate">{u.username}</p>
                     <button
                       onClick={() => setEditTargetUser(u)}
-                      className="p-1 text-muted-foreground hover:text-brand-primary rounded"
+                      className="p-1.5 min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-muted-foreground hover:text-brand-primary rounded-lg touch-target"
                       title="Edit user / Change username"
+                      aria-label={`Edit ${u.username}`}
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
@@ -1095,7 +1101,7 @@ export default function UserManagementPage() {
                 </div>
                 <button
                   onClick={() => updateMutation.mutate({ id: u.id, data: { canManageVendors: !u.canManageVendors } })}
-                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all ${
+                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all min-h-[36px] touch-target ${
                     u.canManageVendors
                       ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30'
                       : 'bg-secondary text-muted-foreground border-border'
@@ -1108,27 +1114,90 @@ export default function UserManagementPage() {
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/50">
                 <button
                   onClick={() => setEditTargetUser(u)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-300 bg-secondary rounded-lg hover:bg-secondary/80 flex items-center gap-1.5"
+                  aria-label={`Edit ${u.username}`}
+                  className="flex-1 min-h-[44px] px-3 py-2 text-xs font-semibold text-zinc-300 bg-secondary rounded-xl hover:bg-secondary/80 flex items-center justify-center gap-1.5 touch-target"
                 >
                   <UserCog className="w-3.5 h-3.5 text-brand-primary" /> Edit
                 </button>
                 <button
                   onClick={() => setDeptTargetUser(u)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-300 bg-secondary rounded-lg hover:bg-secondary/80 flex items-center gap-1.5"
+                  aria-label={`Manage departments for ${u.username}`}
+                  className="flex-1 min-h-[44px] px-3 py-2 text-xs font-semibold text-zinc-300 bg-secondary rounded-xl hover:bg-secondary/80 flex items-center justify-center gap-1.5 touch-target"
                 >
                   <Building2 className="w-3.5 h-3.5 text-blue-400" /> Depts
                 </button>
                 <button
-                  onClick={() => setResetTargetUser(u)}
-                  className="px-3 py-1.5 text-xs font-semibold text-zinc-300 bg-secondary rounded-lg hover:bg-secondary/80 flex items-center gap-1.5"
+                  onClick={() => setUserActionMenu(u)}
+                  aria-label={`More actions for ${u.username}`}
+                  className="min-h-[44px] min-w-[44px] px-3.5 flex items-center justify-center rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors touch-target"
+                  title="More actions"
                 >
-                  <Key className="w-3.5 h-3.5 text-amber-400" /> Reset PW
+                  <MoreHorizontal className="w-5 h-5" />
                 </button>
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Mobile User Action Sheet */}
+      {userActionMenu && (
+        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-zinc-950 border border-white/10 w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-3 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-white truncate">{userActionMenu.username}</p>
+                <p className="text-xs text-zinc-400 truncate">{userActionMenu.email}</p>
+              </div>
+              <button
+                onClick={() => setUserActionMenu(null)}
+                aria-label="Close actions menu"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-zinc-400 hover:text-white touch-target"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => {
+                  setConfirmResetUser(userActionMenu);
+                  setUserActionMenu(null);
+                }}
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold transition-colors border border-amber-500/20 flex items-center justify-between touch-target"
+              >
+                <span>Reset User Password</span>
+                <Key className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Accessible Confirmation Dialog for Password Reset Initiation */}
+      <ActionConfirmDialog
+        isOpen={!!confirmResetUser}
+        onOpenChange={(open) => { if (!open) setConfirmResetUser(null); }}
+        title="Initialize Password Reset"
+        variant="warning"
+        confirmText="Proceed to Reset Password"
+        onConfirm={() => {
+          if (confirmResetUser) {
+            setResetTargetUser(confirmResetUser);
+            setConfirmResetUser(null);
+          }
+        }}
+        description={
+          <div className="space-y-3 text-left">
+            <p>
+              Are you sure you want to reset the password for <span className="font-bold text-foreground">{confirmResetUser?.username}</span> ({confirmResetUser?.email})?
+            </p>
+            <div className="p-3 bg-secondary/40 rounded-xl border border-border text-xs text-muted-foreground">
+              Confirming will open the credential management prompt to input a new temporary or permanent password.
+            </div>
+          </div>
+        }
+      />
 
       {/* Desktop User Table */}
       <div className="hidden md:block bg-card border border-border rounded-2xl overflow-hidden shadow-sm">

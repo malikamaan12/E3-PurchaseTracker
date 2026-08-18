@@ -95,13 +95,13 @@ export default function AdminOverviewPage() {
   const COLORS = ['#5B4B8A', '#2FB7B2', '#F59E0B', '#EF4444', '#10B981'];
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-4">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col sm:flex-row sm:justify-between items-start sm:items-center gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-foreground tracking-tight">Financial Command Center</h1>
-          <p className="text-sm text-muted-foreground mt-2 font-medium">Real-time budget utilization and cross-departmental spend analysis.</p>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-foreground tracking-tight">Financial Command Center</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 sm:mt-2 font-medium">Real-time budget utilization and cross-departmental spend analysis.</p>
         </div>
-        <div className="flex items-center gap-2 bg-secondary/50 px-4 py-2 rounded-xl border border-border">
+        <div className="flex items-center gap-2 bg-secondary/50 px-3.5 py-2 rounded-xl border border-border">
           <Calendar className="w-4 h-4 text-primary" />
           <span className="text-xs font-bold uppercase tracking-wider">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
         </div>
@@ -112,7 +112,7 @@ export default function AdminOverviewPage() {
         variants={container}
         initial="hidden"
         animate="show"
-        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6"
       >
         {[
           {
@@ -147,11 +147,11 @@ export default function AdminOverviewPage() {
           <motion.div
             variants={item}
             key={i}
-            className="glass p-6 rounded-3xl border border-border/40 shadow-xl hover:shadow-brand-primary/10 transition-all group relative overflow-hidden"
+            className="glass p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-border/40 shadow-xl hover:shadow-brand-primary/10 transition-all group relative overflow-hidden"
           >
              <div className="absolute top-0 right-0 w-24 h-24 bg-brand-primary/5 blur-3xl rounded-full -mr-12 -mt-12 group-hover:bg-brand-primary/10 transition-colors" />
              <div className="flex justify-between items-start relative">
-                <div className="w-12 h-12 rounded-2xl bg-secondary/50 flex items-center justify-center group-hover:bg-brand-primary/10 transition-colors border border-border/50">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-secondary/50 flex items-center justify-center group-hover:bg-brand-primary/10 transition-colors border border-border/50">
                   {stat.icon}
                 </div>
                 <div className="flex flex-col items-end">
@@ -159,8 +159,8 @@ export default function AdminOverviewPage() {
                   <TrendingUp className="w-4 h-4 text-emerald-500 opacity-20 group-hover:opacity-100 transition-opacity" />
                 </div>
              </div>
-            <div className="mt-6">
-              <p className="text-4xl font-serif font-black text-foreground tracking-tight group-hover:translate-x-1 transition-transform">{stat.value}</p>
+            <div className="mt-4 sm:mt-6">
+              <p className="text-3xl sm:text-4xl font-serif font-black text-foreground tracking-tight group-hover:translate-x-1 transition-transform">{stat.value}</p>
               <div className="flex justify-between items-end mt-2">
                 <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</p>
                 <p className="text-[9px] text-brand-primary font-black uppercase tracking-tighter opacity-70">{stat.sub}</p>

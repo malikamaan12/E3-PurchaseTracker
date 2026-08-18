@@ -359,23 +359,65 @@ export default function AdminBackupsPage() {
       </motion.div>
 
       {/* Backup History Table */}
-      <div className="glass-card border-white/5 overflow-hidden">
-        <div className="p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center">
+      <div className="glass-card border-white/5 overflow-hidden rounded-2xl sm:rounded-3xl">
+        <div className="p-5 sm:p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
               <History className="w-5 h-5 text-muted-foreground" />
             </div>
             <div>
-              <h3 className="text-lg font-black text-foreground">Archive Registry</h3>
+              <h3 className="text-base sm:text-lg font-black text-foreground">Archive Registry</h3>
               <p className="text-xs text-muted-foreground">Historical snapshots persisted in the R2 primary vault</p>
             </div>
           </div>
-          <Button variant="ghost" onClick={fetchBackups} className="h-10 w-10 p-0 rounded-xl">
+          <Button variant="ghost" onClick={fetchBackups} aria-label="Refresh backups" className="h-11 w-11 p-0 rounded-xl touch-target">
             <RefreshCw className={cn("w-4 h-4", isLoading && "animate-spin")} />
           </Button>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Mobile Backup Cards (< md) */}
+        <div className="md:hidden p-4 space-y-3">
+          {backups.length === 0 && !isLoading ? (
+            <div className="py-12 text-center text-muted-foreground">
+              <Archive className="w-10 h-10 mx-auto opacity-30 mb-2" />
+              <p className="text-xs font-bold uppercase tracking-widest">No Backups Found</p>
+            </div>
+          ) : (
+            backups.map((backup) => (
+              <div key={backup.key} className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] space-y-3 shadow-sm">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-foreground font-mono truncate">{backup.name}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {backup.lastModified ? new Date(backup.lastModified).toLocaleString() : "N/A"}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 shrink-0">
+                    <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                    <span className="text-[9px] font-bold text-emerald-500 uppercase">Verified</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                  <span className="text-xs font-bold text-muted-foreground">
+                    {(backup.size / 1024 / 1024).toFixed(2)} MB
+                  </span>
+                  <Button
+                    variant="secondary"
+                    onClick={() => handleDownload(backup.key)}
+                    aria-label={`Download ${backup.name}`}
+                    className="min-h-[44px] px-4 rounded-xl bg-secondary/80 hover:bg-brand-primary hover:text-white transition-all touch-target text-xs font-bold"
+                  >
+                    <Download className="w-3.5 h-3.5 mr-1.5" /> Download
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table (>= md) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-white/[0.01]">
@@ -449,7 +491,7 @@ export default function AdminBackupsPage() {
                         <Button
                           variant="secondary"
                           onClick={() => handleDownload(backup.key)}
-                          className="h-9 px-4 rounded-lg bg-secondary/80 hover:bg-brand-primary hover:text-white transition-all group/btn"
+                          className="h-9 px-4 rounded-lg bg-secondary/80 hover:bg-brand-primary hover:text-white transition-all group/btn min-h-[36px]"
                         >
                           <Download className="w-3.5 h-3.5 mr-2 group-hover/btn:scale-110 transition-transform" />
                           <span className="text-[10px] font-black uppercase tracking-wider">Download</span>

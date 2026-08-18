@@ -36,7 +36,7 @@ export function Sidebar({ className, onItemClick, ...props }: SidebarProps) {
   ];
 
   return (
-    <div className={cn("flex flex-col h-full bg-card/50 backdrop-blur-xl border-r border-border/50 transition-all duration-300", className)} {...props}>
+    <div className={cn("flex flex-col h-full bg-card border-r border-border/50 shadow-2xl transition-all duration-300", className)} {...props}>
       <div className="flex flex-col flex-1 gap-4 p-6">
         {/* Brand Header (Desktop Only, hidden on drawer) */}
         {!onItemClick && (
@@ -48,7 +48,7 @@ export function Sidebar({ className, onItemClick, ...props }: SidebarProps) {
           </div>
         )}
 
-        <nav className="space-y-1.5">
+        <nav className="space-y-2">
           {navItems.map((item) => {
             const isActive = pathname === item.path || pathname.startsWith(item.path + "/");
             
@@ -57,30 +57,31 @@ export function Sidebar({ className, onItemClick, ...props }: SidebarProps) {
                 key={item.path} 
                 href={item.path}
                 onClick={onItemClick}
+                className="block"
               >
                 <div className={cn(
-                  "group relative flex items-center gap-3 px-4 py-3.5 rounded-2xl transition-all duration-200 outline-none",
-                  isActive 
-                    ? "bg-brand-primary/10 text-brand-primary shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]" 
+                  "group relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 min-h-[44px] touch-target w-full",
+                  isActive
+                    ? "bg-brand-primary/10 text-brand-primary font-bold shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]"
                     : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
                 )}>
                   {/* Active Indicator Bar */}
                   {isActive && (
-                    <div 
+                    <div
                       className="absolute left-0 w-1 h-6 bg-brand-primary rounded-r-full"
                     />
                   )}
                   
                   <div className={cn(
-                    "transition-transform duration-200 group-hover:scale-110",
-                    isActive ? "text-brand-primary" : "text-muted-foreground/60 group-hover:text-foreground"
+                    "transition-transform duration-200 group-hover:scale-105 shrink-0",
+                    isActive ? "text-brand-primary" : "text-muted-foreground group-hover:text-foreground"
                   )}>
                     {item.icon}
                   </div>
                   
-                  <span className="flex-1 text-sm font-bold tracking-tight">{item.name}</span>
+                  <span className="flex-1 text-sm font-semibold tracking-tight">{item.name}</span>
                   
-                  {isActive && <ChevronRight className="w-4 h-4 opacity-40 shrink-0" />}
+                  {isActive && <ChevronRight className="w-4 h-4 opacity-50 shrink-0" />}
                 </div>
               </Link>
             );
@@ -89,14 +90,14 @@ export function Sidebar({ className, onItemClick, ...props }: SidebarProps) {
       </div>
 
       {/* Footer / System Status */}
-      <div className="p-6 border-t border-border/10">
-         <div className="glass p-4 rounded-2xl border border-white/5 bg-brand-primary/[0.03]">
-            <p className="text-[10px] font-black uppercase tracking-widest text-[#5B4B8A] mb-1">System Health</p>
+      <div className="p-4 sm:p-6 border-t border-border/20 pb-safe">
+         <div className="p-3.5 rounded-2xl border border-border bg-secondary/30">
+            <p className="text-xs font-semibold text-muted-foreground mb-1.5">System Operational Status</p>
             <div className="flex items-center gap-2">
-               <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-                  <div className="h-full w-[94%] bg-brand-gradient" />
+               <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden">
+                  <div className="h-full w-[98%] bg-emerald-500 rounded-full" />
                </div>
-               <span className="text-[10px] font-mono font-bold text-foreground">94%</span>
+               <span className="text-xs font-mono font-bold text-foreground">98%</span>
             </div>
          </div>
       </div>

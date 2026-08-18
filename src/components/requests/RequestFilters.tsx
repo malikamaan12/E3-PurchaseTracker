@@ -137,19 +137,19 @@ export function RequestFilters({ filters, setFilters, metadata }: RequestFilters
   return (
     <div className="flex flex-col gap-4 w-full">
       {/* Search and Basic Status */}
-      <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+      <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between w-full">
         <div className="flex-1 w-full max-w-xl relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-brand-primary transition-colors z-10" />
           <Input 
             placeholder="Search by title or request number..."
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
-            className="pl-12"
+            className="pl-11 h-11 min-h-[44px] rounded-xl text-sm"
           />
         </div>
 
-        <div className="flex items-center gap-3 w-full lg:w-auto overflow-x-auto pb-2 lg:pb-0 no-scrollbar">
-          <div className="flex p-1 glass rounded-xl">
+        <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 no-scrollbar">
+          <div className="flex p-1 bg-secondary/60 border border-border rounded-xl shrink-0">
             {statusOptions.slice(0, 4).map(status => (
               <button
                 key={status}
@@ -158,7 +158,7 @@ export function RequestFilters({ filters, setFilters, metadata }: RequestFilters
                     setFilters({ ...filters, status });
                   }
                 }}
-                className={`px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all whitespace-nowrap ${filters.status === status ? "bg-brand-primary text-white shadow-lg" : "text-muted-foreground hover:text-foreground"}`}
+                className={`px-3 py-2 rounded-lg text-xs font-semibold capitalize transition-all whitespace-nowrap min-h-[38px] ${filters.status === status ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
               >
                 {status}
               </button>
@@ -169,23 +169,24 @@ export function RequestFilters({ filters, setFilters, metadata }: RequestFilters
             variant={isAdvancedOpen || activeFilterCount > 0 ? "secondary" : "outline"}
             size="sm"
             onClick={() => setIsAdvancedOpen(!isAdvancedOpen)}
-            className="flex items-center gap-2 h-11"
+            className="flex items-center gap-2 h-11 min-h-[44px] px-3.5 rounded-xl shrink-0"
           >
-            <Filter className="w-3.5 h-3.5" />
-            <span>Filters</span>
+            <Filter className="w-4 h-4" />
+            <span className="text-xs font-semibold">Filters</span>
             {activeFilterCount > 0 && (
-              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-brand-secondary text-white text-[10px]">
+              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-brand-primary text-white text-[11px] font-bold">
                 {activeFilterCount}
               </span>
             )}
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isAdvancedOpen ? 'rotate-180' : ''}`} />
+            <ChevronDown className={`w-4 h-4 transition-transform ${isAdvancedOpen ? 'rotate-180' : ''}`} />
           </Button>
 
           {activeFilterCount > 0 && (
             <button 
               onClick={clearFilters}
-              className="p-3 rounded-xl glass text-muted-foreground hover:text-rose-500 transition-colors"
+              className="p-2.5 rounded-xl border border-border bg-secondary/50 text-muted-foreground hover:text-rose-500 transition-colors min-h-[44px] min-w-[44px] flex items-center justify-center shrink-0"
               title="Clear all filters"
+              aria-label="Clear all filters"
             >
               <X className="w-4 h-4" />
             </button>

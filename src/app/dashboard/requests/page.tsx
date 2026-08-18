@@ -120,10 +120,11 @@ function RequestsDashboardContent() {
     queryFn: () => apiClient.requests.analytics(),
   });
 
-  // Edit/Delete State
+  // Edit/Delete/Approve Confirmation State
   const [editingId, setEditingId] = useState<number | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [deleteRequest, setDeleteRequest] = useState<any | null>(null);
+  const [confirmApprovalRequest, setConfirmApprovalRequest] = useState<any | null>(null);
   const [myQueueMode, setMyQueueMode] = useState(false);
 
   // "My Queue" — requests where logged-in user is an approver and has an active pending approval slot
@@ -153,6 +154,7 @@ function RequestsDashboardContent() {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
       queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
       toast.success("Request approval submitted successfully");
+      setConfirmApprovalRequest(null);
     },
     onError: (err: any) => {
       toast.error(err.message || "Failed to approve request.");
@@ -187,11 +189,11 @@ function RequestsDashboardContent() {
   };
 
   return (
-    <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-8 w-full">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+    <div className="flex flex-col gap-4 sm:gap-6 md:gap-8 p-1 sm:p-4 md:p-8 w-full max-w-full overflow-hidden">
+      <header className="flex flex-col sm:flex-row justify-between items-stretch sm:items-end gap-3 sm:gap-4">
         <div className="space-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Purchase Requests</h1>
-          <p className="text-sm text-muted-foreground">Manage procurement lifecycle and approval workflows.</p>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Purchase Requests</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground">Manage procurement lifecycle and approval workflows.</p>
         </div>
         <ActionBar onNewRequest={() => setIsCreateModalOpen(true)} />
       </header>
@@ -330,7 +332,7 @@ function RequestsDashboardContent() {
                       request={req}
                       isSelected={selectedIds.includes(req.id)}
                       onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
-                      onApprove={() => approveMutation.mutate(req.id)}
+                      onRequestApprove={(targetReq: any) => setConfirmApprovalRequest(targetReq)}
                       onEdit={() => setEditingId(req.id)}
                       onDelete={() => setDeleteRequest(req)}
                     />
@@ -372,7 +374,7 @@ function RequestsDashboardContent() {
                         request={req}
                         isSelected={selectedIds.includes(req.id)}
                         onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
-                        onApprove={() => approveMutation.mutate(req.id)}
+                        onApprove={() => setConfirmApprovalRequest(req)}
                         onEdit={() => setEditingId(req.id)}
                         onDelete={() => setDeleteRequest(req)}
                         awaitingMyApproval={awaitingMyApproval}
@@ -387,9 +389,9 @@ function RequestsDashboardContent() {
               <div className="p-4 flex justify-center border-t border-border mt-4">
                 <button
                   onClick={() => setPage(p => p + 1)}
-                  className="px-4 py-2 bg-secondary text-secondary-foreground text-sm font-medium rounded-lg hover:bg-secondary/80 transition-colors"
+                  className="px-5 py-2.5 bg-secondary text-secondary-foreground text-sm font-semibold rounded-xl hover:bg-secondary/80 transition-colors min-h-[44px] touch-target"
                 >
-                  Load More
+                  Load More Requests
                 </button>
               </div>
             )}
@@ -433,6 +435,61 @@ function RequestsDashboardContent() {
         isLoading={deleteMutation.isPending}
         requestNumber={deleteRequest?.requestNumber}
       />
+
+      {/* Explicit Approval Confirmation Dialog */}
+      {confirmApprovalRequest && (
+        <div className="fixed inset-0 z-[250] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <CheckCircle className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-foreground">Confirm Request Approval</h3>
+                <p className="text-xs font-mono text-muted-foreground truncate">{confirmApprovalRequest.requestNumber}</p>
+              </div>
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-secondary/40 border border-border/80 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Title:</span>
+                <span className="font-semibold text-foreground truncate max-w-[220px] text-right">{confirmApprovalRequest.title}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Amount:</span>
+                <span className="font-bold text-foreground">{confirmApprovalRequest.totalEstimatedCost?.toLocaleString()} QAR</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Requester:</span>
+                <span className="font-medium text-foreground">{confirmApprovalRequest.requester?.username} ({confirmApprovalRequest.requester?.department})</span>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Are you sure you want to approve this purchase request? This action will transition the request to the next workflow stage.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setConfirmApprovalRequest(null)}
+                disabled={approveMutation.isPending}
+                className="px-4 py-2.5 rounded-xl bg-secondary text-foreground hover:bg-secondary/80 font-semibold text-xs min-h-[44px] touch-target"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => approveMutation.mutate(confirmApprovalRequest.id)}
+                disabled={approveMutation.isPending}
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm min-h-[44px] touch-target flex items-center gap-1.5"
+              >
+                {approveMutation.isPending ? "Approving..." : "Confirm Approval"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -480,23 +537,25 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
     : getStatusSum('pending', 'partially_approved', 'PARTIALLY_APPROVED', 'approved', 'VARIATION_PENDING', 'variation_pending', 'changes_requested').count;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+      <div className="col-span-1 sm:col-span-2 lg:col-span-1">
+        <AnalyticsCard
+          label="Total Approved"
+          value={approved}
+          suffix="QAR"
+          subValue={approvedCount}
+          subLabel="requests"
+          icon={<TrendingUp className="text-emerald-500 w-5 h-5" />}
+          glowClass="bg-emerald-500"
+        />
+      </div>
       <AnalyticsCard
-        label="Total Approved"
-        value={approved}
-        suffix="QAR"
-        subValue={approvedCount}
-        subLabel="requests"
-        icon={<TrendingUp className="text-emerald-500 w-6 h-6" />}
-        glowClass="bg-emerald-500"
-      />
-      <AnalyticsCard
-        label="Pending & In-Flight Volume"
+        label="Pending Volume"
         value={pending}
         suffix="QAR"
         subValue={pendingCount}
         subLabel="requests"
-        icon={<BarChart3 className="text-brand-secondary w-6 h-6" />}
+        icon={<BarChart3 className="text-brand-secondary w-5 h-5" />}
         glowClass="bg-brand-secondary"
       />
       <AnalyticsCard
@@ -504,7 +563,7 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
         value={activeCount}
         suffix="REQ"
         subLabel="in workflow"
-        icon={<div className="text-brand-primary font-black text-sm tracking-tighter">QAR</div>}
+        icon={<div className="text-brand-primary font-bold text-xs">QAR</div>}
         glowClass="bg-brand-primary"
       />
     </div>
@@ -512,40 +571,22 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
 }
 
 function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon, glowClass = "" }: any) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const glowRef = useRef<HTMLDivElement>(null);
-
-  const { highPerformanceMode } = usePerformance();
-
-  useEffect(() => {
-    if (!highPerformanceMode && cardRef.current && glowRef.current) {
-      const cleanMagnetic = initMagnetic(cardRef.current);
-      const cleanGlow = initGlow(cardRef.current, glowRef.current);
-      return () => {
-        cleanMagnetic?.();
-        cleanGlow?.();
-      };
-    }
-  }, [highPerformanceMode]);
-
   return (
-    <div
-      className="bg-card border border-border p-6 rounded-lg relative overflow-hidden"
-    >
-      <div className="relative z-10 flex justify-between items-start">
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-muted-foreground">{label}</p>
-          <h3 className="text-2xl font-semibold text-foreground tracking-tight flex items-baseline gap-2 mt-1">
+    <div className="bg-card border border-border p-4 sm:p-5 rounded-2xl relative overflow-hidden shadow-sm flex flex-col justify-between">
+      <div className="flex justify-between items-start gap-2">
+        <div className="space-y-1 min-w-0">
+          <p className="text-xs font-semibold text-muted-foreground truncate">{label}</p>
+          <h3 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight flex items-baseline gap-1.5 mt-0.5">
             {value.toLocaleString()}
-            {suffix && <span className="text-sm text-muted-foreground font-normal">{suffix}</span>}
+            {suffix && <span className="text-xs text-muted-foreground font-normal">{suffix}</span>}
           </h3>
           {subValue !== undefined && (
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-xs text-muted-foreground">
               {subValue.toLocaleString()} {subLabel}
             </p>
           )}
         </div>
-        <div className="w-10 h-10 rounded-md bg-secondary border border-border flex items-center justify-center shadow-sm">
+        <div className="w-10 h-10 rounded-xl bg-secondary border border-border flex items-center justify-center shrink-0 shadow-sm">
           {icon}
         </div>
       </div>
@@ -559,24 +600,24 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
   if (selectedCount === 0) return null;
 
   const content = (
-    <div className="fixed bottom-4 sm:bottom-10 left-1/2 -translate-x-1/2 bg-card border border-border px-4 py-3 rounded-lg shadow-lg z-[110] flex items-center gap-6 w-[95vw] md:w-auto">
-      <div className="flex flex-col">
-        <span className="text-xs font-medium text-muted-foreground">Bulk Actions</span>
-        <span className="text-sm font-semibold">{selectedCount} Selected</span>
+    <div className="fixed bottom-16 sm:bottom-10 left-1/2 -translate-x-1/2 bg-card border border-border px-4 py-3 rounded-2xl shadow-2xl z-[110] flex items-center gap-4 sm:gap-6 w-[92vw] max-w-lg">
+      <div className="flex flex-col min-w-0">
+        <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Bulk Actions</span>
+        <span className="text-xs sm:text-sm font-bold text-foreground truncate">{selectedCount} Selected</span>
       </div>
-      <div className="h-8 w-px bg-border" />
-      <div className="flex gap-2">
+      <div className="h-8 w-px bg-border shrink-0" />
+      <div className="flex gap-2 flex-1 justify-end">
         <button
           onClick={onApprove}
           disabled={isProcessing}
-          className="bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-md shadow-sm hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-2"
+          className="bg-primary text-primary-foreground text-xs sm:text-sm font-bold px-3.5 py-2.5 rounded-xl shadow-sm hover:bg-primary/90 disabled:opacity-50 transition-colors flex items-center gap-1.5 min-h-[44px] touch-target"
         >
           {isProcessing ? "Processing..." : "Approve Now"}
           <CheckCircle className="w-4 h-4" />
         </button>
         <button
           onClick={onClear}
-          className="bg-transparent text-muted-foreground hover:text-foreground hover:bg-secondary text-sm font-medium px-4 py-2 rounded-md transition-colors"
+          className="bg-secondary text-muted-foreground hover:text-foreground text-xs sm:text-sm font-semibold px-3 py-2.5 rounded-xl transition-colors min-h-[44px] touch-target"
         >
           Deselect
         </button>
@@ -587,15 +628,13 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
   if (highPerformanceMode) return content;
 
   return (
-    <div
-      className="animate-fade-scale-in"
-    >
+    <div className="animate-fade-scale-in">
       {content}
     </div>
   );
 }
 
-function RequestMobileCard({ request, isSelected, onSelect, onApprove, onEdit, onDelete }: any) {
+function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, onEdit, onDelete }: any) {
   const router = useRouter();
   const { user, isSuperAdmin, isAdmin, isApprover, isSupervisor, canApproveInDepartment } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -629,96 +668,96 @@ function RequestMobileCard({ request, isSelected, onSelect, onApprove, onEdit, o
   );
 
   return (
-    <div className={`bg-card rounded-2xl border p-4 sm:p-5 shadow-sm transition-all relative ${isSelected ? 'border-brand-primary/50 bg-brand-primary/5' : 'border-border hover:border-brand-primary/20'}`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
+    <div className={`bg-card rounded-2xl border p-4 shadow-sm transition-all relative ${isSelected ? 'border-brand-primary/50 bg-brand-primary/5' : 'border-border hover:border-brand-primary/20'}`}>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        <div className="flex items-start gap-3 min-w-0">
           <input
             type="checkbox"
             aria-label={`Select request ${request.requestNumber}`}
-            className="w-4 h-4 rounded border-border bg-secondary text-brand-primary focus:ring-brand-primary cursor-pointer"
+            className="w-5 h-5 rounded-md border-border bg-secondary text-brand-primary focus:ring-brand-primary cursor-pointer mt-0.5 shrink-0"
             checked={isSelected}
             onChange={(e) => onSelect(e.target.checked)}
           />
-          <div>
-            <span className="font-mono text-xs font-semibold text-brand-secondary">
+          <div className="min-w-0">
+            <span className="font-mono text-xs font-bold text-brand-secondary break-all">
               {request.requestNumber}
             </span>
-            <div className="text-xs text-muted-foreground mt-0.5">
+            <div className="text-xs text-muted-foreground mt-0.5 truncate">
               {request.requester?.username} • {request.requester?.department}
             </div>
           </div>
         </div>
-        <StatusBadge status={request.status} />
+        <div className="self-start sm:self-auto pl-8 sm:pl-0">
+          <StatusBadge status={request.status} />
+        </div>
       </div>
 
-      <div className="my-3">
-        <h4 className="font-medium text-foreground text-sm leading-snug">
+      <div className="my-3 pl-8">
+        <h4 className="font-semibold text-foreground text-sm leading-snug">
           {request.title}
         </h4>
         {request.subPurpose?.name && (
-          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1.5">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand-primary" />
-            {request.subPurpose.name}
+          <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand-primary shrink-0" />
+            <span className="truncate">{request.subPurpose.name}</span>
           </p>
         )}
       </div>
 
-      <div className="flex items-center justify-between pt-3 border-t border-border mt-3">
+      <div className="flex items-center justify-between pt-3 border-t border-border mt-3 pl-8">
         <div>
-          <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider block">Estimated Amount</span>
+          <span className="text-[11px] font-semibold text-muted-foreground block">Estimated</span>
           <span className="text-base font-bold text-foreground">
             {request.totalEstimatedCost?.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">QAR</span>
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-          {canQuickApprove && (
-            <button
-              onClick={onApprove}
-              aria-label="Quick approve request"
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-medium text-xs border border-emerald-500/20 transition-colors"
-            >
-              <CheckCircle className="w-3.5 h-3.5" /> Approve
-            </button>
-          )}
-
           <button
             onClick={() => router.push(`/dashboard/requests/${request.id}`)}
             aria-label={`View details for request ${request.requestNumber}`}
-            className="flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground font-medium text-xs hover:bg-primary/90 transition-colors shadow-sm"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 transition-colors shadow-sm min-h-[44px] touch-target"
           >
-            <Eye className="w-3.5 h-3.5" /> View
+            <Eye className="w-4 h-4" /> View
           </button>
 
           <div className="relative">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label="More actions"
-              className="w-8 h-8 rounded-lg flex items-center justify-center border border-border bg-secondary/60 hover:bg-secondary text-muted-foreground transition-colors"
+              aria-label="More options for request"
+              className="w-11 h-11 rounded-xl flex items-center justify-center border border-border bg-secondary/60 hover:bg-secondary text-muted-foreground transition-colors touch-target"
             >
-              <MoreHorizontal className="w-4 h-4" />
+              <MoreHorizontal className="w-5 h-5" />
             </button>
 
             {isMenuOpen && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
-                <div className="absolute right-0 bottom-full mb-1 w-44 bg-popover border border-border rounded-xl shadow-xl z-50 py-1.5 overflow-hidden animate-in fade-in zoom-in-95">
+                <div className="absolute right-0 bottom-full mb-2 w-48 bg-card border border-border rounded-2xl shadow-2xl z-50 p-1.5 overflow-hidden animate-in fade-in zoom-in-95">
+                  {canQuickApprove && (
+                    <button
+                      onClick={() => { setIsMenuOpen(false); onRequestApprove(request); }}
+                      className="w-full text-left px-3 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-xl flex items-center gap-2.5 min-h-[44px] touch-target"
+                    >
+                      <CheckCircle className="w-4 h-4" /> Approve Request
+                    </button>
+                  )}
                   {(canEdit || canDelete) && (
                     <>
                       {canEdit && (
                         <button
                           onClick={() => { setIsMenuOpen(false); onEdit(); }}
-                          className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2"
+                          className="w-full text-left px-3 py-2.5 text-xs font-semibold text-foreground hover:bg-secondary rounded-xl flex items-center gap-2.5 min-h-[44px] touch-target"
                         >
-                          <Edit2 className="w-3.5 h-3.5" /> Edit Request
+                          <Edit2 className="w-4 h-4" /> Edit Request
                         </button>
                       )}
                       {canDelete && (
                         <button
                           onClick={() => { setIsMenuOpen(false); onDelete(); }}
-                          className="w-full text-left px-3.5 py-2 text-xs font-medium text-destructive hover:bg-secondary flex items-center gap-2"
+                          className="w-full text-left px-3 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10 rounded-xl flex items-center gap-2.5 min-h-[44px] touch-target"
                         >
-                          <Trash2 className="w-3.5 h-3.5" /> Delete Request
+                          <Trash2 className="w-4 h-4" /> Delete Request
                         </button>
                       )}
                       <div className="h-px bg-border my-1 mx-2" />
@@ -726,15 +765,15 @@ function RequestMobileCard({ request, isSelected, onSelect, onApprove, onEdit, o
                   )}
                   <button
                     onClick={() => { setIsMenuOpen(false); apiClient.documents.downloadPdf(request.id); }}
-                    className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2"
+                    className="w-full text-left px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary rounded-xl flex items-center gap-2.5 min-h-[44px] touch-target"
                   >
-                    <FileText className="w-3.5 h-3.5" /> Download PDF
+                    <FileText className="w-4 h-4" /> Download PDF
                   </button>
                   <button
                     onClick={() => { setIsMenuOpen(false); apiClient.documents.downloadZip(request.id); }}
-                    className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2"
+                    className="w-full text-left px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary rounded-xl flex items-center gap-2.5 min-h-[44px] touch-target"
                   >
-                    <Archive className="w-3.5 h-3.5" /> Download ZIP
+                    <Archive className="w-4 h-4" /> Download ZIP
                   </button>
                 </div>
               </>
@@ -911,19 +950,23 @@ function ActionBar({ onNewRequest }: { onNewRequest: () => void }) {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 w-full sm:w-auto">
       <button
         onClick={handleExportExcel}
-        className="flex items-center gap-2 bg-secondary/80 hover:bg-secondary text-foreground text-sm font-medium px-4 py-2 rounded-md border border-border shadow-sm transition-all"
+        aria-label="Export corporate Excel report"
+        className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-secondary/80 hover:bg-secondary text-foreground text-xs sm:text-sm font-semibold px-3.5 py-2.5 rounded-xl border border-border shadow-sm transition-all min-h-[44px] touch-target"
         title="Export Corporate Excel Report"
       >
-        <FileSpreadsheet className="w-4 h-4 text-emerald-500" /> Export Excel
+        <FileSpreadsheet className="w-4 h-4 text-emerald-500 shrink-0" />
+        <span className="truncate">Export</span>
       </button>
       <button
         onClick={onNewRequest}
-        className="flex items-center gap-2 bg-primary text-primary-foreground text-sm font-medium px-4 py-2 rounded-md shadow-sm hover:bg-primary/90 transition-colors"
+        aria-label="Create new purchase request"
+        className="flex-[2] sm:flex-initial flex items-center justify-center gap-2 bg-primary text-primary-foreground text-xs sm:text-sm font-bold px-4 py-2.5 rounded-xl shadow-sm hover:bg-primary/90 transition-colors min-h-[44px] touch-target"
       >
-        <PlusCircle className="w-4 h-4" /> New Request
+        <PlusCircle className="w-4 h-4 shrink-0" />
+        <span className="truncate">New Request</span>
       </button>
     </div>
   );

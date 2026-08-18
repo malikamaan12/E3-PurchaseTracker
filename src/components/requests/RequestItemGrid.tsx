@@ -105,21 +105,102 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
           size="sm"
           type="button"
           onClick={addItem}
-          className="flex items-center gap-2 h-10 px-6"
+          className="flex items-center gap-2 min-h-[44px] px-5 rounded-xl font-bold touch-target"
         >
-          <Plus className="w-3.5 h-3.5" />
+          <Plus className="w-4 h-4" />
           Add Item
         </Button>
       </div>
 
-      <div className="relative overflow-x-auto custom-scrollbar rounded-xl border border-border bg-card shadow-sm transition-colors">
-        <table className="w-full text-left border-collapse min-w-[800px]">
+      {/* Mobile Item Cards (< md) */}
+      <div className="md:hidden space-y-3">
+        {items.map((item, index) => {
+          const rowError = errors?.[index];
+          return (
+            <div key={`mobile-item-${index}`} className={`p-4 rounded-2xl border bg-card space-y-3 shadow-sm ${rowError ? 'border-rose-500 bg-rose-500/5' : 'border-border'}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Item #{index + 1}</span>
+                {items.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => removeItem(index)}
+                    aria-label={`Remove item #${index + 1}`}
+                    className="w-11 h-11 flex items-center justify-center rounded-xl text-rose-500 hover:bg-rose-500/10 transition-colors touch-target"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Item Name</label>
+                <Combobox
+                  options={catalogItems}
+                  value={item.name}
+                  onChange={(val) => updateItem(index, "name", val)}
+                  placeholder="Search item catalog..."
+                  allowCustomValue={true}
+                  className={`w-full bg-background border border-input shadow-sm rounded-xl px-3 min-h-[44px] text-sm font-semibold placeholder:text-muted-foreground/50 ${rowError?.name ? 'border-rose-500' : ''}`}
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-medium text-muted-foreground">Description (Optional)</label>
+                <Input
+                  type="text"
+                  value={item.description || ''}
+                  onChange={(e) => updateItem(index, "description", e.target.value)}
+                  placeholder="Additional specifications or notes..."
+                  className="w-full bg-background border border-input shadow-sm rounded-xl px-3 min-h-[44px] text-xs font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Quantity</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={item.quantity}
+                    onChange={(e) => updateItem(index, "quantity", parseInt(e.target.value) || 0)}
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                    className="w-full bg-background border border-input shadow-sm rounded-xl px-3 min-h-[44px] text-sm font-semibold text-center"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-foreground">Unit Price ({currency})</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={item.estimatedCost || ''}
+                    onChange={(e) => updateItem(index, "estimatedCost", parseFloat(e.target.value) || 0)}
+                    onWheel={(e) => (e.target as HTMLInputElement).blur()}
+                    className="w-full bg-background border border-input shadow-sm rounded-xl px-3 min-h-[44px] text-sm font-semibold text-right"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-2 border-t border-border/60 text-xs">
+                <span className="text-muted-foreground font-medium">Subtotal (QAR):</span>
+                <span className="font-bold text-sm text-foreground">
+                  {(item.quantity * item.estimatedCost * exchangeRate).toLocaleString()} QAR
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop Item Table (>= md) */}
+      <div className="hidden md:block relative overflow-x-auto custom-scrollbar rounded-xl border border-border bg-card shadow-sm transition-colors">
+        <table className="w-full text-left border-collapse min-w-[700px]">
           <thead>
-            <tr className="bg-secondary/50 text-xs font-medium text-muted-foreground uppercase leading-none">
+            <tr className="bg-secondary/50 text-xs font-semibold text-muted-foreground uppercase leading-none">
               <th className="px-4 py-3">Item Details</th>
-              <th className="px-4 py-3 w-32 text-center">Qty</th>
-              <th className="px-4 py-3 w-40">Unit Price ({currency})</th>
-              <th className="px-4 py-3 w-40 text-right">Subtotal (QAR)</th>
+              <th className="px-4 py-3 w-28 text-center">Qty</th>
+              <th className="px-4 py-3 w-36">Unit Price ({currency})</th>
+              <th className="px-4 py-3 w-36 text-right">Subtotal (QAR)</th>
               <th className="px-4 py-3 w-12"></th>
             </tr>
           </thead>
@@ -139,19 +220,19 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
                           onChange={(val) => updateItem(index, "name", val)}
                           placeholder="Search item catalog..."
                           allowCustomValue={true}
-                          className={`w-full bg-background border border-input shadow-sm rounded-md px-3 h-10 text-sm font-semibold placeholder:text-muted-foreground/50 focus:ring-ring focus:ring-2 ${rowError?.name ? 'border-rose-500' : ''}`}
+                          className={`w-full bg-background border border-input shadow-sm rounded-lg px-3 h-10 text-sm font-semibold placeholder:text-muted-foreground/50 focus:ring-ring focus:ring-2 ${rowError?.name ? 'border-rose-500' : ''}`}
                         />
                         <Input
                           type="text"
                           value={item.description || ''}
                           onChange={(e) => updateItem(index, "description", e.target.value)}
                           placeholder="Additional details..."
-                          className="w-full bg-background border border-input shadow-sm rounded-md px-3 h-9 text-xs font-medium text-muted-foreground placeholder:text-muted-foreground/40 focus:ring-ring focus:ring-2 focus:text-foreground transition-colors"
+                          className="w-full bg-background border border-input shadow-sm rounded-lg px-3 h-9 text-xs font-medium text-muted-foreground placeholder:text-muted-foreground/40 focus:ring-ring focus:ring-2 focus:text-foreground transition-colors"
                         />
                     </div>
                   </td>
                   <td className="px-4 py-3 align-top pt-4">
-                    <div className="flex items-center justify-center bg-background border border-input shadow-sm rounded-md px-1 h-10 focus-within:ring-1 focus-within:ring-ring">
+                    <div className="flex items-center justify-center bg-background border border-input shadow-sm rounded-lg px-1 h-10 focus-within:ring-1 focus-within:ring-ring">
                         <Input
                           type="number"
                           min="1"
@@ -163,7 +244,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
                     </div>
                   </td>
                   <td className="px-4 py-3 align-top pt-4">
-                    <div className="flex items-center gap-2 bg-background border border-input shadow-sm rounded-md px-3 h-10 focus-within:ring-1 focus-within:ring-ring transition-shadow">
+                    <div className="flex items-center gap-2 bg-background border border-input shadow-sm rounded-lg px-3 h-10 focus-within:ring-1 focus-within:ring-ring transition-shadow">
                       <span className="text-muted-foreground font-bold text-xs shrink-0">{currency}</span>
                       <Input
                         type="number"
@@ -184,7 +265,8 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
                     <button
                       type="button"
                       onClick={() => removeItem(index)}
-                      className="p-2 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5 transition-all opacity-0 group-hover:opacity-100"
+                      aria-label="Remove item"
+                      className="p-2 rounded-lg text-muted-foreground hover:text-rose-500 hover:bg-rose-500/5 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 min-h-[36px] min-w-[36px] flex items-center justify-center"
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>

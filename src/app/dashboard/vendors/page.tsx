@@ -93,25 +93,27 @@ export default function VendorsDashboard() {
 
   return (
     <div className="flex flex-col gap-6 md:gap-8 p-4 md:p-8 mx-auto w-full max-w-7xl">
-      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-8">
-        <div className="space-y-2 relative">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-8">
+        <div className="space-y-1.5 relative">
           <div className="absolute -top-12 -left-12 w-24 h-24 bg-primary/20 blur-3xl rounded-full pointer-events-none" />
-          <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground relative z-10">Vendor Ecosystem</h1>
-          <p className="text-sm text-muted-foreground font-medium uppercase tracking-widest">Global Supplier Matrix & Compliance Hub</p>
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground relative z-10">Vendor Ecosystem</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground font-medium uppercase tracking-widest">Global Supplier Matrix & Compliance Hub</p>
         </div>
         
-        <div className="flex items-center gap-3 w-full md:w-auto">
+        <div className="flex items-center justify-between sm:justify-end gap-3 w-full md:w-auto">
           {/* View Toggles */}
           <div className="flex bg-secondary/50 p-1.5 rounded-xl border border-border/50 shadow-sm">
             <button 
               onClick={() => setViewMode("grid")}
-              className={`p-2 rounded-lg transition-all ${viewMode === "grid" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              aria-label="Grid View"
+              className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg transition-all touch-target ${viewMode === "grid" ? "bg-background text-foreground shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"}`}
             >
               <LayoutGrid className="w-4 h-4" />
             </button>
             <button 
               onClick={() => setViewMode("list")}
-              className={`p-2 rounded-lg transition-all ${viewMode === "list" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              aria-label="List View"
+              className={`min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg transition-all touch-target ${viewMode === "list" ? "bg-background text-foreground shadow-sm font-bold" : "text-muted-foreground hover:text-foreground"}`}
             >
               <ListIcon className="w-4 h-4" />
             </button>
@@ -120,7 +122,8 @@ export default function VendorsDashboard() {
           {isAdmin && (
             <button 
               onClick={() => setIsOnboarding(true)}
-              className="flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-6 py-2.5 rounded-xl hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all group shrink-0"
+              aria-label="Onboard Entity"
+              className="flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold px-5 py-2.5 rounded-xl hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all group shrink-0 min-h-[44px] touch-target text-sm"
             >
               <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" /> 
               <span>Onboard Entity</span>
@@ -130,7 +133,7 @@ export default function VendorsDashboard() {
       </header>
 
       {/* Advanced Search & Filtering Toolbar */}
-      <section className="bg-background/80 backdrop-blur-md rounded-[2rem] p-5 flex flex-col md:flex-row gap-6 items-center shadow-lg border border-border/50 relative overflow-hidden">
+      <section className="bg-background/80 backdrop-blur-md rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col md:flex-row gap-4 sm:gap-6 items-stretch md:items-center shadow-lg border border-border/50 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent pointer-events-none" />
         
         <div className="relative flex-1 group w-full">
@@ -140,7 +143,7 @@ export default function VendorsDashboard() {
             placeholder="Search Entity Name, IBAN, Tax ID, or Contact..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-secondary/50 border border-border/50 rounded-xl pl-12 pr-6 py-3.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-muted-foreground"
+            className="w-full bg-secondary/50 border border-border/50 rounded-xl pl-12 pr-4 py-3 min-h-[44px] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-muted-foreground"
           />
         </div>
         <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto no-scrollbar py-1 relative">
@@ -148,7 +151,7 @@ export default function VendorsDashboard() {
             <button 
               key={s} 
               onClick={() => setStatusFilter(s)}
-              className={`px-5 py-2.5 rounded-xl border transition-all text-xs font-bold uppercase tracking-wider ${
+              className={`px-4 sm:px-5 py-2.5 rounded-xl border transition-all text-xs font-bold uppercase tracking-wider min-h-[44px] touch-target shrink-0 ${
                 statusFilter === s 
                   ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20 scale-105" 
                   : "bg-secondary/30 border-transparent text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
@@ -243,36 +246,35 @@ function VendorCard({ vendor, isAdmin, onStatusChange, onRate, index }: { vendor
       style={{ animationDelay: `${Math.min(index * 0.05, 0.3)}s` }}
     >
       <VendorDocumentsModal open={docModalOpen} onOpenChange={setDocModalOpen} vendor={vendor} />
-      <div className="p-6 relative">
+      <div className="p-5 sm:p-6 relative">
         {/* Glow effect */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-primary/10 transition-colors pointer-events-none" />
         
-        <div className="flex items-start justify-between gap-6 relative">
-          <div className="flex gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-secondary/50 flex items-center justify-center border border-border shadow-sm group-hover:scale-105 group-hover:border-primary/30 transition-all duration-300 overflow-hidden relative shrink-0">
+        <div className="flex flex-col sm:flex-row items-start justify-between gap-4 relative">
+          <div className="flex items-center gap-3.5 min-w-0 flex-1">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-secondary/50 flex items-center justify-center border border-border shadow-sm group-hover:scale-105 group-hover:border-primary/30 transition-all duration-300 overflow-hidden relative shrink-0">
                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-               <Building2 className="w-8 h-8 text-primary drop-shadow-sm" />
+               <Building2 className="w-7 h-7 sm:w-8 sm:h-8 text-primary drop-shadow-sm" />
             </div>
-            <div className="space-y-1.5 min-w-0">
-              <h3 className="text-xl font-bold text-foreground leading-tight tracking-tight group-hover:text-primary transition-colors truncate">{vendor.companyName}</h3>
-              <div className="flex items-center gap-3">
-                <span className="px-2.5 py-0.5 bg-primary/10 text-primary text-[11px] font-bold uppercase tracking-wider rounded-md border border-primary/20">
+            <div className="space-y-1 min-w-0 flex-1">
+              <h3 className="text-lg sm:text-xl font-bold text-foreground leading-tight tracking-tight group-hover:text-primary transition-colors truncate">{vendor.companyName}</h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] sm:text-[11px] font-bold uppercase tracking-wider rounded-md border border-primary/20 shrink-0">
                   {vendor.category || "GENERAL"}
                 </span>
-                <div className="h-4 w-px bg-border invisible md:visible" />
                 <StarRating rating={vendor.rating} onRate={onRate} size={14} />
               </div>
             </div>
           </div>
           {isAdmin && (
-            <div className="opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100">
+            <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all scale-100 self-end sm:self-auto">
                <StatusToggle current={vendor.status} onChange={onStatusChange} />
             </div>
           )}
         </div>
 
         {/* Bento Grid Contacts */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mt-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
            <ContactItem icon={<Mail className="w-4 h-4" />} label="Identity" value={vendor.email} theme="emerald" />
            <ContactItem icon={<Phone className="w-4 h-4" />} label="Hotline" value={vendor.contactNumber} theme="emerald" />
            <ContactItem icon={<ShieldCheck className="w-4 h-4" />} label="TAX/VAT" value={vendor.taxNumber || "UNREGISTERED"} theme="primary" />
@@ -280,7 +282,7 @@ function VendorCard({ vendor, isAdmin, onStatusChange, onRate, index }: { vendor
         </div>
       </div>
 
-      <div className="px-6 py-4 bg-secondary/20 border-y border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-6 items-center">
+      <div className="px-5 sm:px-6 py-4 bg-secondary/20 border-y border-border/50 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 items-center">
          <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-background border border-border flex items-center justify-center shadow-sm group-hover:border-primary/20 transition-colors shrink-0">
               <MapPin className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
@@ -301,16 +303,16 @@ function VendorCard({ vendor, isAdmin, onStatusChange, onRate, index }: { vendor
          </div>
       </div>
 
-      <div className="px-6 py-4 bg-background flex justify-between items-center group/footer">
+      <div className="px-5 sm:px-6 py-3.5 bg-background flex justify-between items-center group/footer min-h-[52px]">
         <button 
           onClick={() => setDocModalOpen(true)}
-          className="flex items-center gap-2 group-hover:translate-x-1 transition-transform cursor-pointer"
+          className="flex items-center gap-2 group-hover:translate-x-1 transition-transform cursor-pointer min-h-[44px] touch-target"
         >
           <div className={`w-2 h-2 rounded-full ${complianceStatus.bg.split('/')[0].replace('bg-', 'bg-')} ${complianceStatus.alert ? 'animate-pulse shadow-[0_0_8px_currentColor]' : ''}`} />
           <span className={`text-xs font-bold uppercase tracking-wider ${complianceStatus.color}`}>
             {complianceStatus.text}
           </span>
-          <span className="text-xs text-muted-foreground font-medium ml-2 hover:text-primary transition-colors underline decoration-dotted">
+          <span className="text-xs text-muted-foreground font-medium ml-1.5 hover:text-primary transition-colors underline decoration-dotted">
             Manage Docs
           </span>
         </button>

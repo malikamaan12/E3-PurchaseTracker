@@ -133,7 +133,7 @@ export default function PdfSettingsPage() {
         />
         <label 
           htmlFor={inputId}
-          className="mt-2 px-4 py-1.5 bg-secondary hover:bg-brand-primary hover:text-white text-muted-foreground rounded-full text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all active:scale-95 shadow-sm border border-border"
+          className="mt-2 px-5 py-2.5 bg-secondary hover:bg-brand-primary hover:text-white text-muted-foreground rounded-full text-xs font-bold uppercase tracking-wider cursor-pointer transition-all active:scale-95 shadow-sm border border-border min-h-[44px] inline-flex items-center justify-center touch-target"
         >
           Browse Files
         </label>

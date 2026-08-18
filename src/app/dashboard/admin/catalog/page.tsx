@@ -147,14 +147,15 @@ export default function AdminCatalogPage() {
             <div key={category.id} className="group">
               {/* Parent Category Row */}
               <div 
-                className={`bg-card border rounded-[2rem] p-6 flex items-center justify-between transition-all duration-300 hover:shadow-xl ${
+                className={`bg-card border rounded-2xl sm:rounded-[2rem] p-4 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all duration-300 hover:shadow-xl ${
                   category.status === 'frozen' ? 'opacity-70 border-cyan-500/20 grayscale' : 'border-border'
                 }`}
               >
-                <div className="flex items-center gap-6 flex-1">
+                <div className="flex items-center gap-3 sm:gap-6 flex-1 min-w-0">
                   <button 
                     onClick={() => toggleExpand(category.id)}
-                    className="p-2 hover:bg-secondary rounded-xl transition-all"
+                    aria-label={`Toggle projects under ${category.name}`}
+                    className="p-2.5 hover:bg-secondary rounded-xl transition-all min-h-[44px] min-w-[44px] inline-flex items-center justify-center shrink-0 touch-target"
                   >
                     {expandedCategories.includes(category.id) ? (
                       <ChevronDown className="w-5 h-5 text-primary" />
@@ -163,9 +164,9 @@ export default function AdminCatalogPage() {
                     )}
                   </button>
                   
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-xl font-serif font-black">{category.name}</h3>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                      <h3 className="text-base sm:text-xl font-serif font-black truncate">{category.name}</h3>
                       <span className={`px-2 py-0.5 rounded-lg text-[8px] font-black uppercase tracking-tighter border ${
                         category.status === 'active' 
                           ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' 
@@ -174,12 +175,12 @@ export default function AdminCatalogPage() {
                         {category.status}
                       </span>
                     </div>
-                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1 opacity-60">
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1 opacity-60 line-clamp-1">
                       {category.description || "No description provided"}
                     </p>
                   </div>
 
-                  <div className="hidden md:flex items-center gap-8 px-8 border-x border-border/50">
+                  <div className="hidden md:flex items-center gap-8 px-8 border-x border-border/50 shrink-0">
                     <div className="text-center">
                       <span className="text-[8px] font-black uppercase tracking-widest text-muted-foreground block">Projects</span>
                       <span className="text-sm font-black text-foreground">{category.subPurposes?.length || 0}</span>
@@ -191,13 +192,14 @@ export default function AdminCatalogPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 ml-6">
+                <div className="flex items-center gap-2 sm:gap-3 self-end sm:self-center">
                   <button 
                     onClick={() => {
                       setSelectedPurposeId(category.id);
                       setIsPurposeModalOpen(true);
                     }}
-                    className="p-3 hover:bg-secondary rounded-2xl text-muted-foreground hover:text-primary transition-all"
+                    aria-label={`Edit ${category.name}`}
+                    className="p-2.5 hover:bg-secondary rounded-2xl text-muted-foreground hover:text-primary transition-all min-h-[44px] min-w-[44px] inline-flex items-center justify-center touch-target"
                   >
                     <Edit className="w-4 h-4" />
                   </button>
@@ -206,7 +208,8 @@ export default function AdminCatalogPage() {
                       id: category.id, 
                       status: category.status === 'active' ? 'frozen' : 'active' 
                     })}
-                    className={`p-3 rounded-2xl transition-all ${
+                    aria-label={`${category.status === 'active' ? 'Freeze' : 'Activate'} ${category.name}`}
+                    className={`p-2.5 rounded-2xl transition-all min-h-[44px] min-w-[44px] inline-flex items-center justify-center touch-target ${
                       category.status === 'active' 
                         ? 'hover:bg-cyan-500/10 text-muted-foreground hover:text-cyan-500' 
                         : 'bg-cyan-500/20 text-cyan-500'
@@ -220,9 +223,10 @@ export default function AdminCatalogPage() {
                       setSelectedPurposeId(category.id);
                       setIsProjectModalOpen(true);
                     }}
-                    className="flex items-center gap-2 bg-secondary hover:bg-primary hover:text-primary-foreground px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
+                    aria-label={`Add project under ${category.name}`}
+                    className="flex items-center gap-2 bg-secondary hover:bg-primary hover:text-primary-foreground px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all min-h-[44px] touch-target"
                   >
-                    <Plus className="w-3 h-3" />
+                    <Plus className="w-3.5 h-3.5" />
                     Project
                   </button>
                 </div>
@@ -237,27 +241,27 @@ export default function AdminCatalogPage() {
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden"
                   >
-                    <div className="pl-14 pr-6 py-4 space-y-3">
+                    <div className="pl-4 sm:pl-14 pr-2 sm:pr-6 py-4 space-y-3">
                       {category.subPurposes?.length > 0 ? (
                         category.subPurposes.map((project: any) => (
                           <div 
                             key={project.id}
-                            className={`bg-secondary/30 border border-border/50 rounded-2xl p-4 flex items-center justify-between group/sub ${
+                            className={`bg-secondary/30 border border-border/50 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 group/sub ${
                               project.status === 'frozen' ? 'opacity-50 grayscale' : ''
                             }`}
                           >
-                            <div className="flex items-center gap-4">
-                               <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center">
+                            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                               <div className="w-10 h-10 rounded-xl bg-card border border-border flex items-center justify-center shrink-0">
                                   <Layers className="w-4 h-4 text-muted-foreground/40" />
                                </div>
-                               <div>
-                                  <div className="flex items-center gap-2">
-                                     <h4 className="text-sm font-black">{project.name}</h4>
+                               <div className="min-w-0 flex-1">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                     <h4 className="text-sm font-black truncate">{project.name}</h4>
                                      {project.status === 'frozen' && (
                                        <span className="text-[7px] font-black uppercase px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-500 border border-cyan-500/10">Frozen</span>
                                      )}
                                   </div>
-                                  <div className="flex items-center gap-4 mt-1">
+                                  <div className="flex items-center gap-3 sm:gap-4 mt-1 flex-wrap">
                                      <div className="flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground uppercase opacity-60">
                                         <Calendar className="w-3 h-3" />
                                         {project.validFrom ? format(new Date(project.validFrom), 'MMM d') : "Start"} {"->"} {project.validTo ? format(new Date(project.validTo), 'MMM d') : "End"}
@@ -270,13 +274,14 @@ export default function AdminCatalogPage() {
                                </div>
                             </div>
 
-                            <div className="flex items-center gap-2 opacity-0 group-hover/sub:opacity-100 transition-all">
+                            <div className="flex items-center gap-2 self-end sm:self-center opacity-100 md:opacity-0 md:group-hover/sub:opacity-100 transition-all">
                                <button 
                                  onClick={() => {
                                    setSelectedProjectId(project.id);
                                    setIsProjectModalOpen(true);
                                  }}
-                                 className="p-2 hover:bg-card rounded-xl text-muted-foreground hover:text-primary transition-all"
+                                 aria-label={`Edit project ${project.name}`}
+                                 className="p-2 hover:bg-card rounded-xl text-muted-foreground hover:text-primary transition-all min-h-[44px] min-w-[44px] inline-flex items-center justify-center touch-target"
                                >
                                  <Edit className="w-4 h-4" />
                                </button>
@@ -285,7 +290,8 @@ export default function AdminCatalogPage() {
                                    id: project.id, 
                                    status: project.status === 'active' ? 'frozen' : 'active' 
                                  })}
-                                 className={`p-2 rounded-xl transition-all ${
+                                 aria-label={`${project.status === 'active' ? 'Freeze' : 'Activate'} project ${project.name}`}
+                                 className={`p-2 rounded-xl transition-all min-h-[44px] min-w-[44px] inline-flex items-center justify-center touch-target ${
                                    project.status === 'active' 
                                      ? 'hover:bg-cyan-500/10 text-muted-foreground hover:text-cyan-500' 
                                      : 'bg-cyan-500/20 text-cyan-500'

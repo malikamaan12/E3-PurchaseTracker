@@ -73,12 +73,12 @@ export function AnalyticsFilterBar({ filters, setFilters }: AnalyticsFilterBarPr
       highPerformanceMode && "backdrop-blur-none"
     )}>
       {/* Timeframe Select - Compact & Elegant */}
-      <div className="flex items-center justify-between sm:justify-start gap-1 px-3 py-1.5 bg-secondary/50 rounded-xl border border-border/50 w-full sm:w-auto shrink-0">
+      <div className="flex items-center justify-between sm:justify-start gap-1 px-3 py-1 bg-secondary/50 rounded-xl border border-border/50 w-full sm:w-auto shrink-0 min-h-[44px]">
         <div className="flex items-center gap-1.5">
           <div className="p-1 bg-primary/10 rounded-md">
             <Filter className="w-3.5 h-3.5 text-primary" />
           </div>
-          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider sm:hidden">Timeframe:</span>
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider sm:hidden">Timeframe:</span>
         </div>
         <Select
           value={filters.timeframe}
@@ -86,7 +86,7 @@ export function AnalyticsFilterBar({ filters, setFilters }: AnalyticsFilterBarPr
         >
           <SelectTrigger
             aria-label="Select Timeframe"
-            className="border-none bg-transparent hover:bg-transparent h-8 sm:h-7 p-0 px-2 text-xs font-bold uppercase tracking-wider min-w-[110px]"
+            className="border-none bg-transparent hover:bg-transparent min-h-[44px] sm:min-h-[36px] p-0 px-2 text-xs font-bold uppercase tracking-wider min-w-[110px]"
           >
             <SelectValue placeholder="Timeframe" />
           </SelectTrigger>
@@ -108,7 +108,7 @@ export function AnalyticsFilterBar({ filters, setFilters }: AnalyticsFilterBarPr
             options={(depts || []).map(d => ({ value: d.id.toString(), label: d.name }))}
             value={filters.departmentId}
             onChange={(val) => setFilters(prev => ({ ...prev, departmentId: val }))}
-            className="h-10 sm:h-9 border-none bg-secondary/50 text-xs uppercase font-bold tracking-wider hover:bg-secondary transition-colors w-full"
+            className="min-h-[44px] sm:h-9 border-none bg-secondary/50 text-xs uppercase font-bold tracking-wider hover:bg-secondary transition-colors w-full rounded-xl"
           />
         </div>
 
@@ -118,7 +118,7 @@ export function AnalyticsFilterBar({ filters, setFilters }: AnalyticsFilterBarPr
             options={(subPurposes || []).map(p => ({ value: p.id.toString(), label: p.name }))}
             value={filters.projectId}
             onChange={(val) => setFilters(prev => ({ ...prev, projectId: val }))}
-            className="h-10 sm:h-9 border-none bg-secondary/50 text-xs uppercase font-bold tracking-wider hover:bg-secondary transition-colors w-full"
+            className="min-h-[44px] sm:h-9 border-none bg-secondary/50 text-xs uppercase font-bold tracking-wider hover:bg-secondary transition-colors w-full rounded-xl"
           />
         </div>
 
@@ -128,7 +128,7 @@ export function AnalyticsFilterBar({ filters, setFilters }: AnalyticsFilterBarPr
             options={(vendors || []).map(v => ({ value: v.id.toString(), label: v.companyName }))}
             value={filters.vendorId}
             onChange={(val) => setFilters(prev => ({ ...prev, vendorId: val }))}
-            className="h-10 sm:h-9 border-none bg-secondary/50 text-xs uppercase font-bold tracking-wider hover:bg-secondary transition-colors w-full"
+            className="min-h-[44px] sm:h-9 border-none bg-secondary/50 text-xs uppercase font-bold tracking-wider hover:bg-secondary transition-colors w-full rounded-xl"
           />
         </div>
       </div>
@@ -139,9 +139,9 @@ export function AnalyticsFilterBar({ filters, setFilters }: AnalyticsFilterBarPr
           <button
             onClick={handleReset}
             aria-label="Clear active filters"
-            className="min-h-[40px] sm:min-h-[32px] px-3 hover:bg-rose-500/10 text-rose-500/80 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wider group"
+            className="min-h-[44px] px-3.5 hover:bg-rose-500/10 text-rose-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-xl transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wider group touch-target"
           >
-            <X className="w-3.5 h-3.5 group-hover:rotate-90 transition-transform duration-300" />
+            <X className="w-4 h-4 group-hover:rotate-90 transition-transform duration-300" />
             <span>Clear Filters</span>
             <span className="bg-rose-500/10 px-1.5 py-0.5 rounded-md text-[10px] font-mono">{activeFiltersCount}</span>
           </button>

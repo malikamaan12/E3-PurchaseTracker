@@ -133,49 +133,49 @@ export default function ComplianceGatewayPage() {
   return (
     <div className="relative min-h-screen p-4 sm:p-8 w-full overflow-hidden">
       {/* 1. Header & Global Analytics */}
-      <header className="flex flex-col lg:flex-row justify-between items-start gap-8 mb-12 relative z-10">
+      <header className="flex flex-col lg:flex-row justify-between items-start gap-6 lg:gap-8 mb-8 sm:mb-12 relative z-10">
         <div className="max-w-xl">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-3 bg-brand-primary/10 rounded-2xl border border-brand-primary/20">
-              <ShieldCheck className="w-8 h-8 text-brand-primary" />
+          <div className="flex items-center gap-3.5 mb-3">
+            <div className="p-3 bg-brand-primary/10 rounded-2xl border border-brand-primary/20 shrink-0">
+              <ShieldCheck className="w-7 h-7 sm:w-8 sm:h-8 text-brand-primary" />
             </div>
             <div>
-              <h1 className="text-4xl font-serif text-foreground tracking-tight">Compliance Gateway</h1>
-              <p className="text-sm font-medium text-muted-foreground uppercase tracking-widest mt-1 opacity-60">
+              <h1 className="text-2xl sm:text-4xl font-serif text-foreground tracking-tight">Compliance Gateway</h1>
+              <p className="text-xs sm:text-sm font-medium text-muted-foreground uppercase tracking-widest mt-0.5 opacity-60">
                 System-Wide Regulatory Audit • {auditQuarter}
               </p>
             </div>
           </div>
-          <p className="text-foreground/60 leading-relaxed">
+          <p className="text-sm text-foreground/60 leading-relaxed">
             Centralized intelligence hub for monitoring vendor legality. This gateway aggregates proof-of-registration 
             and tax certificates across the entire procurement lifecycle.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full lg:w-auto min-w-[300px] sm:min-w-[600px]">
-          <KpiDisk 
-            label="System Health" 
-            value={data?.summary.systemHealth || 0} 
-            sub="%" 
-            color="bg-emerald-500" 
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 w-full lg:w-auto min-w-0 sm:min-w-[500px]">
+          <KpiDisk
+            label="System Health"
+            value={data?.summary?.systemHealth || 0}
+            sub="%"
+            color="bg-emerald-500"
           />
-          <KpiDisk 
-            label="Fully Secured" 
-            value={data?.summary.fullyCompliant || 0} 
-            sub="vendors" 
-            color="bg-primary" 
+          <KpiDisk
+            label="Fully Secured"
+            value={data?.summary?.fullyCompliant || 0}
+            sub="vendors"
+            color="bg-primary"
           />
-          <KpiDisk 
-            label="Regulatory Risk" 
-            value={data?.summary.highRisk || 0} 
-            sub="critical" 
-            color="bg-rose-500" 
+          <KpiDisk
+            label="Regulatory Risk"
+            value={data?.summary?.highRisk || 0}
+            sub="critical"
+            color="bg-rose-500"
           />
         </div>
       </header>
 
       {/* 2. Controls */}
-      <section className="bg-background/80 backdrop-blur-md rounded-[2rem] p-5 flex flex-col md:flex-row gap-6 items-center shadow-lg border border-border/50 relative overflow-hidden mb-8 sticky top-20 z-40">
+      <section className="bg-background/80 backdrop-blur-md rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col md:flex-row gap-4 sm:gap-6 items-stretch md:items-center shadow-lg border border-border/50 relative overflow-hidden mb-8 sticky top-20 z-40">
         <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent pointer-events-none" />
         <div className="relative flex-1 group w-full">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
@@ -184,17 +184,22 @@ export default function ComplianceGatewayPage() {
             placeholder="Search vendor legal cache..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full bg-secondary/50 border border-border/50 rounded-xl pl-12 pr-6 py-3.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-muted-foreground"
+            className="w-full bg-secondary/50 border border-border/50 rounded-xl pl-12 pr-4 py-3 min-h-[44px] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all placeholder:text-muted-foreground"
           />
         </div>
         <div className="flex gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
-          <button onClick={handleExport} className="h-[50px] px-6 bg-secondary/30 hover:bg-secondary/60 border border-transparent hover:border-border/50 rounded-xl transition-all flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground">
+          <button
+            onClick={handleExport}
+            aria-label="Export Compliance Audit CSV"
+            className="min-h-[44px] px-5 bg-secondary/30 hover:bg-secondary/60 border border-transparent hover:border-border/50 rounded-xl transition-all flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground touch-target flex-1 sm:flex-none"
+          >
             <Download className="w-4 h-4" /> Export Audit
           </button>
           <button 
             onClick={handleScan}
             disabled={isScanning}
-            className="h-[50px] px-6 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 hover:scale-[1.02] flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:pointer-events-none shrink-0"
+            aria-label="Run Compliance Scan"
+            className="min-h-[44px] px-5 bg-primary text-primary-foreground rounded-xl shadow-lg shadow-primary/20 transition-all hover:bg-primary/90 hover:scale-[1.02] flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider disabled:opacity-50 disabled:pointer-events-none shrink-0 touch-target flex-1 sm:flex-none"
           >
             {isScanning ? <ShieldAlert className="w-4 h-4 animate-spin" /> : <ShieldAlert className="w-4 h-4" />} 
             {isScanning ? "Scanning Vault..." : "Run Compliance Scan"}

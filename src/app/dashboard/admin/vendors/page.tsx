@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
-import { Building, ShieldCheck, Lock, XCircle, Search, Pencil } from "lucide-react";
+import { Building, ShieldCheck, Lock, XCircle, Search, Pencil, MoreHorizontal, AlertCircle } from "lucide-react";
 import { VendorManagementModal } from "@/components/vendors/VendorManagementModal";
+import { ActionConfirmDialog } from "@/components/ui/ActionConfirmDialog";
 
 import { useAuth } from "@/context/AuthContext";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
@@ -16,6 +17,11 @@ export default function AdminVendorsPage() {
   const queryClient = useQueryClient();
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [actionMenuVendor, setActionMenuVendor] = useState<any>(null);
+  const [pendingStatusChange, setPendingStatusChange] = useState<{
+    vendor: any;
+    targetStatus: string;
+  } | null>(null);
 
   const { data: vendors = [], isLoading } = useQuery({
     queryKey: ["admin_vendors"],
@@ -29,8 +35,13 @@ export default function AdminVendorsPage() {
     onSuccess: () => {
       toast.success("Vendor status updated");
       queryClient.invalidateQueries({ queryKey: ["admin_vendors"] });
+      setPendingStatusChange(null);
+      setActionMenuVendor(null);
     },
-    onError: (error: any) => toast.error(error.message || "Failed to update vendor"),
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to update vendor");
+      setPendingStatusChange(null);
+    },
   });
 
   const handleEdit = (vendor: any) => {
@@ -88,46 +99,138 @@ export default function AdminVendorsPage() {
             </div>
 
             <div className="space-y-1.5 text-xs text-muted-foreground pt-2 border-t border-border/50">
-              <p className="flex justify-between"><span className="font-semibold text-foreground">Contact:</span> {vendor.contactPerson} ({vendor.email})</p>
-              <p className="flex justify-between"><span className="font-semibold text-foreground">Bank:</span> {vendor.bankName} (IBAN: {vendor.ibanNumber})</p>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 min-w-0">
+                <span className="font-semibold text-foreground shrink-0">Contact:</span>
+                <span className="truncate">{vendor.contactPerson || "N/A"} ({vendor.email || "No email"})</span>
+              </div>
+              <div className="flex flex-col sm:flex-row sm:justify-between gap-0.5 min-w-0">
+                <span className="font-semibold text-foreground shrink-0">Bank:</span>
+                <span className="font-mono text-[11px] truncate">{vendor.bankName || "N/A"} (IBAN: {vendor.ibanNumber || "N/A"})</span>
+              </div>
             </div>
 
             <div className="flex items-center justify-between gap-2 pt-3 border-t border-border/50">
               <button
                 onClick={() => handleEdit(vendor)}
                 aria-label={`Edit ${vendor.companyName}`}
-                className="min-h-[44px] px-4 flex items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-bold border border-border transition-colors"
+                className="flex-1 min-h-[44px] px-4 flex items-center justify-center gap-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-bold border border-border transition-colors touch-target"
               >
                 <Pencil className="w-4 h-4 text-brand-primary" /> Edit
               </button>
 
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => updateStatusMutation.mutate({ id: vendor.id, status: "active" })}
-                  disabled={vendor.status === "active" || updateStatusMutation.isPending}
-                  className="min-h-[44px] px-3 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold transition-colors disabled:opacity-30 border border-emerald-500/20"
-                >
-                  Approve
-                </button>
-                <button
-                  onClick={() => updateStatusMutation.mutate({ id: vendor.id, status: "frozen" })}
-                  disabled={vendor.status === "frozen" || updateStatusMutation.isPending}
-                  className="min-h-[44px] px-3 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-xs font-bold transition-colors disabled:opacity-30 border border-cyan-500/20"
-                >
-                  Freeze
-                </button>
-                <button
-                  onClick={() => updateStatusMutation.mutate({ id: vendor.id, status: "blocked" })}
-                  disabled={vendor.status === "blocked" || updateStatusMutation.isPending}
-                  className="min-h-[44px] px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold transition-colors disabled:opacity-30 border border-rose-500/20"
-                >
-                  Block
-                </button>
-              </div>
+              <button
+                onClick={() => setActionMenuVendor(vendor)}
+                aria-label={`More actions for ${vendor.companyName}`}
+                className="min-h-[44px] min-w-[44px] px-3.5 flex items-center justify-center rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors touch-target"
+                title="More actions"
+              >
+                <MoreHorizontal className="w-5 h-5" />
+              </button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Mobile Overflow Actions Sheet */}
+      {actionMenuVendor && (
+        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card border border-border w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-3 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center justify-between border-b border-border/50 pb-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-foreground truncate">{actionMenuVendor.companyName}</p>
+                <p className="text-xs text-muted-foreground">Status: <span className="font-bold capitalize">{actionMenuVendor.status || "active"}</span></p>
+              </div>
+              <button
+                onClick={() => setActionMenuVendor(null)}
+                aria-label="Close actions menu"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground touch-target"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => {
+                  setPendingStatusChange({ vendor: actionMenuVendor, targetStatus: "active" });
+                  setActionMenuVendor(null);
+                }}
+                disabled={actionMenuVendor.status === "active"}
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold transition-colors disabled:opacity-30 border border-emerald-500/20 flex items-center justify-between touch-target"
+              >
+                <span>Approve Vendor</span>
+                <ShieldCheck className="w-4 h-4" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setPendingStatusChange({ vendor: actionMenuVendor, targetStatus: "frozen" });
+                  setActionMenuVendor(null);
+                }}
+                disabled={actionMenuVendor.status === "frozen"}
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-xs font-bold transition-colors disabled:opacity-30 border border-cyan-500/20 flex items-center justify-between touch-target"
+              >
+                <span>Freeze Vendor</span>
+                <Lock className="w-4 h-4" />
+              </button>
+
+              <div className="pt-2 border-t border-border/50">
+                <button
+                  onClick={() => {
+                    setPendingStatusChange({ vendor: actionMenuVendor, targetStatus: "blocked" });
+                    setActionMenuVendor(null);
+                  }}
+                  disabled={actionMenuVendor.status === "blocked"}
+                  className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold transition-colors disabled:opacity-30 border border-rose-500/20 flex items-center justify-between touch-target"
+                >
+                  <span>Block Vendor (Destructive)</span>
+                  <XCircle className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Accessible Confirmation Dialog */}
+      <ActionConfirmDialog
+        isOpen={!!pendingStatusChange}
+        onOpenChange={(open) => { if (!open) setPendingStatusChange(null); }}
+        title={`Confirm Status Change`}
+        variant={pendingStatusChange?.targetStatus === "blocked" ? "danger" : pendingStatusChange?.targetStatus === "frozen" ? "warning" : "success"}
+        confirmText={`Set to ${pendingStatusChange?.targetStatus || ""}`}
+        isLoading={updateStatusMutation.isPending}
+        onConfirm={() => {
+          if (pendingStatusChange) {
+            updateStatusMutation.mutate({
+              id: pendingStatusChange.vendor.id,
+              status: pendingStatusChange.targetStatus
+            });
+          }
+        }}
+        description={
+          <div className="space-y-3 text-left">
+            <p>
+              Are you sure you want to change the status of <span className="font-bold text-foreground">{pendingStatusChange?.vendor?.companyName}</span>?
+            </p>
+            <div className="p-3 bg-secondary/40 rounded-xl border border-border space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground font-medium">Current Status:</span>
+                <span className="font-bold capitalize text-foreground">{pendingStatusChange?.vendor?.status || "active"}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground font-medium">Proposed Status:</span>
+                <span className="font-bold capitalize text-brand-primary">{pendingStatusChange?.targetStatus}</span>
+              </div>
+            </div>
+            {pendingStatusChange?.targetStatus === "blocked" && (
+              <p className="text-rose-500 text-[11px] font-semibold">
+                Warning: Blocking this vendor will restrict new purchase requests and orders from associating with this supplier.
+              </p>
+            )}
+          </div>
+        }
+      />
 
       {/* Desktop Table View */}
       <div className="hidden md:block overflow-x-auto custom-scrollbar pt-6">

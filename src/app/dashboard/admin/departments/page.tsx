@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
+import { ActionConfirmDialog } from "@/components/ui/ActionConfirmDialog";
 
 export default function DepartmentsPage() {
   usePageTitle("Department Management");
@@ -28,6 +29,8 @@ export default function DepartmentsPage() {
   const [search, setSearch] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingDept, setEditingDept] = useState<any>(null);
+  const [deptToDelete, setDeptToDelete] = useState<any>(null);
+  const [deptActionMenu, setDeptActionMenu] = useState<any>(null);
 
   const { data: departments = [], isLoading } = useQuery({
     queryKey: ["departments"],
@@ -143,22 +146,83 @@ export default function DepartmentsPage() {
                 <button
                   onClick={() => { setEditingDept(dept); setIsModalOpen(true); }}
                   aria-label={`Edit department ${dept.name}`}
-                  className="min-h-[44px] px-4 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-semibold border border-border flex items-center gap-1.5"
+                  className="flex-1 min-h-[44px] px-4 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-semibold border border-border flex items-center justify-center gap-1.5 touch-target"
                 >
-                  <Edit2 className="w-4 h-4" /> Edit
+                  <Edit2 className="w-4 h-4 text-brand-primary" /> Edit
                 </button>
                 <button
-                  onClick={() => { if(confirm(`Remove department "${dept.name}"?`)) deleteMutation.mutate(dept.id); }}
-                  aria-label={`Delete department ${dept.name}`}
-                  className="min-h-[44px] px-4 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-semibold border border-rose-500/20 flex items-center gap-1.5"
+                  onClick={() => setDeptActionMenu(dept)}
+                  aria-label={`More actions for department ${dept.name}`}
+                  className="min-h-[44px] min-w-[44px] px-3.5 flex items-center justify-center rounded-xl bg-secondary hover:bg-secondary/80 text-foreground border border-border transition-colors touch-target"
+                  title="More actions"
                 >
-                  <Trash2 className="w-4 h-4" /> Delete
+                  <MoreHorizontal className="w-5 h-5" />
                 </button>
               </div>
             </div>
           ))
         )}
       </div>
+
+      {/* Mobile Department Action Sheet */}
+      {deptActionMenu && (
+        <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card border border-border w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-3 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center justify-between border-b border-border/50 pb-3">
+              <div className="min-w-0">
+                <p className="text-sm font-bold text-foreground truncate">{deptActionMenu.name}</p>
+                <p className="text-xs text-muted-foreground">{deptActionMenu.isApprover ? "Authorized Unit" : "Standard Unit"}</p>
+              </div>
+              <button
+                onClick={() => setDeptActionMenu(null)}
+                aria-label="Close actions menu"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground touch-target"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={() => {
+                  setDeptToDelete(deptActionMenu);
+                  setDeptActionMenu(null);
+                }}
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 text-xs font-bold transition-colors border border-rose-500/20 flex items-center justify-between touch-target"
+              >
+                <span>Delete Department (Destructive)</span>
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Accessible Confirmation Dialog for Department Deletion */}
+      <ActionConfirmDialog
+        isOpen={!!deptToDelete}
+        onOpenChange={(open) => { if (!open) setDeptToDelete(null); }}
+        title="Delete Department"
+        variant="danger"
+        confirmText="Delete Permanently"
+        isLoading={deleteMutation.isPending}
+        onConfirm={() => {
+          if (deptToDelete) {
+            deleteMutation.mutate(deptToDelete.id);
+            setDeptToDelete(null);
+          }
+        }}
+        description={
+          <div className="space-y-3 text-left">
+            <p>
+              Are you sure you want to remove the department <span className="font-bold text-foreground">{deptToDelete?.name}</span>?
+            </p>
+            <div className="p-3 bg-rose-500/10 rounded-xl border border-rose-500/20 text-xs text-rose-600 dark:text-rose-400">
+              Warning: Deleting this department cannot be undone. Users and purchase requests associated with this unit may be affected.
+            </div>
+          </div>
+        }
+      />
 
       {/* Desktop Departments Table */}
       <div className="hidden md:block bg-card overflow-hidden border border-border rounded-3xl shadow-xl">
@@ -230,7 +294,7 @@ export default function DepartmentsPage() {
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => { if(confirm(`Remove department "${dept.name}"?`)) deleteMutation.mutate(dept.id); }}
+                            onClick={() => setDeptToDelete(dept)}
                             aria-label={`Delete department ${dept.name}`}
                             className="min-h-[36px] min-w-[36px] p-2 rounded-xl hover:bg-rose-500/10 text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400 transition-all active:scale-90 flex items-center justify-center"
                             title="Delete Department"
