@@ -37,7 +37,7 @@ export default function AdminOverviewPage() {
   usePageTitle("Admin Overview");
   const { user, isLoading: isAuthLoading } = useAuth();
 
-  const { data: analytics, isLoading, error } = useQuery({
+  const { data: analytics, isLoading, error, refetch } = useQuery({
     queryKey: ["admin_analytics"],
     queryFn: async () => {
       const res = await fetch("/api/admin/analytics");
@@ -73,9 +73,20 @@ export default function AdminOverviewPage() {
 
   if (error) {
     return (
-      <div className="p-8 bg-destructive/10 border border-destructive/20 rounded-2xl flex items-center gap-4 text-destructive">
-        <AlertCircle className="w-6 h-6" />
-        <p className="font-medium">Failed to load analytics engine. Please check your database connection.</p>
+      <div className="p-8 bg-destructive/10 border border-destructive/20 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-destructive">
+        <div className="flex items-center gap-3">
+          <AlertCircle className="w-6 h-6 shrink-0" />
+          <div>
+            <p className="font-semibold text-sm">Analytics data is temporarily unavailable.</p>
+            <p className="text-xs text-muted-foreground mt-0.5">The command center could not load analytics. Please try refreshing.</p>
+          </div>
+        </div>
+        <button
+          onClick={() => refetch()}
+          className="px-4 py-2 bg-destructive/20 hover:bg-destructive/30 text-destructive text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shrink-0"
+        >
+          Retry
+        </button>
       </div>
     );
   }

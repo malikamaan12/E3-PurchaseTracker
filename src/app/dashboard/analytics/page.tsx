@@ -86,7 +86,11 @@ export default function AnalyticsDashboardPage() {
     )
   }
 
-  const { cashFlow, budgetVsSavings, compliance, rui, cycleTime, distribution } = data
+  const { overview, cashFlow, budgetVsSavings, compliance, rui, cycleTime, distribution } = data || {}
+
+  const upcoming30D = Number(overview?.forecast30Days ?? 0)
+  const overdueAmount = Number(overview?.overdueLiability ?? 0)
+  const totalUnpaid = Number(overview?.totalUnpaidLiability ?? 0)
 
   return (
     <div className="relative min-h-screen overflow-hidden">
@@ -128,26 +132,26 @@ export default function AnalyticsDashboardPage() {
           />
           <KpiCard
             title="Budget Adherence"
-            value={compliance.budgetAdherence != null ? `${compliance.budgetAdherence}%` : "—"}
+            value={compliance?.budgetAdherence != null ? `${compliance.budgetAdherence}%` : "—"}
             description="Zero-variation PRs"
             icon={<Target className="w-5 h-5" />}
-            trend={compliance.budgetAdherence != null ? "Baseline Met" : "No closed data"}
+            trend={compliance?.budgetAdherence != null ? "Baseline Met" : "No closed data"}
             index={1}
           />
           <KpiCard
             title="Forecasted Liability"
-            value={`${(cashFlow[0]?.amount || 0).toLocaleString()} QAR`}
+            value={`${upcoming30D.toLocaleString()} QAR`}
             description="Next 30D projected"
             icon={<TrendingUp className="w-5 h-5" />}
-            trend="Liquid"
+            trend={overdueAmount > 0 ? `${overdueAmount.toLocaleString()} QAR Overdue` : "Liquid"}
             index={2}
           />
           <KpiCard
             title="Negotiated Savings"
-            value={`${budgetVsSavings.reduce((acc: number, curr: any) => acc + (curr.savings || 0), 0).toLocaleString()} QAR`}
+            value={`${(budgetVsSavings || []).reduce((acc: number, curr: any) => acc + (curr.savings || 0), 0).toLocaleString()} QAR`}
             description="Recovered capital"
             icon={<Zap className="w-5 h-5" />}
-            trend={`${budgetVsSavings.length} Depts`}
+            trend={`${(budgetVsSavings || []).length} Depts`}
             positive
             index={3}
           />

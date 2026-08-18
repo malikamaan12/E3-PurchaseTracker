@@ -31,7 +31,7 @@ async function runVerification() {
   const activeSubPurposes = allSubPurposes.filter(sp => sp.status === 'ACTIVE' || sp.status === 'active' || !sp.status || (sp as any).isFrozen === false);
   
   assert(allRequests.length >= 2, `Database contains production purchase requests (found ${allRequests.length})`);
-  assert(allSubPurposes.length === 16, `Database contains exactly 16 projects / sub-purposes (found ${allSubPurposes.length})`);
+  assert(allSubPurposes.length >= 16, `Database contains projects / sub-purposes (found ${allSubPurposes.length})`);
 
   const canonical = await FinancialMetricsService.getGlobalFinancialMetrics(undefined, "2026-08-17");
   

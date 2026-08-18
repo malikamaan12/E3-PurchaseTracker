@@ -9,7 +9,7 @@ const EntityUtilizationChart = dynamic(() => import("@/components/admin/EntityUt
   ssr: false,
   loading: () => <div className="h-80 flex items-center justify-center text-muted-foreground text-xs font-black uppercase tracking-[0.2em] animate-pulse">Loading Chart...</div>
 });
-import { PieChart as PieChartIcon, TrendingUp, Building2, DownloadCloud, Printer, ArrowUpRight } from "lucide-react";
+import { PieChart as PieChartIcon, TrendingUp, Building2, DownloadCloud, Printer, ArrowUpRight, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
@@ -18,18 +18,51 @@ export default function DepartmentAnalyticsPage() {
   usePageTitle("Department Analytics");
   const { user, isLoading: isAuthLoading } = useAuth();
   
-  const { data: analyticsGroups, isLoading } = useQuery({
+  const { data: analyticsGroups, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["admin_analytics"],
     queryFn: () => apiClient.admin.analytics.get(),
     enabled: !!user && !isAuthLoading
   });
 
+  if (isError) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500 pb-12">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 pt-2">
+          <div>
+            <h1 className="text-4xl font-serif font-black text-foreground tracking-tight flex items-center gap-3">
+               <TrendingUp className="w-8 h-8 text-emerald-500" />
+               Department Analytics
+            </h1>
+            <p className="text-sm text-muted-foreground mt-2 font-medium">Comprehensive budget distribution and cross-departmental utilization metrics.</p>
+          </div>
+        </div>
+        <div className="p-8 bg-destructive/10 border border-destructive/20 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 text-destructive">
+          <div className="flex items-center gap-3">
+            <AlertCircle className="w-6 h-6 shrink-0" />
+            <div>
+              <p className="font-semibold text-sm">Analytics data is temporarily unavailable.</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{(error as any)?.message || "Failed to load departmental analytics. Please try again."}</p>
+            </div>
+          </div>
+          <button
+            onClick={() => refetch()}
+            className="px-4 py-2 bg-destructive/20 hover:bg-destructive/30 text-destructive text-xs font-bold uppercase tracking-wider rounded-xl transition-colors shrink-0"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const summary = (analyticsGroups as any)?.summary;
   const stats = (analyticsGroups as any)?.departmental || [];
   const colors = ["hsl(var(--brand-primary))", "hsl(var(--brand-secondary))", "#F59E0B", "#EF4444", "#10B981", "#06b6d4"];
 
   const maxCost = Math.max(...(stats.length ? stats.map((s: any) => s.committedAmount ?? s.totalCost) : [1]));
-  const totalCommitted = stats.reduce((acc: number, curr: any) => acc + (curr.committedAmount ?? curr.totalCost ?? 0), 0);
-  const totalDisbursed = stats.reduce((acc: number, curr: any) => acc + (curr.disbursedAmount ?? 0), 0);
+  const totalCommitted = summary?.committedAmount ?? stats.reduce((acc: number, curr: any) => acc + (curr.committedAmount ?? curr.totalCost ?? 0), 0);
+  const totalDisbursed = summary?.disbursedAmount ?? stats.reduce((acc: number, curr: any) => acc + (curr.disbursedAmount ?? 0), 0);
+  const activeDeptCount = summary?.activeDepartments ?? stats.length;
 
   const handlePrint = () => {
     toast.message("Executive Summary", {
@@ -152,7 +185,7 @@ export default function DepartmentAnalyticsPage() {
             <div className="flex items-end gap-2 mt-2">
                <h3 className="text-3xl font-serif font-black text-foreground">QAR {totalCommitted.toLocaleString()}</h3>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-1 font-bold italic">Active procurement across {stats.length} departments</p>
+            <p className="text-[10px] text-muted-foreground mt-1 font-bold italic">Active procurement across {activeDeptCount} departments</p>
          </motion.div>
          <motion.div 
            initial={{ opacity: 0, scale: 0.95 }}
@@ -171,7 +204,7 @@ export default function DepartmentAnalyticsPage() {
            className="glass p-6 rounded-3xl border border-border/40 shadow-xl"
          >
             <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">Active Departments</p>
-            <h3 className="text-3xl font-serif font-black text-foreground mt-2 tracking-tight">{stats.length}</h3>
+            <h3 className="text-3xl font-serif font-black text-foreground mt-2 tracking-tight">{activeDeptCount}</h3>
             <p className="text-[10px] text-muted-foreground mt-1 font-bold italic font-mono uppercase tracking-tighter">Registered cost centers</p>
          </motion.div>
       </div>

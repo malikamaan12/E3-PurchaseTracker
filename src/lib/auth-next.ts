@@ -15,8 +15,11 @@ import { cookies } from "next/headers";
 
 export async function getAuthenticatedUser(req?: NextRequest): Promise<AuthenticatedUser | null> {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
+    let token = req?.cookies.get(TOKEN_COOKIE_NAME)?.value;
+    if (!token) {
+      const cookieStore = await cookies().catch(() => null);
+      token = cookieStore?.get(TOKEN_COOKIE_NAME)?.value;
+    }
 
     if (!token) return null;
 

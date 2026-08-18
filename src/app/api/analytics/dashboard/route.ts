@@ -12,6 +12,7 @@ import {
 } from "@db/schema";
 import { sql, eq, and, gte, lte, sum, count, avg, desc, inArray, isNotNull } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
+import { FinancialMetricsService } from "@/lib/services/FinancialMetricsService";
 
 export const dynamic = "force-dynamic";
 
@@ -51,11 +52,13 @@ export async function GET(req: NextRequest) {
     if (prStatus) filters.push(eq(purchaseRequests.status, prStatus));
 
     // Department filtering requires join with users or departments
+    let filterDeptName: string | undefined;
     const deptId = parseId(departmentId);
     if (deptId) {
       // Find department name to match against users.department (which is text)
       const [dept] = await db.select().from(departments).where(eq(departments.id, deptId)).limit(1);
       if (dept) {
+        filterDeptName = dept.name;
         filters.push(eq(users.department, dept.name));
       }
     }
@@ -175,7 +178,10 @@ export async function GET(req: NextRequest) {
     .where(baseWhere)
     .groupBy(purchaseRequests.purposeType);
 
+    const overview = await FinancialMetricsService.getGlobalFinancialMetrics(filterDeptName);
+
     return NextResponse.json({
+      overview,
       cashFlow: cashFlow.map(c => ({
         date: c.bucket,
         amount: Number(c.amount || 0)
