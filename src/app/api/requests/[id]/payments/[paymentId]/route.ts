@@ -51,8 +51,8 @@ export async function PATCH(
 
     if (!request) return NextResponse.json({ error: "Request not found" }, { status: 404 });
 
-    // ── 1.5 Strict Compliance: Only editable if APPROVED ──────────────────────
-    if (request.status !== "approved") {
+    // ── 1.5 Strict Compliance: Only editable if APPROVED or FULLY_PAID ───────
+    if (request.status !== "approved" && (request.status as string) !== "fully_paid") {
       return NextResponse.json({ 
         error: "FORBIDDEN", 
         message: `Financial Disbursement Schedule is locked while status is '${request.status.replace(/_/g, ' ')}'. Modifications require Management Approval.` 
@@ -80,18 +80,30 @@ export async function PATCH(
       isFinalSettlement, // Staged inline via savingsAmount
     } = body;
 
-    // ── 2. Backend Gatekeeper: Overpayment Protection ────────────────────────
-    const safePaidAmount = paidAmount !== undefined ? Math.round(Number(paidAmount)) : (existing.paidAmount ?? 0);
+    // ── 2. Backend Gatekeeper & Status Defaults ──────────────────────────────
+    const normalizedStatus = status?.toLowerCase() || existing.status;
+    let safePaidAmount = 0;
+
+    if (normalizedStatus === 'pending') {
+      safePaidAmount = paidAmount !== undefined ? Math.round(Number(paidAmount)) : 0;
+    } else if (normalizedStatus === 'paid') {
+      safePaidAmount = paidAmount !== undefined && Number(paidAmount) > 0 
+        ? Math.round(Number(paidAmount)) 
+        : (existing.calculatedAmount || existing.paidAmount || 0);
+    } else {
+      safePaidAmount = paidAmount !== undefined ? Math.round(Number(paidAmount)) : (existing.paidAmount ?? 0);
+    }
+
     const validBudget = request.revisedTotalCost ?? request.totalEstimatedCost ?? 0;
     
-    // Calculate global total paid IF this update is applied
+    // Calculate global total paid IF this update is applied (counting only active cleared/partial entries)
     const otherPaymentsTotal = allInstallments
-      .filter(p => p.id !== paymentId)
+      .filter(p => p.id !== paymentId && (p.status === 'paid' || p.status === 'partial' || p.status === 'settled_savings'))
       .reduce((sum, p) => sum + (p.paidAmount ?? 0), 0);
     
     const newGlobalPaid = otherPaymentsTotal + safePaidAmount;
 
-    if (newGlobalPaid > validBudget) {
+    if (newGlobalPaid > validBudget && normalizedStatus !== 'pending') {
       return NextResponse.json({ 
         error: "BUDGET_EXCEEDED", 
         message: `Payment of ${safePaidAmount.toLocaleString()} QAR exceeds the remaining approved budget.`,
@@ -100,14 +112,23 @@ export async function PATCH(
     }
 
     // ── 3. Build update payload ───────────────────────────────────────────────
+    let resolvedActualPaymentDate: Date | null = null;
+    if (normalizedStatus === 'pending') {
+      resolvedActualPaymentDate = actualPaymentDate ? new Date(actualPaymentDate) : null;
+    } else if (actualPaymentDate) {
+      resolvedActualPaymentDate = new Date(actualPaymentDate);
+    } else if (normalizedStatus === 'paid' || normalizedStatus === 'partial') {
+      resolvedActualPaymentDate = existing.actualPaymentDate || new Date();
+    }
+
     const updatePayload: any = { 
       updatedAt: new Date(),
       paidAmount: safePaidAmount,
-      status: status?.toLowerCase() || existing.status,
+      status: normalizedStatus,
       financeNotes: financeNotes !== undefined ? financeNotes : existing.financeNotes,
       transactionReference: transactionReference !== undefined ? transactionReference : existing.transactionReference,
       attachmentUrl: attachmentUrl !== undefined ? attachmentUrl : existing.attachmentUrl,
-      actualPaymentDate: actualPaymentDate ? new Date(actualPaymentDate) : (status?.toLowerCase() === 'paid' ? new Date() : existing.actualPaymentDate),
+      actualPaymentDate: resolvedActualPaymentDate,
       rescheduledDate: rescheduledDate ? new Date(rescheduledDate) : existing.rescheduledDate,
     };
 
@@ -116,14 +137,14 @@ export async function PATCH(
     // ── 4. Logic Scenarios (High Efficiency) ────────────────────────────────
     
     // A. Inline Savings (Neon Optimization)
-    if (isFinalSettlement === true && safePaidAmount < existing.calculatedAmount) {
+    if (isFinalSettlement === true && safePaidAmount < existing.calculatedAmount && normalizedStatus === 'paid') {
       updatePayload.status = "paid";
       updatePayload.savingsAmount = Math.round(existing.calculatedAmount - safePaidAmount);
       responseMessage = `Final settlement logged. Inline savings of ${updatePayload.savingsAmount.toLocaleString()} QAR recorded.`;
     }
 
     // B. Two-Row Differential
-    if (status?.toLowerCase() === "partial" && safePaidAmount < existing.calculatedAmount && !isFinalSettlement) {
+    if (normalizedStatus === "partial" && safePaidAmount < existing.calculatedAmount && !isFinalSettlement) {
       const delta = Math.round(existing.calculatedAmount - safePaidAmount);
       const finalInstallment = allInstallments[0]; // Chronologically latest
 
@@ -162,6 +183,22 @@ export async function PATCH(
       .set(updatePayload)
       .where(and(eq(paymentInstallments.id, paymentId), eq(paymentInstallments.requestId, requestId)))
       .returning();
+
+    // ── 5.5 Check overall request completion status ──────────────────────────
+    const refreshedInstallments = allInstallments.map(inst => inst.id === paymentId ? updatedPayment : inst);
+    const allCleared = refreshedInstallments.length > 0 && refreshedInstallments.every(
+      inst => inst.status === 'paid' || inst.status === 'settled_savings'
+    );
+
+    if (allCleared && (request.status as string) === 'approved') {
+      await db.update(purchaseRequests)
+        .set({ status: 'fully_paid', updatedAt: new Date() })
+        .where(eq(purchaseRequests.id, requestId));
+    } else if (!allCleared && (request.status as string) === 'fully_paid') {
+      await db.update(purchaseRequests)
+        .set({ status: 'approved', updatedAt: new Date() })
+        .where(eq(purchaseRequests.id, requestId));
+    }
 
     // ── 6. Record Immutable Audit Trail ──────────────────────────────────────
     try {

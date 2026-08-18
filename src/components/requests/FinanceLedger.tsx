@@ -86,6 +86,9 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
     mutationFn: ({ paymentId, data }: { paymentId: number; data: any }) => apiClient.requests.updatePayment(request.id, paymentId, data),
     onSuccess: (res: any) => {
       queryClient.invalidateQueries({ queryKey: ["request", request.id] });
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
       toast.success(res.message || "Financial record updated.");
       setEditingPayment(null);
       setIsFinalSettlement(false);
@@ -103,6 +106,9 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
     mutationFn: (newTotal: number) => apiClient.requests.update(request.id, { revisedTotalCost: newTotal }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["request", request.id] });
+      queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
       toast.success("Budget variation initiated.");
       setShowVariationConfirm(false);
       setVariationAmount("");
@@ -116,12 +122,40 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
     setIsFinalSettlement(false);
     setFormData({
       status: payment.status || "pending",
-      paidAmount: payment.paidAmount ?? payment.calculatedAmount ?? "",
+      paidAmount: payment.status === "pending" ? (payment.paidAmount || "0") : (payment.paidAmount ?? payment.calculatedAmount ?? ""),
       financeNotes: payment.financeNotes || "",
-      actualPaymentDate: payment.actualPaymentDate ? new Date(payment.actualPaymentDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+      actualPaymentDate: payment.actualPaymentDate ? new Date(payment.actualPaymentDate).toISOString().slice(0, 10) : (payment.status === "paid" || payment.status === "partial" ? new Date().toISOString().slice(0, 10) : ""),
       transactionReference: payment.transactionReference || "",
       attachmentUrl: payment.attachmentUrl || "",
     });
+  }
+
+  function handleStatusChange(newStatus: string, milestone: any) {
+    if (newStatus === "pending") {
+      setFormData((prev: any) => ({
+        ...prev,
+        status: "pending",
+        paidAmount: "0",
+        actualPaymentDate: "",
+      }));
+    } else if (newStatus === "paid") {
+      setFormData((prev: any) => ({
+        ...prev,
+        status: "paid",
+        paidAmount: prev.paidAmount && Number(prev.paidAmount) > 0 ? prev.paidAmount : String(milestone.calculatedAmount),
+        actualPaymentDate: prev.actualPaymentDate || new Date().toISOString().slice(0, 10),
+      }));
+    } else if (newStatus === "partial") {
+      setFormData((prev: any) => ({
+        ...prev,
+        status: "partial",
+        paidAmount: prev.paidAmount && Number(prev.paidAmount) > 0 && Number(prev.paidAmount) < milestone.calculatedAmount ? prev.paidAmount : String(Math.round(milestone.calculatedAmount / 2)),
+        actualPaymentDate: prev.actualPaymentDate || new Date().toISOString().slice(0, 10),
+      }));
+    } else {
+      setFormData((prev: any) => ({ ...prev, status: newStatus }));
+    }
+    setIsFinalSettlement(false);
   }
 
   async function handleReceiptUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -163,10 +197,12 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
   const globalTargetRaw = Number(request.revisedTotalCost ?? request.totalEstimatedCost ?? 0);
   const globalTargetQar = request.baseAmountQar ?? (globalTargetRaw * activeExchangeRate);
   
-  const globalPaidQar = payments.reduce((sum: number, p: any) => sum + ((Number(p.paidAmount) || 0) * activeExchangeRate), 0);
+  const globalPaidQar = payments
+    .filter((p: any) => p.status === 'paid' || p.status === 'partial' || p.status === 'settled_savings')
+    .reduce((sum: number, p: any) => sum + ((Number(p.paidAmount) || 0) * activeExchangeRate), 0);
   
   const currentItemPaidRaw = payments.find((p: any) => p.id === editingPayment)?.paidAmount ?? 0;
-  const currentEntryValueRaw = Number(formData.paidAmount || 0);
+  const currentEntryValueRaw = formData.status === 'pending' ? 0 : Number(formData.paidAmount || 0);
   const newGlobalPaidQar = globalPaidQar - (currentItemPaidRaw * activeExchangeRate) + (currentEntryValueRaw * activeExchangeRate);
   const isOverpaid = newGlobalPaidQar > globalTargetQar;
 
@@ -279,7 +315,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Clearance Status</label>
                               <select 
                                 value={formData.status} 
-                                onChange={(e) => { setFormData({ ...formData, status: e.target.value }); setIsFinalSettlement(false); }}
+                                onChange={(e) => handleStatusChange(e.target.value, p)}
                                 className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                               >
                                 <option value="pending">Pending</option>

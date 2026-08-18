@@ -7,7 +7,7 @@ import {
   ChevronLeft, Download, CheckCircle2, XCircle, Clock, FileText, 
   User, Building2, CreditCard, History, FileBadge, MessageSquare,
   AlertTriangle, RotateCcw, Loader2, ShieldCheck, Calendar, Lock, Edit3, Trash2, Landmark, Coins, CircleDashed,
-  Maximize2, ExternalLink
+  Maximize2, ExternalLink, Paperclip
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -476,46 +476,105 @@ export default function RequestDetailPage() {
           {/* Payment Milestones Display for Requester/Approvers */}
           {installments.length > 0 && (
             <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
-              <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex items-center gap-2">
-                <div className="bg-blue-500/10 p-1.5 rounded-lg">
-                  <Coins className="w-4 h-4 text-blue-600" />
+              <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex flex-wrap justify-between items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <div className="bg-blue-500/10 p-1.5 rounded-lg">
+                    <Coins className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <h2 className="font-semibold text-sm tracking-tight">Payment Milestones & Clearance</h2>
                 </div>
-                <h2 className="font-semibold text-sm tracking-tight">Payment Milestones</h2>
+
+                <div className="flex items-center gap-3 text-xs font-mono">
+                  <span className="text-muted-foreground">
+                    Disbursed: <strong className="text-primary font-bold">{installments.filter((m: any) => m.status === 'paid' || m.status === 'partial' || m.status === 'settled_savings').reduce((sum: number, m: any) => sum + (Number(m.paidAmount) || 0), 0).toLocaleString()}</strong> / {installments.reduce((sum: number, m: any) => sum + (Number(m.calculatedAmount) || 0), 0).toLocaleString()} {request.currency || 'QAR'}
+                  </span>
+                </div>
               </div>
               <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {installments.map((milestone: any, idx: number) => {
                   const isPaid = milestone.status === 'paid' || milestone.status === 'settled_savings';
                   const isPartial = milestone.status === 'partial';
+                  const calcAmount = Number(milestone.calculatedAmount || 0);
+                  const paidAmount = Number(milestone.paidAmount || 0);
+                  const percentPaid = calcAmount > 0 ? Math.min(100, Math.round((paidAmount / calcAmount) * 100)) : 0;
                   
                   return (
-                    <div key={milestone.id || idx} className="bg-background border border-border/50 rounded-xl p-4 shadow-sm hover:border-primary/30 transition-all flex flex-col justify-between">
-                      <div className="flex justify-between items-start mb-3">
-                        <div className="font-semibold text-sm">{milestone.installmentName}</div>
-                        {isPaid ? (
-                          <span className="bg-emerald-500/10 text-emerald-600 p-1 rounded-md" title="Paid">
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                          </span>
-                        ) : isPartial ? (
-                          <span className="bg-amber-500/10 text-amber-600 p-1 rounded-md" title="Partially Paid">
-                            <CircleDashed className="w-3.5 h-3.5" />
-                          </span>
-                        ) : (
-                          <span className="bg-muted p-1 rounded-md text-muted-foreground" title="Pending">
-                            <Clock className="w-3.5 h-3.5" />
-                          </span>
+                    <div key={milestone.id || idx} className="bg-background border border-border/50 rounded-2xl p-5 shadow-sm hover:border-primary/30 transition-all flex flex-col justify-between gap-4">
+                      <div>
+                        <div className="flex justify-between items-start gap-2 mb-2">
+                          <div className="font-bold text-sm text-foreground">{milestone.installmentName}</div>
+                          {isPaid ? (
+                            <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 shrink-0">
+                              <CheckCircle2 className="w-3 h-3" /> Paid
+                            </span>
+                          ) : isPartial ? (
+                            <span className="bg-amber-500/10 text-amber-600 border border-amber-500/20 px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 shrink-0">
+                              <CircleDashed className="w-3 h-3" /> Partial ({percentPaid}%)
+                            </span>
+                          ) : (
+                            <span className="bg-muted text-muted-foreground border border-border/50 px-2 py-0.5 rounded-full text-[11px] font-semibold flex items-center gap-1 shrink-0">
+                              <Clock className="w-3 h-3" /> Pending
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Transaction Reference & Clearance Date */}
+                        <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mt-1">
+                          <span>Due: {new Date(milestone.dueDate).toLocaleDateString()}</span>
+                          {milestone.actualPaymentDate && (
+                            <span className="text-foreground/80 font-mono text-[11px] bg-muted/40 px-1.5 py-0.5 rounded">
+                              Cleared: {new Date(milestone.actualPaymentDate).toLocaleDateString()}
+                            </span>
+                          )}
+                          {milestone.transactionReference && (
+                            <span className="text-foreground font-mono font-semibold text-[11px] bg-primary/5 text-primary border border-primary/20 px-1.5 py-0.5 rounded">
+                              Ref: {milestone.transactionReference}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Notes */}
+                        {milestone.financeNotes && (
+                          <div className="mt-2.5 text-[11px] bg-muted/30 border border-border/30 rounded-xl p-2 text-muted-foreground flex items-start gap-1.5">
+                            <MessageSquare className="w-3 h-3 text-primary shrink-0 mt-0.5" />
+                            <span className="line-clamp-2">{milestone.financeNotes}</span>
+                          </div>
                         )}
                       </div>
-                      <div className="space-y-2 mt-auto">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-muted-foreground">Due Date:</span>
-                          <span className="font-medium">{new Date(milestone.dueDate).toLocaleDateString()}</span>
-                        </div>
+
+                      {/* Amounts and Progress */}
+                      <div className="space-y-2 pt-3 border-t border-border/40 mt-auto">
                         <div className="flex justify-between text-xs items-center">
-                          <span className="text-muted-foreground">Amount:</span>
-                          <span className="font-mono font-bold text-sm bg-muted/50 px-2 py-0.5 rounded border border-border/30">
-                            {Number(milestone.calculatedAmount || 0).toLocaleString()} <span className="text-[10px] text-muted-foreground">{request.currency || 'QAR'}</span>
+                          <span className="text-muted-foreground">Authorized:</span>
+                          <span className="font-mono font-bold text-sm text-foreground">
+                            {calcAmount.toLocaleString()} <span className="text-[10px] text-muted-foreground">{request.currency || 'QAR'}</span>
                           </span>
                         </div>
+
+                        {(isPaid || isPartial) && (
+                          <div className="flex justify-between text-xs items-center">
+                            <span className="text-primary font-semibold">Disbursed:</span>
+                            <span className="font-mono font-bold text-sm text-primary">
+                              {paidAmount.toLocaleString()} <span className="text-[10px] text-primary/70">{request.currency || 'QAR'}</span>
+                            </span>
+                          </div>
+                        )}
+
+                        {isPartial && (
+                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                            <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${percentPaid}%` }} />
+                          </div>
+                        )}
+
+                        {milestone.attachmentUrl && (
+                          <button
+                            type="button"
+                            onClick={() => window.open(milestone.attachmentUrl, '_blank')}
+                            className="w-full mt-1.5 flex items-center justify-center gap-1.5 text-[11px] text-primary hover:text-primary/80 font-bold bg-primary/10 hover:bg-primary/20 border border-primary/20 py-1.5 rounded-xl transition-all"
+                          >
+                            <Paperclip className="w-3 h-3" /> View Payment Slip
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
