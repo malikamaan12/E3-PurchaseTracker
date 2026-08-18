@@ -16,6 +16,7 @@ import {
 } from "@db/schema";
 import { eq, and, or, inArray, desc, count, asc } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
+import { normalizeDepartmentAssignments } from "@/lib/auth-shared";
 import { updateRequestSchema } from "@/lib/validation";
 import { notificationService } from "@/lib/services/NotificationService";
 import { evaluateCompliance } from "@/lib/core/compliance";
@@ -112,13 +113,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     ] = await Promise.race([dataFetchPromise, timeoutPromise]) as any;
 
     // ── STAGE 1 VISIBILITY GUARD ──────────────────────────────────────────────
-    // If request is pending_dept_head, only the requester, their department members, or super_admin may access it.
+    // If request is pending_dept_head, only the requester, their submitting department members, or super_admin may access it.
     if (request.status === 'pending_dept_head') {
       const isSuperAdmin = authenticatedUser.role === 'super_admin';
       const isRequester = request.requesterId === authenticatedUser.id;
-      const isSameDept = requester?.department?.toLowerCase().trim() === authenticatedUser.department?.toLowerCase().trim();
+      const effectiveRequestDept = (request.department || requester?.department || '').toLowerCase().trim();
+      const userDepts = (authenticatedUser.departments || [authenticatedUser.department])
+        .filter(Boolean)
+        .map((d: any) => (typeof d === 'string' ? d : d.department || '').toLowerCase().trim());
+      const isDeptMember = userDepts.includes(effectiveRequestDept);
 
-      if (!isSuperAdmin && !isRequester && !isSameDept) {
+      if (!isSuperAdmin && !isRequester && !isDeptMember) {
         return NextResponse.json(
           { 
             error: "Access Denied", 
@@ -132,25 +137,28 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // --- DATA ASSEMBLY & HARDENING ---
     try {
       const safeApprovals = Array.isArray(requestApprovals) ? requestApprovals : [];
-      const depts: string[] = Array.from(new Set(safeApprovals.map((a: any) => a.department as string).filter(Boolean))) as string[];
       
       const deptStakeholders = await db
         .select({
           id: users.id,
           username: users.username,
           department: users.department,
+          assignedDepartments: users.assignedDepartments,
         })
         .from(users)
-        .where(eq(users.role, 'approver'));
+        .where(inArray(users.role, ['approver', 'admin', 'super_admin']));
 
       // Map stakeholders to each approval step
       const approvalsWithStakeholders = safeApprovals.map((approval: any) => ({
         ...approval,
         stakeholders: deptStakeholders.filter((s: any) => {
-          if (!s.department || !approval.department) return false;
-          const sDept = s.department.toLowerCase();
-          const aDept = approval.department.toLowerCase();
-          return sDept === aDept || sDept.includes(aDept) || aDept.includes(sDept);
+          if (!approval.department) return false;
+          const sNormalized = normalizeDepartmentAssignments(s.assignedDepartments, s.department);
+          const sDepts = [
+            s.department,
+            ...sNormalized.filter(a => a.status === 'active' && (a.role === 'approver' || a.role === 'both')).map(a => a.department)
+          ].filter(Boolean).map(d => d.toLowerCase().trim());
+          return sDepts.includes(approval.department.toLowerCase().trim());
         })
       }));
 
@@ -173,6 +181,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
       return NextResponse.json({
         ...request,
+        department: request.department || requester?.department,
         items: parsedItems,
         additionalApprovers: parsedApprovers,
         requester: requester || null,
@@ -233,7 +242,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     // ─── AUTHENTICATION & AUTHORITY GATEKEEPING ────────────────────────────────
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
-    const isFinance = user.department?.toLowerCase() === 'finance';
+    const userDepts = (user.departments || [user.department]).map(d => d.toLowerCase().trim());
+    const isFinance = userDepts.includes('finance');
     const isOwner = existing.requesterId === user.id;
 
     if (!isAdmin && !isOwner) {
@@ -422,7 +432,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     // Transition to pending: Create approval records and send notifications
     if (isTransitioningToPending) {
-      await seedInitialApprovals(requestId, user.id, user.department, user.role, updated.additionalApprovers);
+      const effectiveRequestDept = updated.department || existing.department || user.department;
+      await seedInitialApprovals(requestId, user.id, user.department, user.role, updated.additionalApprovers, effectiveRequestDept, user.departments);
 
       // 4. Notifications
       const mandatoryDepts = ["Finance", "CEO Office", "Management"];
@@ -488,15 +499,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     if (!request) return NextResponse.json({ error: "Request not found" }, { status: 404 });
 
-    // Permissions: Owner or Admin
+    // Permissions: Creator (only until someone approved it) OR Super Admin (until any amount is paid)
     const isOwner = request.requesterId === user.id;
-    const isAdmin = user.role?.toLowerCase() === 'admin';
-    if (!isOwner && !isAdmin) {
-      return NextResponse.json({ error: "Access denied. Only owner or admin can delete." }, { status: 403 });
+    const isSuperAdminUser = user.role?.toLowerCase() === 'super_admin';
+
+    if (!isOwner && !isSuperAdminUser) {
+      return NextResponse.json({ 
+        error: "Access Denied", 
+        message: "Requests can only be deleted by the user who created them (until approved) or by a Super Admin (until amount is paid)." 
+      }, { status: 403 });
     }
 
-    // Restriction: Cannot delete if any approval is "approved"
-    // Requirement: Admins are also restricted by the "no approvals yet" rule.
+    // Check approvals on the request
     const [approvedCountRecord] = await db
       .select({ countValue: count() })
       .from(approvals)
@@ -504,8 +518,37 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     
     const approvedCount = Number(approvedCountRecord?.countValue || 0);
 
-    if (approvedCount > 0) {
-      return NextResponse.json({ error: "Compliance Rule: Once a signature is on a document, it cannot be deleted." }, { status: 403 });
+    // Creator restriction: cannot delete once any approval has been granted
+    if (isOwner && !isSuperAdminUser) {
+      if (approvedCount > 0) {
+        return NextResponse.json({ 
+          error: "Compliance Rule", 
+          message: "Once a purchase request has received an approval, it can no longer be deleted by the creator." 
+        }, { status: 403 });
+      }
+    }
+
+    // Super Admin restriction: cannot delete once any amount is paid
+    if (isSuperAdminUser) {
+      const isPaidStatus = ['fully_paid', 'partially_paid'].includes(request.status);
+
+      const [paidInstallmentsRecord] = await db
+        .select({ countValue: count() })
+        .from(paymentInstallments)
+        .where(
+          and(
+            eq(paymentInstallments.requestId, requestId),
+            inArray(paymentInstallments.status, ['paid', 'partial', 'partially_paid'])
+          )
+        );
+      const paidInstallmentsCount = Number(paidInstallmentsRecord?.countValue || 0);
+
+      if (isPaidStatus || paidInstallmentsCount > 0) {
+        return NextResponse.json({ 
+          error: "Financial Compliance", 
+          message: "This request cannot be deleted because financial disbursements/payments have already been recorded." 
+        }, { status: 403 });
+      }
     }
 
     // Action: Insert Tombstone Audit Log (Must do before deleting the request if it references it, but we keep audit logs)
@@ -518,7 +561,8 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
         requestNumber: request.requestNumber,
         title: request.title,
         deletedBy: user.username,
-        reason: "User/Admin requested deletion of unapproved PR"
+        role: user.role,
+        reason: isSuperAdminUser ? "Super Admin deleted un-disbursed request" : "Creator deleted unapproved request"
       },
       timestamp: new Date(),
     });

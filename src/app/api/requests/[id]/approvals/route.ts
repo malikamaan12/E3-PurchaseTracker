@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
 import { purchaseRequests, approvals, auditLogs, paymentInstallments, users } from "@db/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { getAuthenticatedUser } from "@/lib/auth-next";
+import { getAuthenticatedUser, canApproveInDepartment, isDepartmentFrozen } from "@/lib/auth-next";
 import { notificationService } from "@/lib/services/NotificationService";
 import { getExchangeRateToQAR } from "@/lib/utils/currency";
 
@@ -105,13 +105,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
           || allApprovalsForReq[0];
       }
     } else {
-      const userDept = (user.department || '').toLowerCase().trim();
-      targetApproval = allApprovalsForReq.find(a => a.department.toLowerCase().trim() === userDept);
+      if (requestedApprovalId) {
+        targetApproval = allApprovalsForReq.find(a => a.id === Number(requestedApprovalId) && canApproveInDepartment(user, a.department));
+      } else if (requestedDept) {
+        targetApproval = allApprovalsForReq.find(a => a.department.toLowerCase().trim() === requestedDept.toLowerCase().trim() && canApproveInDepartment(user, a.department));
+      } else {
+        // Find first pending slot where user has active approval authority
+        targetApproval = allApprovalsForReq.find(a => canApproveInDepartment(user, a.department) && a.status === 'pending')
+          || allApprovalsForReq.find(a => canApproveInDepartment(user, a.department));
+      }
     }
 
     if (!targetApproval) {
+      if (requestedDept && isDepartmentFrozen(user, requestedDept)) {
+        return NextResponse.json(
+          { error: `Your approval authority for department "${requestedDept}" is currently frozen.` },
+          { status: 403 }
+        );
+      }
+      const approvableDepts = (user.departments || [user.department]).filter((d: string) => canApproveInDepartment(user, d));
+      const deptListStr = approvableDepts.length > 0 ? approvableDepts.join(', ') : 'none';
       return NextResponse.json(
-        { error: `No approval slot exists for your department (${user.department}) on this request. You cannot approve on behalf of another department.` },
+        { error: `No approval slot exists for your authorized department(s) (${deptListStr}) on this request. You cannot approve on behalf of another department.` },
         { status: 403 }
       );
     }
@@ -129,8 +144,18 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // ── RBAC GATE ────────────────────────────────────────────────────────────
-    // A mandatory gatekeeper step may only be satisfied by role='super_admin', role='admin', or role='approver'.
-    // Regular users (e.g. Accountants) are rejected here.
+    // Only role='super_admin', role='admin', or role='approver' may approve.
+    // Supervisors and regular users NEVER have approval power.
+    if (user.role === 'supervisor' || user.role === 'user') {
+      return NextResponse.json(
+        {
+          error: "Insufficient Authority",
+          message: "Supervisors and regular users do not have approval power. Approvals must be performed by authorized department approvers or super admins."
+        },
+        { status: 403 }
+      );
+    }
+
     if (targetApproval.isMandatory && user.role === 'user') {
       return NextResponse.json(
         {

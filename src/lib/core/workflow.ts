@@ -17,7 +17,9 @@ export async function seedInitialApprovals(
   userId: number,
   userDepartment: string,
   userRole: string,
-  additionalApproversRaw: any
+  additionalApproversRaw: any,
+  requestDepartment?: string,
+  userDepartmentsList?: string[]
 ): Promise<void> {
   let additionalDepts: string[] = [];
   try {
@@ -29,11 +31,14 @@ export async function seedInitialApprovals(
   } catch (e: any) {}
 
   const isSupervisor = userRole === 'supervisor';
+  const effectiveRequestDept = (requestDepartment || userDepartment).trim();
+  const normalizedUserDepts = (userDepartmentsList && userDepartmentsList.length > 0 ? userDepartmentsList : [userDepartment])
+    .map(d => d.toLowerCase().trim());
   
-  // For supervisor requests: always ensure the supervisor's department is the first preliminary step
+  // For supervisor requests: always ensure the submitting department is the first preliminary step
   let preliminaryDepts = [...additionalDepts];
-  if (isSupervisor && !preliminaryDepts.some(d => d.toLowerCase().trim() === userDepartment.toLowerCase().trim())) {
-    preliminaryDepts.unshift(userDepartment);
+  if (isSupervisor && effectiveRequestDept && !preliminaryDepts.some(d => d.toLowerCase().trim() === effectiveRequestDept.toLowerCase())) {
+    preliminaryDepts.unshift(effectiveRequestDept);
   }
 
   // Filter out any overlap with mandatory departments
@@ -55,7 +60,7 @@ export async function seedInitialApprovals(
       const canAutoApprove =
         !isMandatory &&
         !isSupervisor &&
-        userDepartment.toLowerCase().trim() === dept.toLowerCase().trim() &&
+        normalizedUserDepts.includes(dept.toLowerCase().trim()) &&
         (userRole === 'approver' || userRole === 'admin');
 
       const [newApproval] = await db.insert(approvals).values({

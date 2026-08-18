@@ -23,6 +23,7 @@ import {
   FolderTree,
   TrendingDown,
   TrendingUp,
+  Building2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -47,6 +48,7 @@ import { Textarea } from "@/components/ui/Textarea";
 const requestSchema = z.object({
   title: z.string().min(3, "Title must be at least 3 characters"),
   description: z.string().min(10, "Requirement Overview must be at least 10 characters"),
+  department: z.string().optional(),
   totalEstimatedCost: z.coerce.number().min(0),
   vendorId: z.any().refine(val => val !== "" && Number(val) > 0, "Please select a vendor"),
   purposeCategoryId: z.any().refine(val => val !== "" && Number(val) > 0, "Select Purpose Category"),
@@ -80,8 +82,8 @@ const requestSchema = z.object({
   }
   return true;
 }, {
-  message: "Total milestone percentage cannot exceed 100%",
-  path: ["installments"]
+  message: "Cumulative milestone allocation cannot exceed 100%",
+  path: ["installments"],
 });
 
 type RequestFormValues = z.infer<typeof requestSchema>;
@@ -94,7 +96,7 @@ interface CreateRequestModalProps {
 }
 
 export default function CreateRequestModal({ isOpen, onClose, onSuccess, requestId }: CreateRequestModalProps) {
-  const { user } = useAuth();
+  const { user, departments: userDepartments = [], submissionDepartments = [], isSuperAdmin } = useAuth();
   const { data: globalDepartments = [] } = useQuery({
     queryKey: ["departments-public"],
     queryFn: () => apiClient.departments.list(),
@@ -131,6 +133,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     defaultValues: {
       title: "",
       description: "",
+      department: user?.department || "",
       vendorId: "",
       purposeCategoryId: "",
       purposeType: "PROJECT",
@@ -190,6 +193,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
           reset({
             title: reqData.title || "",
             description: reqData.description || "",
+            department: reqData.department || user?.department || "",
             totalEstimatedCost: reqData.totalEstimatedCost || 0,
             vendorId: reqData.vendorId?.toString() || "",
             purposeCategoryId: reqData.purposeCategoryId?.toString() || "",
@@ -222,6 +226,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
         reset({
           title: "",
           description: "",
+          department: user?.department || "",
           vendorId: "",
           purposeCategoryId: "",
           purposeType: "PROJECT",
@@ -511,6 +516,50 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             {errors.title && <p className="text-xs text-rose-500 mt-1 font-medium pl-1">{errors.title.message}</p>}
                           </div>
                         </div>
+
+                        {/* Submitting Department Selector (for multi-department users or super_admin) */}
+                        {(submissionDepartments.length > 1 || isSuperAdmin) && (
+                          <div className="md:col-span-2 space-y-1.5 bg-secondary/30 p-3.5 rounded-2xl border border-border/60">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                                <Building2 className="w-4 h-4 text-brand-primary" />
+                                Submitting Department
+                              </label>
+                              <span className="text-[10px] text-muted-foreground font-medium">
+                                Choose the target department for this purchase request
+                              </span>
+                            </div>
+                            <Controller
+                              name="department"
+                              control={control}
+                              render={({ field }) => (
+                                <Select 
+                                  onValueChange={field.onChange} 
+                                  value={field.value || user?.department}
+                                >
+                                  <SelectTrigger className="h-10 text-sm font-medium">
+                                    <SelectValue placeholder="Select submitting department..." />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {(isSuperAdmin 
+                                      ? (Array.isArray(globalDepartments) ? globalDepartments.map((d: any) => d.name) : submissionDepartments)
+                                      : submissionDepartments
+                                    ).map((deptName: string) => (
+                                      <SelectItem key={deptName} value={deptName}>
+                                        <div className="flex items-center justify-between w-full gap-3">
+                                          <span className="font-semibold">{deptName}</span>
+                                          {deptName === user?.department && (
+                                            <span className="text-[10px] bg-brand-primary/10 text-brand-primary px-1.5 py-0.5 rounded font-bold">Primary</span>
+                                          )}
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              )}
+                            />
+                          </div>
+                        )}
 
                         <div className="space-y-1.5">
                           <div className="flex items-center justify-between pl-1">

@@ -35,6 +35,7 @@ export const createRequestSchema = z.object({
   additionalApprovers: z.array(z.string()).optional(),
   paymentStructure: z.enum(["ADVANCE", "IN_PARTS", "POST_PROJECT"]),
   installments: z.array(installmentSchema).optional(),
+  department: z.string().optional(),
   status: z.enum(["draft", "pending", "approved", "rejected", "changes_requested", "canceled"]).default("draft"),
 });
 

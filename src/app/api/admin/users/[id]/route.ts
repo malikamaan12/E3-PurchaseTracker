@@ -30,6 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         username: users.username,
         email: users.email,
         department: users.department,
+        assignedDepartments: users.assignedDepartments,
         role: users.role,
         canManageVendors: users.canManageVendors,
         contact_number: users.contact_number,
@@ -84,6 +85,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
     if (body.canManageVendors !== undefined) updateData.canManageVendors = body.canManageVendors;
     if (body.department !== undefined) updateData.department = body.department;
+    if (body.assignedDepartments !== undefined && Array.isArray(body.assignedDepartments)) {
+      updateData.assignedDepartments = body.assignedDepartments;
+    }
     if (body.contact_number !== undefined) updateData.contact_number = body.contact_number;
 
     if (Object.keys(updateData).length === 0) {

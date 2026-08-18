@@ -28,7 +28,7 @@ export default function RequestDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, isAdmin, isApprover, isSuperAdmin } = useAuth();
+  const { user, isAdmin, isApprover, isSuperAdmin, isSupervisor } = useAuth();
   const requestId = parseInt(params.id as string);
   const [activeAttachment, setActiveAttachment] = useState<any>(null);
   const [approvalComments, setApprovalComments] = useState("");
@@ -141,23 +141,54 @@ export default function RequestDetailPage() {
   // Pending approval slots
   const pendingApprovals = request.approvals?.filter((a: any) => a.status === "pending") || [];
 
-  // Exact department match — for standard admin / approver
+  // Active approver departments for current user (primary department + active assigned departments with approver or both role)
+  const userApprovalDepts = (!isSupervisor && (isSuperAdmin || isApprover)) ? [
+    user?.department,
+    ...(user?.departmentAssignments || [])
+      .filter((a: any) => a.status === 'active' && (a.role === 'approver' || a.role === 'both'))
+      .map((a: any) => a.department)
+  ].filter(Boolean).map((d: string) => d.toLowerCase().trim()) : [];
+
+  // Find any pending approval slot that matches one of user's active approver departments
   const myDeptApproval = request.approvals?.find((a: any) =>
-    a.department?.toLowerCase().trim() === user?.department?.toLowerCase().trim()
+    a.status === "pending" && userApprovalDepts.includes(a.department?.toLowerCase().trim())
+  ) || request.approvals?.find((a: any) =>
+    userApprovalDepts.includes(a.department?.toLowerCase().trim())
   );
 
   // canAct:
+  // - Supervisors and regular users NEVER have approval power!
   // - Super Admin can act on ANY pending approval slot
-  // - Admin & Approver can act only if their own department slot is pending
+  // - Admin & Approver can act only if their authorized department slot is pending
   // - If request is pending_dept_head, only the supervisor's Department Head or Super Admin can act!
   const isSupervisorGate = request.status === "pending_dept_head";
   const isMyDeptPending = myDeptApproval?.status === "pending";
-  const isDeptHeadForStage1 = isSupervisorGate && isMyDeptPending && (isAdmin || isApprover);
+  const isDeptHeadForStage1 = isSupervisorGate && isMyDeptPending && (isAdmin || isApprover) && !isSupervisor;
 
-  const canAct =
+  const canAct = !isSupervisor && (
     ((request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
       ((isSuperAdmin && pendingApprovals.length > 0) || (isMyDeptPending && (isAdmin || isApprover)))) ||
-    (isSupervisorGate && (isSuperAdmin || isDeptHeadForStage1));
+    (isSupervisorGate && (isSuperAdmin || isDeptHeadForStage1))
+  );
+
+  const isOwner = request.requesterId === user?.id;
+  const approvedCount = (request.approvals?.filter((a: any) => a.status === 'approved').length) || 0;
+  const isPaidOrDisbursed = ['fully_paid', 'partially_paid'].includes(request.status) || 
+    Number(request.paidAmount || 0) > 0 ||
+    (Array.isArray(request.paymentInstallments) && request.paymentInstallments.some((inst: any) => ['paid', 'partially_paid'].includes(inst.status)));
+
+  const canEdit =
+    (isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
+    (isOwner && (
+      request.status === 'draft' ||
+      request.status === 'changes_requested' ||
+      (request.status === 'pending' && approvedCount === 0)
+    ));
+
+  // Request can only be deleted by the user who created it (until someone approved it) or superadmin (until amount is paid)
+  const canDelete =
+    (isSuperAdmin && !isPaidOrDisbursed) ||
+    (isOwner && approvedCount === 0 && !isPaidOrDisbursed);
 
   const isFinanceOrAdmin = isAdmin || user?.department?.toLowerCase() === "finance";
 
@@ -192,7 +223,7 @@ export default function RequestDetailPage() {
     approvalMutation.mutate({ 
       status: confirmData.status, 
       comments: approvalComments,
-      approvalId: targetApprovalId || (isSuperAdmin && pendingApprovals.length > 0 ? (targetApprovalId || pendingApprovals[0]?.id) : undefined)
+      approvalId: targetApprovalId || myDeptApproval?.id || (isSuperAdmin && pendingApprovals.length > 0 ? pendingApprovals[0]?.id : undefined)
     });
     setShowConfirmAction(false);
   };
@@ -237,31 +268,30 @@ export default function RequestDetailPage() {
               requestNumber={request.requestNumber} 
             />
 
-            {((isAdmin && !['fully_paid', 'archived'].includes(request.status)) || 
-              (request.requesterId === user?.id && (
-                request.status === 'draft' || 
-                request.status === 'changes_requested' || 
-                (request.status === 'pending' && (request.approvals?.filter((a: any) => a.status === 'approved').length || 0) === 0)
-              ))) ? (
+            {(canEdit || canDelete) ? (
               <div className="flex gap-2">
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setShowEditModal(true)}
-                  aria-label="Edit Request"
-                  className="min-h-[40px] gap-2 rounded-xl px-4 border-border/50 hover:bg-muted/50 shadow-sm transition-all"
-                >
-                  <Edit3 className="w-3.5 h-3.5" /> Edit
-                </Button>
-                <Button 
-                  variant="destructive" 
-                  size="sm" 
-                  onClick={() => setShowDeleteDialog(true)}
-                  aria-label="Delete Request"
-                  className="min-h-[40px] gap-2 rounded-xl px-4 shadow-sm"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
-                </Button>
+                {canEdit && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => setShowEditModal(true)}
+                    aria-label="Edit Request"
+                    className="min-h-[40px] gap-2 rounded-xl px-4 border-border/50 hover:bg-muted/50 shadow-sm transition-all"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" /> Edit
+                  </Button>
+                )}
+                {canDelete && (
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => setShowDeleteDialog(true)}
+                    aria-label="Delete Request"
+                    className="min-h-[40px] gap-2 rounded-xl px-4 shadow-sm"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Delete
+                  </Button>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2 bg-secondary/50 px-3 py-1.5 rounded-xl text-muted-foreground text-xs font-semibold border border-border/50 shadow-sm" title="Locked from edits">
@@ -1024,6 +1054,29 @@ export default function RequestDetailPage() {
           </div>
         </div>
       )}
+
+      {showEditModal && (
+        <CreateRequestModal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          requestId={requestId}
+          onSuccess={() => {
+            queryClient.invalidateQueries({ queryKey: ["request", requestId] });
+            queryClient.invalidateQueries({ queryKey: ["requests"] });
+            queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+            queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
+            setShowEditModal(false);
+          }}
+        />
+      )}
+
+      <DeleteRequestDialog
+        isOpen={showDeleteDialog}
+        onOpenChange={(open) => setShowDeleteDialog(open)}
+        onConfirm={() => deleteMutation.mutate()}
+        isLoading={deleteMutation.isPending}
+        requestNumber={request?.requestNumber}
+      />
     </div>
   );
 }

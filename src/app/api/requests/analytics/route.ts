@@ -35,8 +35,10 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
     const filterDept = searchParams.get("departmentId"); // ID or Name? We'll use Name from users table
 
-    const isAdmin = user.role === 'admin' || user.role === 'super_admin' || ["finance", "ceo office", "management"].includes(user.department?.toLowerCase() || "");
     const userDept = user.department;
+    const userDepts = (user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean);
+    const userDeptsLower = userDepts.map((d: string) => d.toLowerCase().trim());
+    const isAdmin = user.role === 'admin' || user.role === 'super_admin' || userDeptsLower.some((d: string) => ["finance", "ceo office", "management"].includes(d));
 
     // 2. Build Dynamic Filters
     const prFilters: any[] = [];
@@ -45,11 +47,11 @@ export async function GET(req: NextRequest) {
     if (vendorId) prFilters.push(eq(purchaseRequests.vendorId, parseInt(vendorId)));
     if (status) prFilters.push(eq(purchaseRequests.status, status));
 
-    // RBAC: Force departmentId scoping for standard users
+    // RBAC: Force department scoping for standard users
     if (!isAdmin) {
-      prFilters.push(eq(users.department, userDept || ""));
+      prFilters.push(inArray(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, userDepts));
     } else if (filterDept) {
-      prFilters.push(eq(users.department, filterDept));
+      prFilters.push(eq(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, filterDept));
     }
 
     const whereClause = prFilters.length > 0 ? and(...prFilters) : undefined;

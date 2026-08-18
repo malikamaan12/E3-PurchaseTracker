@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
         username: users.username,
         email: users.email,
         department: users.department,
+        assignedDepartments: users.assignedDepartments,
         role: users.role,
         canManageVendors: users.canManageVendors,
         contact_number: users.contact_number,
@@ -58,7 +59,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Access denied. Super Admin role required for User Creation." }, { status: 403 });
     }
 
-    const { username, email, password, role, department, contact_number } = await req.json();
+    const { username, email, password, role, department, assignedDepartments, contact_number } = await req.json();
 
     if (!username || !email || !password || !role) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -80,6 +81,7 @@ export async function POST(req: NextRequest) {
         password: hashedPassword,
         role,
         department: department || 'General',
+        assignedDepartments: Array.isArray(assignedDepartments) ? assignedDepartments : [],
         contact_number: contact_number || '',
         isActive: true,
         canManageVendors: false,

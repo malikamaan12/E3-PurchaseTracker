@@ -17,11 +17,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
+    const userDepts = (user.departments || [user.department]).map((d: string) => d.toLowerCase().trim());
     const isAuthorized = 
       user.role === 'admin' || 
       user.role === 'super_admin' || 
       user.canManageVendors === true ||
-      ["finance", "management", "ceo office"].includes(user.department?.toLowerCase() || "");
+      userDepts.some((d: string) => ["finance", "management", "ceo office"].includes(d));
 
     if (!isAuthorized) {
       return NextResponse.json({ 

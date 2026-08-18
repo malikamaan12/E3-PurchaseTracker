@@ -11,6 +11,7 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   contact_number: text("contact_number").notNull(),
   department: text("department").notNull(),
+  assignedDepartments: jsonb("assigned_departments").$type<string[]>().default([]),
   role: text("role").notNull().default("user"),
   canManageVendors: boolean("can_manage_vendors").notNull().default(false),
   isActive: boolean("is_active").notNull().default(true),
@@ -115,6 +116,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   vendorId: integer("vendor_id").references(() => vendors.id),
   title: text("title").notNull(),
   description: text("description").notNull(),
+  department: text("department"), // Stamped submitting department
   items: text("items").$type<Array<{
     name: string;
     quantity: number;

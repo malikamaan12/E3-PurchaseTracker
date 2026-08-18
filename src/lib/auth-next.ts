@@ -1,17 +1,14 @@
 import { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 import { JWT_SECRET, TOKEN_COOKIE_NAME } from "./utils/config";
-
-export interface AuthenticatedUser {
-  id: number;
-  username: string;
-  role: 'super_admin' | 'admin' | 'approver' | 'supervisor' | 'user';
-  department: string;
-  isApprover?: boolean;
-  canManageVendors?: boolean; // New permission flag
-}
-
 import { cookies } from "next/headers";
+import { 
+  type DepartmentAssignment, 
+  type AuthenticatedUser, 
+  normalizeDepartmentAssignments 
+} from "./auth-shared";
+
+export * from "./auth-shared";
 
 export async function getAuthenticatedUser(req?: NextRequest): Promise<AuthenticatedUser | null> {
   try {
@@ -32,38 +29,20 @@ export async function getAuthenticatedUser(req?: NextRequest): Promise<Authentic
       return null;
     }
 
+    // Ensure department assignments and departments list are normalized
+    const assignments = normalizeDepartmentAssignments(decoded.assignedDepartments, decoded.department);
+    decoded.departmentAssignments = assignments;
+    decoded.assignedDepartments = assignments;
+
+    // Active departments (primary + non-frozen assigned)
+    const activeAssigned = assignments
+      .filter(a => a.status === 'active')
+      .map(a => a.department);
+
+    decoded.departments = Array.from(new Set([decoded.department, ...activeAssigned].filter(Boolean)));
+
     return decoded;
   } catch (error) {
-    // We swallow verification errors here to simply return null for unauthenticated users,
-    // which is the expected behavior for this helper.
     return null;
   }
-}
-
-/**
- * Helper to check for specific roles in Next.js API routes.
- */
-export function hasRole(user: AuthenticatedUser, ...roles: string[]): boolean {
-  return roles.includes(user.role);
-}
-
-/**
- * Helper to check if a user is super_admin.
- */
-export function isSuperAdmin(user: AuthenticatedUser): boolean {
-  return user.role === 'super_admin';
-}
-
-/**
- * Helper to check if a user is supervisor.
- */
-export function isSupervisor(user: AuthenticatedUser): boolean {
-  return user.role === 'supervisor';
-}
-
-/**
- * Helper to check for approver authority (super_admin, admin or isApprover flag).
- */
-export function hasApprovalAuthority(user: AuthenticatedUser): boolean {
-  return user.role === 'super_admin' || user.role === 'admin' || !!user.isApprover;
 }

@@ -41,7 +41,7 @@ const CreateRequestModal = lazy(() => import("@/components/requests/CreateReques
 function RequestsDashboardContent() {
   usePageTitle("Purchase Requests");
   const queryClient = useQueryClient();
-  const { user, isAdmin, isApprover } = useAuth();
+  const { user, isSuperAdmin, isAdmin, isApprover, isSupervisor, canApproveInDepartment } = useAuth();
   const searchParams = useSearchParams();
   const q = searchParams.get("q");
   const { highPerformanceMode } = usePerformance();
@@ -126,14 +126,13 @@ function RequestsDashboardContent() {
   const [deleteRequest, setDeleteRequest] = useState<any | null>(null);
   const [myQueueMode, setMyQueueMode] = useState(false);
 
-  // "My Queue" — requests where logged-in user's dept has a pending approval slot
-  const myQueueRequests = (requests || []).filter((req: any) =>
+  // "My Queue" — requests where logged-in user is an approver and has an active pending approval slot
+  const myQueueRequests = (!isSupervisor && (isSuperAdmin || isApprover)) ? (requests || []).filter((req: any) =>
     Array.isArray(req.approvals) &&
     req.approvals.some((a: any) =>
-      a.department?.toLowerCase().trim() === user?.department?.toLowerCase().trim() &&
-      a.status === 'pending'
+      a.status === 'pending' && (isSuperAdmin || canApproveInDepartment(a.department))
     )
-  );
+  ) : [];
 
   const displayedRequests = myQueueMode ? myQueueRequests : (requests || []);
 
@@ -316,10 +315,9 @@ function RequestsDashboardContent() {
             {/* Mobile View: Request Cards */}
             <div className="md:hidden space-y-4">
               {displayedRequests.map((req: any) => {
-                const awaitingMyApproval = isApprover && Array.isArray(req.approvals) &&
+                const awaitingMyApproval = !isSupervisor && (isSuperAdmin || isApprover) && Array.isArray(req.approvals) &&
                   req.approvals.some((a: any) =>
-                    a.department?.toLowerCase().trim() === user?.department?.toLowerCase().trim() &&
-                    a.status === 'pending'
+                    a.status === 'pending' && (isSuperAdmin || canApproveInDepartment(a.department))
                   );
                 return (
                   <div key={req.id} className="relative">
@@ -364,10 +362,9 @@ function RequestsDashboardContent() {
                 </thead>
                 <tbody className="divide-y divide-border">
                   {displayedRequests.map((req: any) => {
-                    const awaitingMyApproval = isApprover && Array.isArray(req.approvals) &&
+                    const awaitingMyApproval = !isSupervisor && (isSuperAdmin || isApprover) && Array.isArray(req.approvals) &&
                       req.approvals.some((a: any) =>
-                        a.department?.toLowerCase().trim() === user?.department?.toLowerCase().trim() &&
-                        a.status === 'pending'
+                        a.status === 'pending' && (isSuperAdmin || canApproveInDepartment(a.department))
                       );
                     return (
                       <RequestRow
@@ -400,12 +397,14 @@ function RequestsDashboardContent() {
         )}
       </main>
 
-      <BulkActionToolbar
-        selectedCount={selectedIds.length}
-        onApprove={() => bulkApproveMutation.mutate(selectedIds)}
-        onClear={() => setSelectedIds([])}
-        isProcessing={bulkApproveMutation.isPending}
-      />
+      {!isSupervisor && (isSuperAdmin || isApprover) && (
+        <BulkActionToolbar
+          selectedCount={selectedIds.length}
+          onApprove={() => bulkApproveMutation.mutate(selectedIds)}
+          onClear={() => setSelectedIds([])}
+          isProcessing={bulkApproveMutation.isPending}
+        />
+      )}
 
       {(!!editingId || isCreateModalOpen) && (
         <Suspense fallback={null}>
@@ -598,8 +597,36 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
 
 function RequestMobileCard({ request, isSelected, onSelect, onApprove, onEdit, onDelete }: any) {
   const router = useRouter();
-  const { user, isAdmin } = useAuth();
+  const { user, isSuperAdmin, isAdmin, isApprover, isSupervisor, canApproveInDepartment } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  const isOwner = request.requesterId === user?.id;
+  const approvedCount = (request.approvals?.filter((a: any) => a.status === 'approved').length) || Number(request.approvedCount || 0);
+  const isPaidOrDisbursed = ['fully_paid', 'partially_paid'].includes(request.status) || Number(request.paidAmount || 0) > 0;
+
+  const canEdit =
+    (isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
+    (isOwner && (
+      request.status === 'draft' ||
+      request.status === 'changes_requested' ||
+      (request.status === 'pending' && approvedCount === 0)
+    ));
+
+  // Request can only be deleted by the user who created it (until someone approved it) or superadmin (until amount is paid)
+  const canDelete =
+    (isSuperAdmin && !isPaidOrDisbursed) ||
+    (isOwner && approvedCount === 0 && !isPaidOrDisbursed);
+
+  const isSupervisorGate = request.status === "pending_dept_head";
+  const canQuickApprove = !isSupervisor && (isSuperAdmin || isApprover) && (
+    (
+      (request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
+      Array.isArray(request.approvals) &&
+      request.approvals.some((a: any) => a.status === 'pending' && (isSuperAdmin || canApproveInDepartment(a.department)))
+    ) || (
+      isSupervisorGate && (isSuperAdmin || canApproveInDepartment(request.department))
+    )
+  );
 
   return (
     <div className={`bg-card rounded-2xl border p-4 sm:p-5 shadow-sm transition-all relative ${isSelected ? 'border-brand-primary/50 bg-brand-primary/5' : 'border-border hover:border-brand-primary/20'}`}>
@@ -645,7 +672,7 @@ function RequestMobileCard({ request, isSelected, onSelect, onApprove, onEdit, o
         </div>
 
         <div className="flex items-center gap-2">
-          {request.status === "pending" && (
+          {canQuickApprove && (
             <button
               onClick={onApprove}
               aria-label="Quick approve request"
@@ -676,25 +703,24 @@ function RequestMobileCard({ request, isSelected, onSelect, onApprove, onEdit, o
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
                 <div className="absolute right-0 bottom-full mb-1 w-44 bg-popover border border-border rounded-xl shadow-xl z-50 py-1.5 overflow-hidden animate-in fade-in zoom-in-95">
-                  {((isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
-                   (request.requesterId === user?.id && (
-                     request.status === 'draft' ||
-                     request.status === 'changes_requested' ||
-                     (request.status === 'pending' && Number(request.approvedCount || 0) === 0)
-                   ))) && (
+                  {(canEdit || canDelete) && (
                     <>
-                      <button
-                        onClick={() => { setIsMenuOpen(false); onEdit(); }}
-                        className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" /> Edit Request
-                      </button>
-                      <button
-                        onClick={() => { setIsMenuOpen(false); onDelete(); }}
-                        className="w-full text-left px-3.5 py-2 text-xs font-medium text-destructive hover:bg-secondary flex items-center gap-2"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" /> Delete Request
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={() => { setIsMenuOpen(false); onEdit(); }}
+                          className="w-full text-left px-3.5 py-2 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" /> Edit Request
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={() => { setIsMenuOpen(false); onDelete(); }}
+                          className="w-full text-left px-3.5 py-2 text-xs font-medium text-destructive hover:bg-secondary flex items-center gap-2"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Delete Request
+                        </button>
+                      )}
                       <div className="h-px bg-border my-1 mx-2" />
                     </>
                   )}
@@ -723,7 +749,35 @@ function RequestMobileCard({ request, isSelected, onSelect, onApprove, onEdit, o
 function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete, awaitingMyApproval }: any) {
   const router = useRouter();
   const { highPerformanceMode } = usePerformance();
-  const { user, isAdmin } = useAuth();
+  const { user, isSuperAdmin, isAdmin, isApprover, isSupervisor, canApproveInDepartment } = useAuth();
+
+  const isOwner = request.requesterId === user?.id;
+  const approvedCount = (request.approvals?.filter((a: any) => a.status === 'approved').length) || Number(request.approvedCount || 0);
+  const isPaidOrDisbursed = ['fully_paid', 'partially_paid'].includes(request.status) || Number(request.paidAmount || 0) > 0;
+
+  const canEdit =
+    (isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
+    (isOwner && (
+      request.status === 'draft' ||
+      request.status === 'changes_requested' ||
+      (request.status === 'pending' && approvedCount === 0)
+    ));
+
+  // Request can only be deleted by the user who created it (until someone approved it) or superadmin (until amount is paid)
+  const canDelete =
+    (isSuperAdmin && !isPaidOrDisbursed) ||
+    (isOwner && approvedCount === 0 && !isPaidOrDisbursed);
+
+  const isSupervisorGate = request.status === "pending_dept_head";
+  const canQuickApprove = !isSupervisor && (isSuperAdmin || isApprover) && (
+    (
+      (request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
+      Array.isArray(request.approvals) &&
+      request.approvals.some((a: any) => a.status === 'pending' && (isSuperAdmin || canApproveInDepartment(a.department)))
+    ) || (
+      isSupervisorGate && (isSuperAdmin || canApproveInDepartment(request.department))
+    )
+  );
 
   const rowClassName = `group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 hover:relative hover:z-50 ${isSelected ? 'bg-brand-primary/10' : ''}`;
 
@@ -767,7 +821,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
       </td>
       <td className="px-6 py-5 text-right overflow-visible">
         <div className="flex justify-end gap-2 items-center">
-          {request.status === "pending" && (
+          {canQuickApprove && (
             <button
               onClick={onApprove}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-colors text-xs font-medium"
@@ -789,19 +843,18 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
               <MoreHorizontal className="w-4 h-4" />
             </button>
             <div className="absolute right-0 top-full mt-1 w-40 bg-popover border border-border rounded-md shadow-md opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 py-1 overflow-hidden">
-              {((isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
-               (request.requesterId === user?.id && (
-                 request.status === 'draft' ||
-                 request.status === 'changes_requested' ||
-                 (request.status === 'pending' && Number(request.approvedCount || 0) === 0)
-               ))) && (
+              {(canEdit || canDelete) && (
                 <>
-                  <button onClick={onEdit} className="w-full text-left px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2">
-                    <Edit2 className="w-3.5 h-3.5" /> Edit Request
-                  </button>
-                  <button onClick={onDelete} className="w-full text-left px-3 py-1.5 text-xs font-medium text-destructive hover:bg-secondary flex items-center gap-2">
-                    <Trash2 className="w-3.5 h-3.5" /> Delete Request
-                  </button>
+                  {canEdit && (
+                    <button onClick={onEdit} className="w-full text-left px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2">
+                      <Edit2 className="w-3.5 h-3.5" /> Edit Request
+                    </button>
+                  )}
+                  {canDelete && (
+                    <button onClick={onDelete} className="w-full text-left px-3 py-1.5 text-xs font-medium text-destructive hover:bg-secondary flex items-center gap-2">
+                      <Trash2 className="w-3.5 h-3.5" /> Delete Request
+                    </button>
+                  )}
                 </>
               )}
               <div className="h-px bg-border my-1 mx-2" />

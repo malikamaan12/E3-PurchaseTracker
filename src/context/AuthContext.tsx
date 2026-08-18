@@ -3,10 +3,19 @@
 import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 
+export interface DepartmentAssignment {
+  department: string;
+  role: 'user' | 'approver' | 'both';
+  status: 'active' | 'frozen';
+}
+
 export interface AuthUser {
   id: number;
   username: string;
   department: string;
+  assignedDepartments?: Array<string | DepartmentAssignment>;
+  departmentAssignments?: DepartmentAssignment[];
+  departments?: string[];
   role: string;
   email: string;
   isActive: boolean;
@@ -21,6 +30,13 @@ interface AuthContextValue {
   isAdmin: boolean;
   isApprover: boolean;
   isSupervisor: boolean;
+  departments: string[];
+  departmentAssignments: DepartmentAssignment[];
+  submissionDepartments: string[];
+  canActInDepartment: (dept: string) => boolean;
+  canCreateInDepartment: (dept: string) => boolean;
+  canApproveInDepartment: (dept: string) => boolean;
+  isDepartmentFrozen: (dept: string) => boolean;
   refetch: () => void;
   setUser: (user: AuthUser | null) => void;
 }
@@ -33,6 +49,13 @@ const AuthContext = createContext<AuthContextValue>({
   isAdmin: false,
   isApprover: false,
   isSupervisor: false,
+  departments: [],
+  departmentAssignments: [],
+  submissionDepartments: [],
+  canActInDepartment: () => false,
+  canCreateInDepartment: () => false,
+  canApproveInDepartment: () => false,
+  isDepartmentFrozen: () => false,
   refetch: () => {},
   setUser: () => {},
 });
@@ -117,8 +140,80 @@ export function AuthProvider({
 
   const isSuperAdmin = useMemo(() => user?.role?.toLowerCase() === "super_admin", [user]);
   const isAdmin = useMemo(() => user?.role?.toLowerCase() === "admin" || user?.role?.toLowerCase() === "super_admin", [user]);
-  const isApprover = useMemo(() => user?.role?.toLowerCase() === "approver" || user?.isApprover === true, [user]);
   const isSupervisor = useMemo(() => user?.role?.toLowerCase() === "supervisor", [user]);
+  const isApprover = useMemo(() => {
+    if (!user || user.role?.toLowerCase() === "supervisor" || user.role?.toLowerCase() === "user") {
+      return false;
+    }
+    return user.role?.toLowerCase() === "approver" || user.isApprover === true;
+  }, [user]);
+
+  const departmentAssignments = useMemo<DepartmentAssignment[]>(() => {
+    if (!user) return [];
+    if (Array.isArray(user.departmentAssignments)) return user.departmentAssignments;
+    if (!Array.isArray(user.assignedDepartments)) return [];
+    
+    return user.assignedDepartments.map(item => {
+      if (typeof item === 'string') {
+        return { department: item, role: 'both' as const, status: 'active' as const };
+      }
+      return {
+        department: item.department || '',
+        role: (item.role || 'both') as 'user' | 'approver' | 'both',
+        status: (item.status || 'active') as 'active' | 'frozen',
+      };
+    }).filter(a => !!a.department);
+  }, [user]);
+
+  const userDepartments = useMemo(() => {
+    if (!user) return [];
+    const activeAssigned = departmentAssignments
+      .filter(a => a.status === 'active')
+      .map(a => a.department);
+    return Array.from(new Set([user.department, ...activeAssigned].filter(Boolean)));
+  }, [user, departmentAssignments]);
+
+  const submissionDepartments = useMemo(() => {
+    if (!user) return [];
+    const allowed = departmentAssignments
+      .filter(a => a.status === 'active' && (a.role === 'user' || a.role === 'both'))
+      .map(a => a.department);
+    return Array.from(new Set([user.department, ...allowed].filter(Boolean)));
+  }, [user, departmentAssignments]);
+
+  const canActInDepartment = useCallback((targetDept: string) => {
+    if (!user) return false;
+    if (user.role?.toLowerCase() === 'super_admin') return true;
+    const depts = userDepartments.map(d => d.toLowerCase().trim());
+    return depts.includes(targetDept.toLowerCase().trim());
+  }, [user, userDepartments]);
+
+  const canCreateInDepartment = useCallback((targetDept: string) => {
+    if (!user) return false;
+    if (user.role?.toLowerCase() === 'super_admin') return true;
+    const target = targetDept.toLowerCase().trim();
+    if ((user.department || '').toLowerCase().trim() === target) return true;
+    const match = departmentAssignments.find(a => a.department.toLowerCase().trim() === target);
+    return !!match && match.status === 'active' && (match.role === 'user' || match.role === 'both');
+  }, [user, departmentAssignments]);
+
+  const canApproveInDepartment = useCallback((targetDept: string) => {
+    if (!user) return false;
+    if (user.role?.toLowerCase() === 'supervisor' || user.role?.toLowerCase() === 'user') return false;
+    if (user.role?.toLowerCase() === 'super_admin' || user.role?.toLowerCase() === 'admin') return true;
+    const target = targetDept.toLowerCase().trim();
+    if ((user.department || '').toLowerCase().trim() === target) {
+      return user.role?.toLowerCase() === 'approver' || user.isApprover === true;
+    }
+    const match = departmentAssignments.find(a => a.department.toLowerCase().trim() === target);
+    return !!match && match.status === 'active' && (match.role === 'approver' || match.role === 'both');
+  }, [user, departmentAssignments]);
+
+  const isDepartmentFrozen = useCallback((targetDept: string) => {
+    const target = targetDept.toLowerCase().trim();
+    const match = departmentAssignments.find(a => a.department.toLowerCase().trim() === target);
+    return !!match && match.status === 'frozen';
+  }, [departmentAssignments]);
 
   const value = useMemo(() => ({
     user,
@@ -128,9 +223,32 @@ export function AuthProvider({
     isAdmin,
     isApprover,
     isSupervisor,
+    departments: userDepartments,
+    departmentAssignments,
+    submissionDepartments,
+    canActInDepartment,
+    canCreateInDepartment,
+    canApproveInDepartment,
+    isDepartmentFrozen,
     refetch: () => fetchUser(false),
     setUser,
-  }), [user, isLoading, isRevalidating, isSuperAdmin, isAdmin, isApprover, isSupervisor, fetchUser]);
+  }), [
+    user, 
+    isLoading, 
+    isRevalidating, 
+    isSuperAdmin, 
+    isAdmin, 
+    isApprover, 
+    isSupervisor, 
+    userDepartments, 
+    departmentAssignments, 
+    submissionDepartments, 
+    canActInDepartment, 
+    canCreateInDepartment, 
+    canApproveInDepartment, 
+    isDepartmentFrozen, 
+    fetchUser
+  ]);
 
   return (
     <AuthContext.Provider value={value}>

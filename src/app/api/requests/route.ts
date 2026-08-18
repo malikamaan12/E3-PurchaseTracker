@@ -13,7 +13,7 @@ import {
   itemCatalog
 } from "@db/schema";
 import { eq, and, desc, inArray, gte, lte, count, or, ilike, sql } from "drizzle-orm";
-import { getAuthenticatedUser } from "@/lib/auth-next";
+import { getAuthenticatedUser, canCreateInDepartment, isDepartmentFrozen, normalizeDepartmentAssignments } from "@/lib/auth-next";
 import { createRequestSchema } from "@/lib/validation";
 import { evaluateCompliance } from "@/lib/core/compliance";
 import { seedInitialApprovals } from "@/lib/core/workflow";
@@ -50,7 +50,9 @@ export async function GET(req: NextRequest) {
     }
 
     if (deptFilter && deptFilter !== "all") {
-      whereConditions.push(ilike(users.department, deptFilter));
+      whereConditions.push(
+        sql`COALESCE(${purchaseRequests.department}, ${users.department}) ILIKE ${deptFilter}`
+      );
     }
 
     if (vendorFilter && vendorFilter !== "all") {
@@ -61,46 +63,41 @@ export async function GET(req: NextRequest) {
     }
 
     if (purposeFilter && purposeFilter !== "all") {
-      whereConditions.push(ilike(purchaseRequests.purposeType, purposeFilter));
+      whereConditions.push(eq(purchaseRequests.purposeType, purposeFilter));
     }
 
     if (categoryFilter && categoryFilter !== "all") {
-      const catId = parseInt(categoryFilter, 10);
-      if (!isNaN(catId)) {
-        whereConditions.push(eq(purchaseRequests.purposeCategoryId, catId));
+      const cId = parseInt(categoryFilter, 10);
+      if (!isNaN(cId)) {
+        whereConditions.push(eq(purchaseRequests.purposeCategoryId, cId));
       }
     }
 
     if (subPurposeFilter && subPurposeFilter !== "all") {
-      const subId = parseInt(subPurposeFilter, 10);
-      if (!isNaN(subId)) {
-        whereConditions.push(eq(purchaseRequests.subPurposeId, subId));
+      const spId = parseInt(subPurposeFilter, 10);
+      if (!isNaN(spId)) {
+        whereConditions.push(eq(purchaseRequests.subPurposeId, spId));
       }
+    }
+
+    if (priority && priority !== "all") {
+      whereConditions.push(eq(purchaseRequests.priority, priority));
+    }
+
+    if (costMin) {
+      whereConditions.push(gte(purchaseRequests.totalEstimatedCost, parseInt(costMin, 10)));
+    }
+
+    if (costMax) {
+      whereConditions.push(lte(purchaseRequests.totalEstimatedCost, parseInt(costMax, 10)));
     }
 
     if (dateFrom) {
       whereConditions.push(gte(purchaseRequests.createdAt, new Date(dateFrom)));
     }
+
     if (dateTo) {
-      const endDate = dateTo.includes("T") ? new Date(dateTo) : new Date(`${dateTo}T23:59:59.999Z`);
-      whereConditions.push(lte(purchaseRequests.createdAt, endDate));
-    }
-
-    if (priority && priority !== "all") {
-      whereConditions.push(inArray(purchaseRequests.priority, priority.split(",")));
-    }
-
-    if (costMin) {
-      const minVal = parseFloat(costMin);
-      if (!isNaN(minVal)) {
-        whereConditions.push(gte(purchaseRequests.totalEstimatedCost, minVal));
-      }
-    }
-    if (costMax) {
-      const maxVal = parseFloat(costMax);
-      if (!isNaN(maxVal)) {
-        whereConditions.push(lte(purchaseRequests.totalEstimatedCost, maxVal));
-      }
+      whereConditions.push(lte(purchaseRequests.createdAt, new Date(dateTo)));
     }
 
     if (requestNo) {
@@ -120,20 +117,21 @@ export async function GET(req: NextRequest) {
     // Role-based visibility
     const isSuperAdmin = user.role === 'super_admin';
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+    const userDepts = (user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean);
 
     // 1. Isolation for pending_dept_head requests:
-    // Only super_admin, the supervisor (requester), or someone from the supervisor's department can see it.
+    // Only super_admin, the supervisor (requester), or someone from the submitting department can see it.
     if (!isSuperAdmin) {
       whereConditions.push(
-        sql`(${purchaseRequests.status} != 'pending_dept_head' OR ${users.department} = ${user.department} OR ${purchaseRequests.requesterId} = ${user.id})`
+        sql`(${purchaseRequests.status} != 'pending_dept_head' OR COALESCE(${purchaseRequests.department}, ${users.department}) IN ${userDepts} OR ${purchaseRequests.requesterId} = ${user.id})`
       );
     }
 
     if (!isAdmin) {
       whereConditions.push(
         or(
-          eq(users.department, user.department),
-          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.department} = ${user.department})`
+          inArray(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, userDepts),
+          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.department} IN ${userDepts})`
         )
       );
     }
@@ -152,6 +150,7 @@ export async function GET(req: NextRequest) {
         requestNumber: purchaseRequests.requestNumber,
         title: purchaseRequests.title,
         status: purchaseRequests.status,
+        department: sql<string>`COALESCE(${purchaseRequests.department}, ${users.department})`,
         totalEstimatedCost: purchaseRequests.totalEstimatedCost,
         createdAt: purchaseRequests.createdAt,
         updatedAt: purchaseRequests.updatedAt,
@@ -222,6 +221,7 @@ export async function POST(req: NextRequest) {
     const { 
       title, 
       description, 
+      department: requestedDept,
       totalEstimatedCost, 
       vendorId, 
       purposeType, 
@@ -237,6 +237,18 @@ export async function POST(req: NextRequest) {
       installments,
       status: requestedStatus
     } = validation.data;
+
+    // --- Submitting Department Authority Resolution ---
+    let effectiveDept = user.department;
+    if (requestedDept) {
+      if (isDepartmentFrozen(user, requestedDept)) {
+        return NextResponse.json({ error: `Department access for "${requestedDept}" is currently frozen.` }, { status: 403 });
+      }
+      if (!canCreateInDepartment(user, requestedDept)) {
+        return NextResponse.json({ error: `You do not have request submission privileges for department "${requestedDept}".` }, { status: 403 });
+      }
+      effectiveDept = requestedDept.trim();
+    }
 
     // --- SECURITY PATCH: Trust No Client Payload ---
     // Recalculate actual sum from items to prevent client-side manipulation of budget.
@@ -307,7 +319,7 @@ export async function POST(req: NextRequest) {
 
     const requestNumber = generateUniqueRequestId({
       projectName: projectNameStr,
-      departmentName: user.department,
+      departmentName: effectiveDept,
       date: new Date(),
       sequence: nextNum
     });
@@ -319,13 +331,14 @@ export async function POST(req: NextRequest) {
 
     // --- Sequential Inserts (Neon HTTP driver is incompatible with db.transaction()) ---
     // 1. Insert the Purchase Request
-    console.log("[POST /api/requests] Step 1: Inserting purchase request for user", user.id);
+    console.log("[POST /api/requests] Step 1: Inserting purchase request for user", user.id, "dept:", effectiveDept);
     const [newRequest] = await db
       .insert(purchaseRequests)
       .values({
         requestNumber,
         title: title || "Untitled Request",
         description: description || "",
+        department: effectiveDept,
         totalEstimatedCost: totalEstimatedCostNum,
         vendorId: vendorIdNum,
         purposeType: purposeType || "General",
@@ -420,33 +433,48 @@ export async function POST(req: NextRequest) {
 
     // 4. Approval row seeding on direct submission to "pending"
     if (requestedStatus === "pending") {
-      await seedInitialApprovals(newRequest.id, user.id, user.department, user.role, additionalApprovers);
+      await seedInitialApprovals(newRequest.id, user.id, user.department, user.role, additionalApprovers, effectiveDept, user.departments);
       
       // 5. Dispatch Notifications
       try {
         const { notificationService } = await import("@/lib/services/NotificationService");
         if (isSupervisor) {
-          // Notify only the supervisor's Department Approver(s)
-          const deptApprovers = await db.select({ id: users.id })
+          // Notify approvers of the submitting department
+          const allApprovers = await db.select({ 
+            id: users.id, 
+            department: users.department, 
+            assignedDepartments: users.assignedDepartments 
+          })
             .from(users)
             .where(
               and(
-                ilike(users.department, user.department),
-                inArray(users.role, ['admin', 'approver'])
+                inArray(users.role, ['admin', 'approver', 'super_admin']),
+                eq(users.isActive, true)
               )
             );
-          const deptApproverIds = deptApprovers.map(a => a.id).filter(id => id !== user.id);
+
+          const deptApproverIds = allApprovers
+            .filter(u => {
+              if (u.id === user.id) return false;
+              const target = effectiveDept.toLowerCase().trim();
+              if ((u.department || '').toLowerCase().trim() === target) return true;
+              const normalized = normalizeDepartmentAssignments(u.assignedDepartments, u.department);
+              const match = normalized.find(a => a.department.toLowerCase().trim() === target);
+              return !!match && match.status === 'active' && (match.role === 'approver' || match.role === 'both');
+            })
+            .map(a => a.id);
+
           if (deptApproverIds.length > 0) {
             await notificationService.createNewSubmissionNotification({
               requestId: newRequest.id,
-              requestTitle: `[Dept Review] ${newRequest.title}`,
-              requesterName: `${user.username} (Supervisor)`,
+              requestTitle: `[Dept Review: ${effectiveDept}] ${newRequest.title}`,
+              requesterName: `${user.username} (Supervisor - ${effectiveDept})`,
               adminIds: deptApproverIds,
             });
           }
         } else {
           // Standard submission: notify admins and approvers
-          const admins = await db.select({ id: users.id }).from(users).where(inArray(users.role, ['admin', 'approver']));
+          const admins = await db.select({ id: users.id }).from(users).where(inArray(users.role, ['admin', 'approver', 'super_admin']));
           const adminIds = admins.map(a => a.id).filter(id => id !== user.id);
           
           if (adminIds.length > 0) {
