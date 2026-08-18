@@ -24,6 +24,8 @@ import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 interface BackupRecord {
   name: string;
@@ -38,12 +40,21 @@ interface BackupRecord {
  */
 export default function AdminBackupsPage() {
   usePageTitle("Enterprise Backups");
+  const { user, isLoading: isAuthLoading, isSuperAdmin } = useAuth();
+  const router = useRouter();
   const [backups, setBackups] = useState<BackupRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTriggering, setIsTriggering] = useState(false);
   const [vaultConfig, setVaultConfig] = useState({ primary: "", secondary: "" });
   const [vaultStatus, setVaultStatus] = useState<any>(null);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthLoading && user && !isSuperAdmin) {
+      toast.error("Access denied. Governance & System is restricted to Super Admin.");
+      router.replace("/dashboard/admin");
+    }
+  }, [isAuthLoading, user, isSuperAdmin, router]);
 
   const fetchVaultStatus = async () => {
     try {
@@ -115,10 +126,12 @@ export default function AdminBackupsPage() {
   };
 
   useEffect(() => {
-    fetchBackups();
-    fetchVaultConfig();
-    fetchVaultStatus();
-  }, []);
+    if (user && isSuperAdmin) {
+      fetchBackups();
+      fetchVaultConfig();
+      fetchVaultStatus();
+    }
+  }, [user, isSuperAdmin]);
 
   const triggerManualBackup = async () => {
     setIsTriggering(true);
@@ -165,6 +178,10 @@ export default function AdminBackupsPage() {
       toast.error("Download Error");
     }
   };
+
+  if (isAuthLoading || (user && !isSuperAdmin)) {
+    return null;
+  }
 
   return (
     <div className="space-y-10 pb-20">

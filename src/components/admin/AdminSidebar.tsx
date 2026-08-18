@@ -54,8 +54,11 @@ const adminNavGroups: AdminNavGroup[] = [
   }
 ];
 
+import { useAuth } from "@/context/AuthContext";
+
 export default function AdminSidebar() {
   const pathname = usePathname();
+  const { isSuperAdmin } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -72,7 +75,10 @@ export default function AdminSidebar() {
     localStorage.setItem("admin_sidebar_collapsed", String(next));
   };
 
-  const allItems = adminNavGroups.flatMap(g => g.items);
+  const visibleNavGroups = adminNavGroups.filter(
+    g => g.title !== "Governance & System" || isSuperAdmin
+  );
+  const allItems = visibleNavGroups.flatMap(g => g.items);
   const currentItem = allItems.find(i => i.path === pathname) || allItems[0];
 
   if (!isMounted) return null;
@@ -107,7 +113,7 @@ export default function AdminSidebar() {
         </div>
 
         <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-1">
-          {adminNavGroups.map((group) => (
+          {visibleNavGroups.map((group) => (
             <div key={group.title} className="flex flex-col gap-1">
               {!isCollapsed && (
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-3 mb-1 opacity-70">
@@ -179,7 +185,7 @@ export default function AdminSidebar() {
         {/* Expandable Grouped Nav on Mobile */}
         {isMobileMenuOpen && (
           <div className="bg-card border border-border rounded-2xl p-4 shadow-xl space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
-            {adminNavGroups.map((group) => (
+            {visibleNavGroups.map((group) => (
               <div key={group.title} className="space-y-1.5">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider block px-2">
                   {group.title}

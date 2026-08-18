@@ -1,21 +1,32 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { Settings2, Save, Droplet, Type, FileImage } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 export default function PdfSettingsPage() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  usePageTitle("PDF Settings");
+  const { user, isLoading: isAuthLoading, isSuperAdmin } = useAuth();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [settings, setSettings] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    if (!isAuthLoading && user && !isSuperAdmin) {
+      toast.error("Access denied. Governance & System is restricted to Super Admin.");
+      router.replace("/dashboard/admin");
+    }
+  }, [isAuthLoading, user, isSuperAdmin, router]);
 
   const { data: initialSettings, isLoading } = useQuery({
     queryKey: ["admin_pdf_settings"],
     queryFn: () => apiClient.admin.pdfSettings.get(),
-    enabled: !!user && !isAuthLoading
+    enabled: !!user && !isAuthLoading && !!isSuperAdmin
   });
 
   useEffect(() => {
@@ -135,6 +146,10 @@ export default function PdfSettingsPage() {
       </div>
     );
   };
+
+  if (isAuthLoading || (user && !isSuperAdmin)) {
+    return null;
+  }
 
   if (isLoading) {
     return (

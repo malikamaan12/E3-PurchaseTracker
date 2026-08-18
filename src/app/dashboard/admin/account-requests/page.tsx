@@ -1,20 +1,32 @@
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { CopyPlus, ShieldPlus, Check, X, Building2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useAuth } from "@/context/AuthContext";
+import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 export default function AccountRequestsPage() {
-  const { user, isLoading: isAuthLoading } = useAuth();
+  usePageTitle("Account Requests");
+  const { user, isLoading: isAuthLoading, isSuperAdmin } = useAuth();
+  const router = useRouter();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!isAuthLoading && user && !isSuperAdmin) {
+      toast.error("Access denied. Governance & System is restricted to Super Admin.");
+      router.replace("/dashboard/admin");
+    }
+  }, [isAuthLoading, user, isSuperAdmin, router]);
 
   const { data: requests = [], isLoading } = useQuery({
     queryKey: ["admin_account_requests"],
     queryFn: () => apiClient.admin.accountRequests.list({ status: "pending" }),
-    enabled: !!user && !isAuthLoading
+    enabled: !!user && !isAuthLoading && !!isSuperAdmin
   });
 
   const approveMutation = useMutation({
@@ -35,6 +47,10 @@ export default function AccountRequestsPage() {
     },
     onError: (error: any) => toast.error(error.message || "Failed to reject request"),
   });
+
+  if (isAuthLoading || (user && !isSuperAdmin)) {
+    return null;
+  }
 
   if (isLoading) {
     return (

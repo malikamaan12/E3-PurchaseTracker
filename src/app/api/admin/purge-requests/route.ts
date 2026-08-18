@@ -16,8 +16,8 @@ export async function POST(req: NextRequest) {
   try {
     // 1. JWT Authentication
     const admin = await getAuthenticatedUser(req);
-    if (!admin || admin.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Unauthorized. Institutional Admin access required." }, { status: 403 });
+    if (!admin || admin.role.toLowerCase() !== "super_admin") {
+      return NextResponse.json({ error: "Unauthorized. Super Admin access required." }, { status: 403 });
     }
 
     const { password } = await req.json();

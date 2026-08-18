@@ -16,8 +16,8 @@ export async function GET(req: NextRequest) {
     const admin = await getAuthenticatedUser(req);
     if (!admin) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    if (admin.role !== 'admin') {
-      return NextResponse.json({ error: "Access denied. Admin only route." }, { status: 403 });
+    if (admin.role !== 'super_admin') {
+      return NextResponse.json({ error: "Access denied. Super Admin only route." }, { status: 403 });
     }
 
     const records = await db.select().from(systemSettings);
@@ -45,8 +45,8 @@ export async function POST(req: NextRequest) {
     const admin = await getAuthenticatedUser(req);
     if (!admin) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    if (admin.role !== 'admin') {
-      return NextResponse.json({ error: "Access denied. Admin only route." }, { status: 403 });
+    if (admin.role !== 'super_admin') {
+      return NextResponse.json({ error: "Access denied. Super Admin only route." }, { status: 403 });
     }
 
     const body = await req.json();

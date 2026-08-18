@@ -47,7 +47,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    const isAuthorized = user.role === 'admin' || user.canManageVendors === true;
+    const isAuthorized = user.role === 'admin' || user.role === 'super_admin' || user.canManageVendors === true;
     if (!isAuthorized) {
       return NextResponse.json({ error: "Access denied. Admin or Vendor Management rights required." }, { status: 403 });
     }
@@ -122,7 +122,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    if (user.role !== 'admin') {
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
       return NextResponse.json({ error: "Strictly Admin only deletion permitted." }, { status: 403 });
     }
 

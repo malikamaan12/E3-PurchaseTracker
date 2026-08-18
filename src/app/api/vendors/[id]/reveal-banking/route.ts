@@ -19,6 +19,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     const isAuthorized = 
       user.role === 'admin' || 
+      user.role === 'super_admin' || 
       user.canManageVendors === true ||
       ["finance", "management", "ceo office"].includes(user.department?.toLowerCase() || "");
 

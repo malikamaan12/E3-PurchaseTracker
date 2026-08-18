@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status");
     const filterDept = searchParams.get("departmentId"); // ID or Name? We'll use Name from users table
 
-    const isAdmin = user.role === 'admin' || ["finance", "ceo office", "management"].includes(user.department?.toLowerCase() || "");
+    const isAdmin = user.role === 'admin' || user.role === 'super_admin' || ["finance", "ceo office", "management"].includes(user.department?.toLowerCase() || "");
     const userDept = user.department;
 
     // 2. Build Dynamic Filters

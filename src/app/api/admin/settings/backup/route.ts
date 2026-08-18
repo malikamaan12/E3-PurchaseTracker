@@ -11,8 +11,8 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser(req);
-    if (!user || user.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!user || user.role.toLowerCase() !== "super_admin") {
+      return NextResponse.json({ error: "Access denied. Super Admin role required." }, { status: 403 });
     }
 
     const primary = await SettingsService.getSetting("google_drive_folder_primary_id");
@@ -36,8 +36,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser(req);
-    if (!user || user.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    if (!user || user.role.toLowerCase() !== "super_admin") {
+      return NextResponse.json({ error: "Access denied. Super Admin role required." }, { status: 403 });
     }
 
     const body = await req.json();

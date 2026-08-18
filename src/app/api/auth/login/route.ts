@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
       .where(eq(departments.name, user.department))
       .limit(1);
 
-    const isApprover = dept?.isApprover || user.role === 'admin';
+    const isApprover = dept?.isApprover || user.role === 'admin' || user.role === 'super_admin';
 
     // 4. Session Generation
     const sanitizedUser = {

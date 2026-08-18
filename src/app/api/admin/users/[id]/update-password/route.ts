@@ -18,8 +18,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const admin = await getAuthenticatedUser(req);
     if (!admin) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    if (admin.role !== 'admin') {
-      return NextResponse.json({ error: "Access denied. Admin only route." }, { status: 403 });
+    if (admin.role !== 'super_admin') {
+      return NextResponse.json({ error: "Access denied. Super Admin role required." }, { status: 403 });
     }
 
     const userId = parseInt(paramId);

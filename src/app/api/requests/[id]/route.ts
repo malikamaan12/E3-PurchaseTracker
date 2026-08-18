@@ -232,7 +232,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (!existing) return NextResponse.json({ error: "Request not found" }, { status: 404 });
 
     // ─── AUTHENTICATION & AUTHORITY GATEKEEPING ────────────────────────────────
-    const isAdmin = user.role === 'admin';
+    const isAdmin = user.role === 'admin' || user.role === 'super_admin';
     const isFinance = user.department?.toLowerCase() === 'finance';
     const isOwner = existing.requesterId === user.id;
 

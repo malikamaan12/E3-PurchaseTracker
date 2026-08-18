@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: NextRequest) {
   try {
     const admin = await getAuthenticatedUser(req);
-    if (!admin || admin.role !== 'admin') {
+    if (!admin || (admin.role !== 'admin' && admin.role !== 'super_admin')) {
       return NextResponse.json({ error: "Access denied. Admin only." }, { status: 403 });
     }
 
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const admin = await getAuthenticatedUser(req);
-    if (!admin || admin.role !== 'admin') {
+    if (!admin || (admin.role !== 'admin' && admin.role !== 'super_admin')) {
       return NextResponse.json({ error: "Access denied. Admin only." }, { status: 403 });
     }
 

@@ -14,7 +14,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const { id: paramId } = await params;
     const admin = await getAuthenticatedUser(req);
-    if (!admin || admin.role !== 'admin') {
+    if (!admin || (admin.role !== 'admin' && admin.role !== 'super_admin')) {
       return NextResponse.json({ error: "Access denied. Admin only." }, { status: 403 });
     }
 
@@ -64,7 +64,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     const { id: paramId } = await params;
     const admin = await getAuthenticatedUser(req);
-    if (!admin || admin.role !== 'admin') {
+    if (!admin || (admin.role !== 'admin' && admin.role !== 'super_admin')) {
       return NextResponse.json({ error: "Access denied. Admin only." }, { status: 403 });
     }
 

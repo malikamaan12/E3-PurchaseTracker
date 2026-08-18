@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
     const admin = await getAuthenticatedUser(req);
     if (!admin) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    if (admin.role !== 'admin' && admin.role !== 'super_admin') {
-      return NextResponse.json({ error: "Access denied. Admin only route." }, { status: 403 });
+    if (admin.role !== 'super_admin') {
+      return NextResponse.json({ error: "Access denied. Super Admin role required for User Governance." }, { status: 403 });
     }
 
     const allUsers = await db
@@ -47,15 +47,15 @@ export async function GET(req: NextRequest) {
 /**
  * POST /api/admin/users
  * Create a new user.
- * Access: Admin only.
+ * Access: Super Admin only.
  */
 export async function POST(req: NextRequest) {
   try {
     const admin = await getAuthenticatedUser(req);
     if (!admin) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    if (admin.role !== 'admin' && admin.role !== 'super_admin') {
-      return NextResponse.json({ error: "Access denied. Admin only." }, { status: 403 });
+    if (admin.role !== 'super_admin') {
+      return NextResponse.json({ error: "Access denied. Super Admin role required for User Creation." }, { status: 403 });
     }
 
     const { username, email, password, role, department, contact_number } = await req.json();

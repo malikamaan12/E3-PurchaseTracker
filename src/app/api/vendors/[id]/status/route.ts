@@ -17,7 +17,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    const isAuthorized = user.role === 'admin' || user.canManageVendors === true;
+    const isAuthorized = user.role === 'admin' || user.role === 'super_admin' || user.canManageVendors === true;
     if (!isAuthorized) {
       return NextResponse.json({ error: "Access denied. Admin or Vendor Management rights required." }, { status: 403 });
     }

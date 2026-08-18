@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { MoreHorizontal, Users, ShieldAlert, CheckCircle2, XCircle, Plus, Key, Building2 } from "lucide-react";
@@ -229,20 +230,28 @@ import { usePageTitle } from "@/lib/hooks/usePageTitle";
 export default function UserManagementPage() {
   usePageTitle("User Management");
   const { user, isLoading: isAuthLoading, isSuperAdmin } = useAuth();
+  const router = useRouter();
   const queryClient = useQueryClient();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [resetTargetUser, setResetTargetUser] = useState<User | null>(null);
 
+  useEffect(() => {
+    if (!isAuthLoading && user && !isSuperAdmin) {
+      toast.error("Access denied. Governance & System is restricted to Super Admin.");
+      router.replace("/dashboard/admin");
+    }
+  }, [isAuthLoading, user, isSuperAdmin, router]);
+
   const { data: users = [], isLoading } = useQuery({
     queryKey: ["admin_users"],
     queryFn: () => apiClient.admin.users.list(),
-    enabled: !!user && !isAuthLoading
+    enabled: !!user && !isAuthLoading && !!isSuperAdmin
   });
 
   const { data: departments = [] } = useQuery<Department[]>({
     queryKey: ["departments"],
     queryFn: () => apiClient.departments.list(),
-    enabled: !!user && !isAuthLoading
+    enabled: !!user && !isAuthLoading && !!isSuperAdmin
   });
 
   const updateMutation = useMutation({
@@ -254,6 +263,10 @@ export default function UserManagementPage() {
     },
     onError: (error: any) => toast.error(error.message || "Update failed"),
   });
+
+  if (isAuthLoading || (user && !isSuperAdmin)) {
+    return null;
+  }
 
   if (isLoading) {
     return (

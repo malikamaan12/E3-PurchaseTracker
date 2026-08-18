@@ -31,11 +31,12 @@ const CategorySpendChart = dynamic(() => import("@/components/admin/CategorySpen
 });
 import { PurgeRequestsModal } from "@/components/admin/PurgeRequestsModal";
 import { ShieldAlert } from "lucide-react";
+import { Building2, FolderKanban } from "lucide-react";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 export default function AdminOverviewPage() {
   usePageTitle("Admin Overview");
-  const { user, isLoading: isAuthLoading } = useAuth();
+  const { user, isLoading: isAuthLoading, isSuperAdmin } = useAuth();
 
   const { data: analytics, isLoading, error, refetch } = useQuery({
     queryKey: ["admin_analytics"],
@@ -225,20 +226,37 @@ export default function AdminOverviewPage() {
         </div>
 
         {[
-          {
-            title: "Enterprise Backups",
-            sub: "Cloud Vault & Orchestration",
-            path: "/dashboard/admin/backups",
-            icon: <Archive className="w-5 h-5" />,
-            color: "brand-primary"
-          },
-          {
-            title: "Identity Controls",
-            sub: "User Access & Permissions",
-            path: "/dashboard/admin/users",
-            icon: <Users className="w-5 h-5" />,
-            color: "blue-500"
-          },
+          ...(isSuperAdmin ? [
+            {
+              title: "Enterprise Backups",
+              sub: "Cloud Vault & Orchestration",
+              path: "/dashboard/admin/backups",
+              icon: <Archive className="w-5 h-5" />,
+              color: "brand-primary"
+            },
+            {
+              title: "Identity Controls",
+              sub: "User Access & Permissions",
+              path: "/dashboard/admin/users",
+              icon: <Users className="w-5 h-5" />,
+              color: "blue-500"
+            },
+          ] : [
+            {
+              title: "Department Matrix",
+              sub: "Organization & Structure",
+              path: "/dashboard/admin/departments",
+              icon: <Building2 className="w-5 h-5" />,
+              color: "brand-primary"
+            },
+            {
+              title: "Project Portfolio",
+              sub: "Budgets & Project Splits",
+              path: "/dashboard/admin/sub-purposes",
+              icon: <FolderKanban className="w-5 h-5" />,
+              color: "blue-500"
+            },
+          ]),
           {
             title: "Budget Taxonomy",
             sub: "Purpose & Category Matrix",
@@ -328,35 +346,37 @@ export default function AdminOverviewPage() {
          </div>
       </motion.div>
 
-      {/* Danger Zone: Institutional Purge */}
-      <motion.div
-        variants={item}
-        initial="hidden"
-        whileInView="show"
-        viewport={{ once: true }}
-        className="glass-card p-10 border-rose-500/20 bg-rose-500/5 shadow-2xl shadow-rose-500/5 relative overflow-hidden"
-      >
-         <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 blur-[80px] rounded-full -mr-32 -mt-32" />
+      {/* Danger Zone: Institutional Purge (Super Admin Only) */}
+      {isSuperAdmin && (
+        <motion.div
+          variants={item}
+          initial="hidden"
+          whileInView="show"
+          viewport={{ once: true }}
+          className="glass-card p-10 border-rose-500/20 bg-rose-500/5 shadow-2xl shadow-rose-500/5 relative overflow-hidden"
+        >
+           <div className="absolute top-0 right-0 w-64 h-64 bg-rose-500/5 blur-[80px] rounded-full -mr-32 -mt-32" />
 
-         <div className="flex flex-col md:flex-row justify-between items-center gap-8 relative">
-            <div className="flex items-center gap-6">
-               <div className="w-16 h-16 rounded-[2rem] bg-rose-500/10 flex items-center justify-center border border-rose-500/20 text-rose-500 shadow-xl shadow-rose-500/10">
-                  <ShieldAlert className="w-8 h-8" />
-               </div>
-               <div>
-                  <h3 className="text-2xl font-serif font-black text-foreground tracking-tight uppercase">System Management & Danger Zone</h3>
-                  <p className="text-[10px] font-black text-rose-500/60 uppercase tracking-[0.2em] mt-1">Institutional Reset & Test Data Purge</p>
-                  <p className="text-xs text-muted-foreground mt-3 max-w-md leading-relaxed">
-                    This section is reserved for high-risk administration. Use the "Purge" protocol only before a production launch to eliminate all test purchase requests and reset the procurement state.
-                  </p>
-               </div>
-            </div>
+           <div className="flex flex-col md:flex-row justify-between items-center gap-8 relative">
+              <div className="flex items-center gap-6">
+                 <div className="w-16 h-16 rounded-[2rem] bg-rose-500/10 flex items-center justify-center border border-rose-500/20 text-rose-500 shadow-xl shadow-rose-500/10">
+                    <ShieldAlert className="w-8 h-8" />
+                 </div>
+                 <div>
+                    <h3 className="text-2xl font-serif font-black text-foreground tracking-tight uppercase">System Management & Danger Zone</h3>
+                    <p className="text-[10px] font-black text-rose-500/60 uppercase tracking-[0.2em] mt-1">Institutional Reset & Test Data Purge</p>
+                    <p className="text-xs text-muted-foreground mt-3 max-w-md leading-relaxed">
+                      This section is reserved for Super Admin governance. Use the "Purge" protocol only before a production launch to eliminate all test purchase requests and reset the procurement state.
+                    </p>
+                 </div>
+              </div>
 
-            <div className="shrink-0">
-               <PurgeRequestsModal />
-            </div>
-         </div>
-      </motion.div>
+              <div className="shrink-0">
+                 <PurgeRequestsModal />
+              </div>
+           </div>
+        </motion.div>
+      )}
     </div>
   );
 }

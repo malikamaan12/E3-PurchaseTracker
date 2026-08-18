@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    const isAuthorized = user.role === 'admin' || user.canManageVendors === true;
+    const isAuthorized = user.role === 'admin' || user.role === 'super_admin' || user.canManageVendors === true;
     // Allow any authenticated user to create a vendor.
     // We will set status based on authorization later.
 
