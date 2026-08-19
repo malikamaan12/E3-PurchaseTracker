@@ -27,6 +27,7 @@ interface VendorInviteModalProps {
 }
 
 export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteModalProps) {
+  const [vendorType, setVendorType] = useState<"company" | "freelancer">("company");
   const [companyName, setCompanyName] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [email, setEmail] = useState("");
@@ -35,12 +36,25 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
   const [currency, setCurrency] = useState("QAR");
   const [notes, setNotes] = useState("");
 
-  const [documentChecklist, setDocumentChecklist] = useState([
+  const COMPANY_CHECKLIST = [
     { type: "Commercial Registration", mandatory: true, description: "Official CR with valid expiry" },
     { type: "Tax Certificate", mandatory: true, description: "Tax / VAT identification certificate" },
     { type: "Establishment Card", mandatory: false, description: "Computer card / Municipality license" },
-  ]);
+  ];
+
+  const FREELANCER_CHECKLIST = [
+    { type: "Qatar ID (QID) / Passport", mandatory: true, description: "Valid personal identity document" },
+    { type: "Freelance Permit / Tax Card", mandatory: true, description: "Official freelance work license or tax ID" },
+    { type: "Bank Account Confirmation", mandatory: false, description: "Optional bank confirmation (not required for cash/cheque payments)" },
+  ];
+
+  const [documentChecklist, setDocumentChecklist] = useState(COMPANY_CHECKLIST);
   const [customDocName, setCustomDocName] = useState("");
+
+  const handleVendorTypeChange = (type: "company" | "freelancer") => {
+    setVendorType(type);
+    setDocumentChecklist(type === "freelancer" ? FREELANCER_CHECKLIST : COMPANY_CHECKLIST);
+  };
 
   const [isCheckingDuplicates, setIsCheckingDuplicates] = useState(false);
   const [duplicateWarning, setDuplicateWarning] = useState<any>(null);
@@ -120,6 +134,7 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
           contactPerson,
           email,
           contactNumber,
+          vendorType,
           category,
           payment_currency: currency,
           requiredDocumentTypes: documentChecklist,
@@ -310,12 +325,46 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                 </div>
               )}
 
+              {/* Vendor Classification Selector */}
+              <div className="space-y-2">
+                <label className="block text-xs font-medium text-slate-300">
+                  Vendor Classification*
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleVendorTypeChange("company")}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-semibold transition-all ${
+                      vendorType === "company"
+                        ? "bg-primary/10 border-primary text-white shadow-sm"
+                        : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <Building2 className="w-4 h-4 text-primary" />
+                    <span>Company / Entity</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleVendorTypeChange("freelancer")}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-semibold transition-all ${
+                      vendorType === "freelancer"
+                        ? "bg-primary/10 border-primary text-white shadow-sm"
+                        : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white"
+                    }`}
+                  >
+                    <User className="w-4 h-4 text-primary" />
+                    <span>Freelancer / Individual</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Basic Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1">
-                    <Building2 className="w-3.5 h-3.5 text-primary" />
-                    <span>Company Name*</span>
+                    {vendorType === "freelancer" ? <User className="w-3.5 h-3.5 text-primary" /> : <Building2 className="w-3.5 h-3.5 text-primary" />}
+                    <span>{vendorType === "freelancer" ? "Freelancer Full Name / Trade Name*" : "Company Name*"}</span>
                     {isCheckingDuplicates && <Loader2 className="w-3 h-3 animate-spin text-slate-400 ml-1" />}
                   </label>
                   <input
@@ -323,7 +372,7 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                     required
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="e.g. Al-Sulaiti Engineering Services"
+                    placeholder={vendorType === "freelancer" ? "e.g. John Doe (Freelance Audio Engineer)" : "e.g. Al-Sulaiti Engineering Services"}
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-primary transition-colors min-h-[44px]"
                   />
                 </div>

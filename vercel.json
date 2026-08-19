@@ -5,6 +5,10 @@
     {
       "path": "/api/cron/daily-backup",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/vendor-compliance",
+      "schedule": "0 6 * * *"
     }
   ]
 }

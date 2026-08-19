@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth-next";
-import { vendorOnboardingService } from "@/lib/services/VendorOnboardingService";
+import { VendorBankingSecurityService } from "@/lib/services/VendorBankingSecurityService";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/vendors/[id]/change-requests/[reqId]/review
- * Approves or rejects a staged vendor change request.
+ * Approves or rejects a staged vendor change request with banking dual review.
  */
 export async function POST(
   req: NextRequest,
@@ -23,9 +23,9 @@ export async function POST(
 
     const { id, reqId } = await params;
     const vendorId = parseInt(id, 10);
-    const requestId = parseInt(reqId, 10);
+    const changeRequestId = parseInt(reqId, 10);
 
-    if (isNaN(vendorId) || isNaN(requestId)) {
+    if (isNaN(vendorId) || isNaN(changeRequestId)) {
       return NextResponse.json({ error: "Invalid vendor or request ID" }, { status: 400 });
     }
 
@@ -36,11 +36,13 @@ export async function POST(
       return NextResponse.json({ error: "Action must be 'approve' or 'reject'" }, { status: 400 });
     }
 
-    const result = await vendorOnboardingService.reviewChangeRequest({
-      requestId,
-      userId: user.id,
+    const result = await VendorBankingSecurityService.processBankingReview({
+      changeRequestId,
+      reviewerId: user.id,
+      reviewerRole: user.role,
+      reviewerDept: (user as any).department || "Finance",
       action,
-      reviewNotes,
+      notes: reviewNotes,
     });
 
     return NextResponse.json({

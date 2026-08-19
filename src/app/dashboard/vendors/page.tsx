@@ -18,7 +18,8 @@ import {
   MapPin,
   Wallet,
   ChevronRight,
-  Globe
+  Globe,
+  Clock
 } from "lucide-react";
 import { toast } from "sonner";
 import * as Tabs from "@radix-ui/react-tabs";
@@ -26,6 +27,8 @@ import { VendorManagementModal } from "@/components/vendors/VendorManagementModa
 import { VendorDocumentsModal } from "@/components/vendors/VendorDocumentsModal";
 import { VendorInviteModal } from "@/components/vendors/VendorInviteModal";
 import { VendorDraftReviewDrawer } from "@/components/vendors/VendorDraftReviewDrawer";
+import { VendorComplianceCasesModal } from "@/components/vendors/VendorComplianceCasesModal";
+import { VendorGracePeriodModal } from "@/components/vendors/VendorGracePeriodModal";
 import { VendorOnboardingBadge } from "@/components/vendors/VendorOnboardingBadge";
 import { useState, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -33,10 +36,16 @@ import { StarRating } from "@/components/shared/StarRating";
 import { VendorListView } from "@/components/vendors/VendorListView";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
+function safeFormatDate(date: any, format: string) {
+  if (!date) return "N/A";
+  return new Date(date).toLocaleDateString();
+}
+
 export default function VendorsDashboard() {
   usePageTitle("Vendor Matrix");
   const queryClient = useQueryClient();
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
+  const isSuperAdmin = user?.role === "super_admin";
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
@@ -81,11 +90,9 @@ export default function VendorsDashboard() {
     onError: (err: any) => toast.error(err.message || "Failed to submit rating"),
   });
 
-  // Advanced Filtering Logic
   const filteredVendors = useMemo(() => {
     if (!vendors) return [];
 
-    // First apply status filter
     let processed = vendors;
     if (statusFilter !== "All") {
       processed = vendors.filter((v: any) => v.status.toLowerCase() === statusFilter.toLowerCase());
@@ -117,7 +124,6 @@ export default function VendorsDashboard() {
         </div>
 
         <div className="flex items-center justify-between sm:justify-end gap-3 w-full md:w-auto">
-          {/* View Toggles */}
           <div className="flex bg-secondary/50 p-1.5 rounded-xl border border-border/50 shadow-sm">
             <button
               onClick={() => setViewMode("grid")}
@@ -139,7 +145,6 @@ export default function VendorsDashboard() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsInviteModalOpen(true)}
-                aria-label="Invite Vendor (Self-Service)"
                 className="flex items-center justify-center gap-2 bg-secondary text-foreground hover:bg-secondary/80 border border-border font-semibold px-4 py-2.5 rounded-xl transition-all shrink-0 min-h-[44px] touch-target text-sm"
               >
                 <Mail className="w-4 h-4 text-primary" />
@@ -148,104 +153,76 @@ export default function VendorsDashboard() {
 
               <button
                 onClick={() => setIsOnboarding(true)}
-                aria-label="Manual Vendor Creation"
-                className="flex items-center justify-center gap-2 bg-primary text-primary-foreground font-semibold px-5 py-2.5 rounded-xl hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all group shrink-0 min-h-[44px] touch-target text-sm"
+                className="flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-primary/20 shrink-0 min-h-[44px] touch-target text-sm"
               >
-                <Plus className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-                <span>Add Vendor (Manual)</span>
+                <Plus className="w-4 h-4" />
+                <span>Add Supplier</span>
               </button>
             </div>
           )}
         </div>
       </header>
 
-      {/* Main Tabs */}
-      {isAdmin && (
-        <div className="flex border-b border-border gap-6">
-          <button
-            type="button"
-            onClick={() => setActiveTab("approved")}
-            className={`pb-3 text-sm font-semibold transition-colors relative min-h-[44px] flex items-center gap-2 ${
-              activeTab === "approved"
-                ? "text-primary border-b-2 border-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
+      <Tabs.Root value={activeTab} onValueChange={(v: any) => setActiveTab(v)} className="w-full">
+        <Tabs.List className="flex gap-2 border-b border-border/50 pb-2">
+          <Tabs.Trigger
+            value="approved"
+            className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all min-h-[44px] touch-target ${activeTab === "approved" ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground"}`}
           >
-            <span>Active & Approved Vendors</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground font-mono">
-              {vendors?.length || 0}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab("drafts")}
-            className={`pb-3 text-sm font-semibold transition-colors relative min-h-[44px] flex items-center gap-2 ${
-              activeTab === "drafts"
-                ? "text-primary border-b-2 border-primary"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <span>Self-Service Drafts</span>
-            <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-mono font-bold">
-              {drafts.length}
-            </span>
-          </button>
-        </div>
-      )}
-
-      {activeTab === "drafts" ? (
-        /* Self-Service Drafts Tab */
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-bold text-foreground">Self-Service Onboarding Queue</h2>
-            <button
-              onClick={() => setIsInviteModalOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline min-h-[44px]"
+            Approved Directory ({vendors?.length || 0})
+          </Tabs.Trigger>
+          {isAdmin && (
+            <Tabs.Trigger
+              value="drafts"
+              className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all min-h-[44px] touch-target flex items-center gap-2 ${activeTab === "drafts" ? "bg-primary/10 text-primary border border-primary/20" : "text-muted-foreground hover:text-foreground"}`}
             >
-              <Plus className="w-4 h-4" />
-              <span>Invite New Vendor</span>
-            </button>
+              <span>Onboarding Pipeline</span>
+              {drafts.length > 0 && (
+                <span className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                  {drafts.length}
+                </span>
+              )}
+            </Tabs.Trigger>
+          )}
+        </Tabs.List>
+      </Tabs.Root>
+
+      {activeTab === "drafts" && isAdmin ? (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="font-bold text-lg text-foreground">Self-Service Onboarding Queue</h3>
+            <span className="text-xs text-muted-foreground">Pending vendor submissions & review</span>
           </div>
 
           {drafts.length === 0 ? (
-            <div className="p-12 text-center bg-card border border-border rounded-2xl">
-              <Building2 className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-60" />
-              <h3 className="text-sm font-semibold text-foreground">No Onboarding Invitations</h3>
-              <p className="text-xs text-muted-foreground mt-1 max-w-sm mx-auto">
-                Generate secure 24-hour invitation links for external vendors to self-serve their credentials.
-              </p>
-              <button
-                onClick={() => setIsInviteModalOpen(true)}
-                className="mt-4 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold"
-              >
-                Invite Vendor Now
-              </button>
+            <div className="py-16 border-2 border-dashed border-border/50 rounded-3xl flex flex-col items-center justify-center text-center p-6 text-muted-foreground">
+              <Mail className="w-10 h-10 opacity-30 mb-3" />
+              <p className="text-sm font-bold text-foreground">No active onboarding drafts</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm">Use "Invite Vendor" to generate a 24-hour self-service onboarding link.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {drafts.map((draft: any) => (
                 <div
                   key={draft.id}
-                  className="bg-card border border-border hover:border-primary/50 rounded-2xl p-5 shadow-sm transition-all space-y-4 flex flex-col justify-between"
+                  className="bg-card/70 border border-border/50 hover:border-primary/30 rounded-2xl p-5 space-y-4 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
                 >
                   <div className="space-y-2">
                     <div className="flex items-start justify-between gap-2">
-                      <h3 className="font-bold text-foreground text-sm truncate">{draft.companyName}</h3>
+                      <div className="font-bold text-base text-foreground leading-snug">{draft.companyName}</div>
                       <VendorOnboardingBadge status={draft.onboardingStatus} />
                     </div>
 
-                    <div className="text-xs text-muted-foreground space-y-1">
-                      <p className="truncate">Contact: <span className="text-foreground">{draft.contactPerson}</span></p>
-                      <p className="truncate">Email: <span className="text-foreground font-mono">{draft.email}</span></p>
-                      <p className="truncate">Phone: <span className="text-foreground font-mono">{draft.contactNumber}</span></p>
-                    </div>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Mail className="w-3.5 h-3.5" />
+                      <span>{draft.email}</span>
+                    </p>
 
-                    <div className="pt-2 border-t border-border flex items-center justify-between text-[11px] text-muted-foreground">
-                      <span>Documents: {draft.documents?.length || 0} uploaded</span>
-                      {draft.tokenSummary?.expiresAt && (
-                        <span className="text-amber-500 font-mono">
-                          Expires: {new Date(draft.tokenSummary.expiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    <div className="text-[11px] text-muted-foreground pt-2 border-t border-border/30 flex items-center justify-between">
+                      <span>Created: {safeFormatDate(draft.createdAt, "MMM dd, yyyy")}</span>
+                      {draft.tokenSummary?.hasActiveToken && (
+                        <span className="text-emerald-500 font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Active Link
                         </span>
                       )}
                     </div>
@@ -265,12 +242,9 @@ export default function VendorsDashboard() {
           )}
         </div>
       ) : (
-        /* Approved Vendors Matrix */
         <>
-          {/* Advanced Search & Filtering Toolbar */}
           <section className="bg-background/80 backdrop-blur-md rounded-2xl sm:rounded-[2rem] p-4 sm:p-5 flex flex-col md:flex-row gap-4 sm:gap-6 items-stretch md:items-center shadow-lg border border-border/50 relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-transparent pointer-events-none" />
-
             <div className="relative flex-1 group w-full">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
               <input
@@ -301,15 +275,14 @@ export default function VendorsDashboard() {
           <VendorManagementModal open={isOnboarding} onOpenChange={setIsOnboarding} />
 
           {viewMode === "grid" ? (
-              <div
-                className="grid grid-cols-1 lg:grid-cols-2 3xl:grid-cols-3 gap-6"
-              >
+              <div className="grid grid-cols-1 lg:grid-cols-2 3xl:grid-cols-3 gap-6">
                 {filteredVendors.map((vendor: any, idx: number) => (
                   <VendorCard
                     key={vendor.id}
                     vendor={vendor}
                     index={idx}
                     isAdmin={isAdmin}
+                    isSuperAdmin={isSuperAdmin}
                     onStatusChange={(status) => statusMutation.mutate({ id: vendor.id, status })}
                     onRate={(r) => rateMutation.mutate({ id: vendor.id, rating: r })}
                   />
@@ -366,35 +339,48 @@ export default function VendorsDashboard() {
   );
 }
 
-function VendorCard({ vendor, isAdmin, onStatusChange, onRate, index }: { vendor: any; isAdmin: boolean; onStatusChange: (s: any) => void; onRate: (r: number) => void; index: number }) {
+function VendorCard({
+  vendor,
+  isAdmin,
+  isSuperAdmin,
+  onStatusChange,
+  onRate,
+  index
+}: {
+  vendor: any;
+  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  onStatusChange: (s: any) => void;
+  onRate: (r: number) => void;
+  index: number;
+}) {
   const [docModalOpen, setDocModalOpen] = useState(false);
+  const [casesModalOpen, setCasesModalOpen] = useState(false);
+  const [graceModalOpen, setGraceModalOpen] = useState(false);
+
   const statusColors: any = {
     active: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     blocked: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
     frozen: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
   };
 
-  // Compliance calculations
-  const docs = vendor.documents || [];
-  let complianceStatus = { color: "text-muted-foreground", bg: "bg-secondary", text: "No Documents", alert: false };
-  if (docs.length > 0) {
-    const now = new Date();
-    let hasExpired = false;
-    let hasExpiringSoon = false;
+  const rawIban = vendor.ibanNumber || "";
+  const maskedIban = rawIban.length > 6
+    ? `${rawIban.slice(0, 2)}•• •••• •••• ${rawIban.slice(-4)}`
+    : "••••";
 
-    docs.forEach((d: any) => {
-      if (d.expiryDate) {
-        const expiry = new Date(d.expiryDate);
-        const daysLeft = (expiry.getTime() - now.getTime()) / (1000 * 3600 * 24);
-        if (daysLeft < 0) hasExpired = true;
-        else if (daysLeft <= 30) hasExpiringSoon = true;
-      }
-    });
+  const compStatus = (vendor.complianceStatus || "unassessed").toLowerCase();
+  const complianceConfig: Record<string, { label: string; color: string; bg: string }> = {
+    compliant: { label: "Compliant", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10 border-emerald-500/20" },
+    expiring_soon: { label: "Expiring Soon", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
+    non_compliant: { label: "Non-Compliant", color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10 border-rose-500/20" },
+    grace_period: { label: "Grace Period", color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-500/10 border-purple-500/20" },
+    legacy_pending_assessment: { label: "Pending Assessment", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
+    unassessed: { label: "Unassessed", color: "text-muted-foreground", bg: "bg-secondary border-border" },
+    compliance_not_applicable: { label: "Exempt / N/A", color: "text-muted-foreground", bg: "bg-secondary border-border" },
+  };
 
-    if (hasExpired) complianceStatus = { color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-500/10", text: "Compliance Expired", alert: true };
-    else if (hasExpiringSoon) complianceStatus = { color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-500/10", text: "Expiring Soon", alert: true };
-    else complianceStatus = { color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10", text: `${docs.length} Docs Valid`, alert: false };
-  }
+  const compBadge = complianceConfig[compStatus] || complianceConfig.unassessed;
 
   return (
     <div
@@ -402,8 +388,23 @@ function VendorCard({ vendor, isAdmin, onStatusChange, onRate, index }: { vendor
       style={{ animationDelay: `${Math.min(index * 0.05, 0.3)}s` }}
     >
       <VendorDocumentsModal open={docModalOpen} onOpenChange={setDocModalOpen} vendor={vendor} />
+      <VendorComplianceCasesModal
+        isOpen={casesModalOpen}
+        onClose={() => setCasesModalOpen(false)}
+        vendorId={vendor.id}
+        vendorName={vendor.companyName}
+        vendorType={vendor.vendorType || "company"}
+        isSuperAdmin={isSuperAdmin}
+      />
+      <VendorGracePeriodModal
+        isOpen={graceModalOpen}
+        onClose={() => setGraceModalOpen(false)}
+        vendorId={vendor.id}
+        vendorName={vendor.companyName}
+        currentDeadline={vendor.gracePeriodDeadline}
+      />
+
       <div className="p-5 sm:p-6 relative">
-        {/* Glow effect */}
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-primary/10 transition-colors pointer-events-none" />
 
         <div className="flex flex-col sm:flex-row items-start justify-between gap-4 relative">
@@ -416,20 +417,17 @@ function VendorCard({ vendor, isAdmin, onStatusChange, onRate, index }: { vendor
               <h3 className="text-lg sm:text-xl font-bold text-foreground leading-tight tracking-tight group-hover:text-primary transition-colors truncate">{vendor.companyName}</h3>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="px-2 py-0.5 bg-primary/10 text-primary text-[10px] sm:text-[11px] font-bold uppercase tracking-wider rounded-md border border-primary/20 shrink-0">
-                  {vendor.category || "GENERAL"}
+                  {vendor.vendorType === "freelancer" ? "FREELANCER" : "COMPANY"}
+                </span>
+                <span className={`px-2 py-0.5 text-[10px] sm:text-[11px] font-bold uppercase tracking-wider rounded-md border shrink-0 ${compBadge.bg} ${compBadge.color}`}>
+                  {compBadge.label}
                 </span>
                 <StarRating rating={vendor.rating} onRate={onRate} size={14} />
               </div>
             </div>
           </div>
-          {isAdmin && (
-            <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all scale-100 self-end sm:self-auto">
-               <StatusToggle current={vendor.status} onChange={onStatusChange} />
-            </div>
-          )}
         </div>
 
-        {/* Bento Grid Contacts */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-6">
            <ContactItem icon={<Mail className="w-4 h-4" />} label="Identity" value={vendor.email} theme="emerald" />
            <ContactItem icon={<Phone className="w-4 h-4" />} label="Hotline" value={vendor.contactNumber} theme="emerald" />
@@ -453,25 +451,42 @@ function VendorCard({ vendor, isAdmin, onStatusChange, onRate, index }: { vendor
               <Wallet className="w-4 h-4 text-muted-foreground group-hover:text-primary" />
             </div>
             <div className="min-w-0">
-               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Banking Pipeline</p>
-               <p className="text-sm text-foreground font-medium truncate">{vendor.bankName} — <span className="font-mono text-muted-foreground text-xs">{vendor.ibanNumber}</span></p>
+               <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Masked Bank IBAN</p>
+               <p className="text-sm text-foreground font-medium truncate">{vendor.bankName} — <span className="font-mono text-foreground font-semibold text-xs">{maskedIban}</span></p>
             </div>
          </div>
       </div>
 
-      <div className="px-5 sm:px-6 py-3.5 bg-background flex justify-between items-center group/footer min-h-[52px]">
-        <button
-          onClick={() => setDocModalOpen(true)}
-          className="flex items-center gap-2 group-hover:translate-x-1 transition-transform cursor-pointer min-h-[44px] touch-target"
-        >
-          <div className={`w-2 h-2 rounded-full ${complianceStatus.bg.split('/')[0].replace('bg-', 'bg-')} ${complianceStatus.alert ? 'animate-pulse shadow-[0_0_8px_currentColor]' : ''}`} />
-          <span className={`text-xs font-bold uppercase tracking-wider ${complianceStatus.color}`}>
-            {complianceStatus.text}
-          </span>
-          <span className="text-xs text-muted-foreground font-medium ml-1.5 hover:text-primary transition-colors underline decoration-dotted">
-            Manage Docs
-          </span>
-        </button>
+      <div className="px-5 sm:px-6 py-3.5 bg-background flex flex-wrap justify-between items-center gap-2 min-h-[52px]">
+        <div className="flex items-center gap-3 flex-wrap">
+          <button
+            onClick={() => setDocModalOpen(true)}
+            className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors underline decoration-dotted"
+          >
+            Manage Files
+          </button>
+
+          {isAdmin && (
+            <button
+              onClick={() => setCasesModalOpen(true)}
+              className="text-xs font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Compliance Cases</span>
+            </button>
+          )}
+
+          {isSuperAdmin && (
+            <button
+              onClick={() => setGraceModalOpen(true)}
+              className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:opacity-80 transition-colors flex items-center gap-1"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Extend Grace</span>
+            </button>
+          )}
+        </div>
+
         <div className={`px-3 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider border shadow-sm ${statusColors[vendor.status]}`}>
           {vendor.status}
         </div>

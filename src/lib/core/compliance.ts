@@ -1,6 +1,6 @@
 import { db } from "@db";
-import { vendors, vendorDocuments } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { vendors, vendorDocuments, vendorComplianceOverrides } from "@db/schema";
+import { eq, and } from "drizzle-orm";
 import { differenceInDays } from "date-fns";
 
 /**
@@ -9,12 +9,33 @@ import { differenceInDays } from "date-fns";
  * 
  * Scans vendor metadata and evaluates the compliance health score.
  * Returns { isBlocked: true, message: string } if the vendor fails compliance.
+ * If a valid Super-Admin approved override exists for this requestId, permits workflow progression.
  * 
  * @param vendorId The database ID of the vendor
+ * @param requestId Optional PR ID to verify approved compliance overrides
  * @returns Object with isBlocked status and message if blocked
  */
-export async function evaluateCompliance(vendorId: number): Promise<{ isBlocked: boolean; message?: string }> {
+export async function evaluateCompliance(
+  vendorId: number,
+  requestId?: number
+): Promise<{ isBlocked: boolean; message?: string; hasApprovedOverride?: boolean }> {
   if (!vendorId) return { isBlocked: false };
+
+  // Check if there is an active approved compliance override for this specific request
+  if (requestId) {
+    const [approvedOverride] = await db
+      .select()
+      .from(vendorComplianceOverrides)
+      .where(and(
+        eq(vendorComplianceOverrides.requestId, requestId),
+        eq(vendorComplianceOverrides.status, "approved")
+      ))
+      .limit(1);
+
+    if (approvedOverride) {
+      return { isBlocked: false, hasApprovedOverride: true };
+    }
+  }
 
   const vendorRecord = await db.select({ 
     score: vendors.complianceScore,

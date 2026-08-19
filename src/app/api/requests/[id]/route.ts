@@ -22,6 +22,7 @@ import { notificationService } from "@/lib/services/NotificationService";
 import { evaluateCompliance } from "@/lib/core/compliance";
 import { seedInitialApprovals } from "@/lib/core/workflow";
 import { getExchangeRateToQAR } from "@/lib/utils/currency";
+import { ComplianceOverrideService } from "@/lib/services/ComplianceOverrideService";
 
 export const dynamic = 'force-dynamic';
 
@@ -387,12 +388,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (isTransitioningToPending) {
       const targetVendorId = cleanData.vendorId ?? existing.vendorId;
       if (targetVendorId) {
-        const { isBlocked, message } = await evaluateCompliance(targetVendorId);
+        const { isBlocked, message, hasApprovedOverride } = await evaluateCompliance(targetVendorId, requestId);
         if (isBlocked) {
           return NextResponse.json({ 
             error: "Access Denied: Compliance Violation", 
             message 
           }, { status: 403 });
+        }
+
+        // Atomically consume approved override upon submission
+        if (hasApprovedOverride) {
+          await ComplianceOverrideService.consumeOverride(requestId, user.id);
         }
       }
     }

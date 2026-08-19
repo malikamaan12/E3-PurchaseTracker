@@ -16,11 +16,14 @@ import {
   History,
   CheckCircle2,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  Settings2
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { usePerformance } from "@/context/PerformanceContext"
 import { usePageTitle } from "@/lib/hooks/usePageTitle"
+import { ComplianceSettingsModal } from "@/components/compliance/ComplianceSettingsModal"
+import { useAuth } from "@/context/AuthContext"
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 interface ComplianceDoc {
@@ -64,9 +67,11 @@ const KpiDisk = ({ label, value, sub, color }: { label: string, value: string | 
 // ─── MAIN PAGE ──────────────────────────────────────────────────────────────
 export default function ComplianceGatewayPage() {
   usePageTitle("Compliance Gateway")
+  const { user } = useAuth()
   const { highPerformanceMode } = usePerformance()
   const [search, setSearch] = React.useState("")
   const [isScanning, setIsScanning] = React.useState(false)
+  const [isSettingsOpen, setIsSettingsOpen] = React.useState(false)
   const queryClient = useQueryClient()
 
   const handleScan = async () => {
@@ -188,6 +193,15 @@ export default function ComplianceGatewayPage() {
           />
         </div>
         <div className="flex gap-2 flex-wrap sm:flex-nowrap w-full sm:w-auto">
+          {user?.role === "super_admin" && (
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              aria-label="Compliance Policy Settings"
+              className="min-h-[44px] px-4 bg-secondary/40 hover:bg-secondary/70 border border-border/50 rounded-xl transition-all flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider text-foreground touch-target flex-1 sm:flex-none shadow-sm"
+            >
+              <Settings2 className="w-4 h-4 text-primary" /> Policy Settings
+            </button>
+          )}
           <button
             onClick={handleExport}
             aria-label="Export Compliance Audit CSV"
@@ -206,6 +220,11 @@ export default function ComplianceGatewayPage() {
           </button>
         </div>
       </section>
+
+      <ComplianceSettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
 
       {/* 3. Compliance Matrix (DESKTOP) */}
       <div className="hidden lg:block bg-background/80 backdrop-blur-xl p-1 rounded-[2rem] border border-border/50 mb-20 overflow-x-auto custom-scrollbar shadow-lg">

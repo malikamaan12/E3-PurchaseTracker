@@ -213,14 +213,79 @@ export const vendors = pgTable("vendors", {
   category: text("category").default("general"),
   payment_currency: text("payment_currency").notNull().default("QAR"),
   rating: integer("rating").default(0),
+  vendorType: text("vendor_type").notNull().default("company"), // 'company' | 'freelancer' | 'contractor' | 'consultant' | 'service_provider'
+  complianceStatus: text("compliance_status").notNull().default("legacy_pending_assessment"), // 'unassessed' | 'legacy_pending_assessment' | 'compliant' | 'expiring_soon' | 'non_compliant' | 'grace_period' | 'compliance_not_applicable'
   complianceScore: integer("compliance_score").notNull().default(0),
   complianceMetadata: jsonb("compliance_metadata").$type<Record<string, any>>().default({}),
+  gracePeriodDeadline: timestamp("grace_period_deadline", { withTimezone: true }),
+  gracePeriodReason: text("grace_period_reason"),
+  gracePeriodExtendedBy: integer("grace_period_extended_by").references(() => users.id),
   status: text("status").notNull().default("active"),
   onboardingStatus: text("onboarding_status").notNull().default("approved"),
   version: integer("version").notNull().default(1),
   remarks: text("remarks"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const vendorComplianceCases = pgTable("vendor_compliance_cases", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: "restrict" }),
+  caseNumber: text("case_number").notNull().unique(),
+  status: text("status").notNull().default("open"), // 'open' | 'under_review' | 'resolved_compliant' | 'expired_non_compliant' | 'closed_cancelled'
+  reason: text("reason").notNull(), // 'annual_review' | 'document_expiry' | 'onboarding_assessment' | 'manual_audit' | 'banking_update'
+  deadline: timestamp("deadline", { withTimezone: true }).notNull(),
+  requiredDocuments: jsonb("required_documents").$type<string[]>().notNull().default([]),
+  allowedFields: jsonb("allowed_fields").$type<string[]>().notNull().default([]),
+  instructions: text("instructions"),
+  openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
+  openedBy: integer("opened_by").references(() => users.id, { onDelete: "restrict" }),
+  closedAt: timestamp("closed_at", { withTimezone: true }),
+  closedBy: integer("closed_by").references(() => users.id, { onDelete: "restrict" }),
+  resolutionNotes: text("resolution_notes"),
+  auditReference: text("audit_reference"),
+  reminderCount: integer("reminder_count").notNull().default(0),
+  lastReminderSentAt: timestamp("last_reminder_sent_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  vendorIdIdx: index("idx_vendor_compliance_cases_vendor_id").on(table.vendorId),
+  statusIdx: index("idx_vendor_compliance_cases_status").on(table.status),
+  deadlineIdx: index("idx_vendor_compliance_cases_deadline").on(table.deadline),
+}));
+
+export const vendorComplianceOverrides = pgTable("vendor_compliance_overrides", {
+  id: serial("id").primaryKey(),
+  requestId: integer("request_id").notNull().references(() => purchaseRequests.id, { onDelete: "restrict" }),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: "restrict" }),
+  caseId: integer("case_id").references(() => vendorComplianceCases.id, { onDelete: "set null" }),
+  status: text("status").notNull().default("pending"), // 'pending' | 'approved' | 'rejected' | 'consumed' | 'revoked'
+  justification: text("justification").notNull(),
+  requestedBy: integer("requested_by").notNull().references(() => users.id, { onDelete: "restrict" }),
+  reviewedBy: integer("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  expiresAt: timestamp("expires_at", { withTimezone: true }),
+  rejectionReason: text("rejection_reason"),
+  requestSnapshot: jsonb("request_snapshot").$type<Record<string, any>>(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  requestIdIdx: index("idx_vendor_compliance_overrides_request_id").on(table.requestId),
+  vendorIdIdx: index("idx_vendor_compliance_overrides_vendor_id").on(table.vendorId),
+  statusIdx: index("idx_vendor_compliance_overrides_status").on(table.status),
+}));
+
+export const vendorComplianceSettings = pgTable("vendor_compliance_settings", {
+  id: serial("id").primaryKey(),
+  isSingleton: boolean("is_singleton").notNull().default(true).unique(),
+  defaultGraceDays: integer("default_grace_days").notNull().default(15),
+  expirationWarningDays: integer("expiration_warning_days").notNull().default(30),
+  companyChecklist: jsonb("company_checklist").$type<string[]>().notNull().default(["CR", "TAX_CARD", "ESTABLISHMENT_ID"]),
+  freelancerChecklist: jsonb("freelancer_checklist").$type<string[]>().notNull().default([]),
+  allowFreelancerCashExemption: boolean("allow_freelancer_cash_exemption").notNull().default(true),
+  reminderThresholdDays: jsonb("reminder_threshold_days").$type<number[]>().notNull().default([30, 15, 7, 1]),
+  updatedBy: integer("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const vendorOnboardingDrafts = pgTable("vendor_onboarding_drafts", {
@@ -238,6 +303,9 @@ export const vendorOnboardingDrafts = pgTable("vendor_onboarding_drafts", {
   branchName: text("branch_name"),
   category: text("category").default("general"),
   payment_currency: text("payment_currency").notNull().default("QAR"),
+  vendorType: text("vendor_type").notNull().default("company"),
+  qidNumber: text("qid_number"),
+  passportNumber: text("passport_number"),
   requiredDocumentTypes: jsonb("required_document_types").$type<Array<{
     type: string;
     mandatory: boolean;
@@ -261,6 +329,9 @@ export const vendorOnboardingTokens = pgTable("vendor_onboarding_tokens", {
   id: serial("id").primaryKey(),
   draftId: integer("draft_id").references(() => vendorOnboardingDrafts.id, { onDelete: 'cascade' }),
   vendorId: integer("vendor_id").references(() => vendors.id, { onDelete: 'cascade' }),
+  caseId: integer("case_id").references(() => vendorComplianceCases.id, { onDelete: 'set null' }),
+  changeRequestId: integer("change_request_id").references((): any => vendorChangeRequests.id, { onDelete: 'set null' }),
+  scope: text("scope").notNull().default("onboarding"), // 'onboarding' | 'compliance_case' | 'vendor_update'
   tokenHash: text("token_hash").notNull().unique(),
   status: text("status").notNull().default("active"), // 'active', 'submitted', 'expired', 'revoked', 'used'
   expiresAt: timestamp("expires_at").notNull(),
@@ -275,6 +346,7 @@ export const vendorOnboardingTokens = pgTable("vendor_onboarding_tokens", {
   tokenHashIdx: index("idx_vendor_onboarding_tokens_hash").on(table.tokenHash),
   draftIdIdx: index("idx_vendor_onboarding_tokens_draft_id").on(table.draftId),
   vendorIdIdx: index("idx_vendor_onboarding_tokens_vendor_id").on(table.vendorId),
+  caseIdIdx: index("idx_vendor_onboarding_tokens_case_id").on(table.caseId),
 }));
 
 export const vendorUploadIntents = pgTable("vendor_upload_intents", {
@@ -282,6 +354,7 @@ export const vendorUploadIntents = pgTable("vendor_upload_intents", {
   invitationId: integer("invitation_id").notNull().references(() => vendorOnboardingTokens.id, { onDelete: 'cascade' }),
   draftId: integer("draft_id").references(() => vendorOnboardingDrafts.id, { onDelete: 'cascade' }),
   vendorId: integer("vendor_id").references(() => vendors.id, { onDelete: 'cascade' }),
+  caseId: integer("case_id").references(() => vendorComplianceCases.id, { onDelete: 'set null' }),
   objectKey: text("object_key").notNull().unique(),
   documentType: text("document_type").notNull(),
   fileName: text("file_name").notNull(),
@@ -300,11 +373,15 @@ export const vendorChangeRequests = pgTable("vendor_change_requests", {
   id: serial("id").primaryKey(),
   vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: 'cascade' }),
   invitationId: integer("invitation_id").references(() => vendorOnboardingTokens.id),
+  caseId: integer("case_id").references(() => vendorComplianceCases.id, { onDelete: 'set null' }),
+  changeType: text("change_type").notNull().default("GENERAL_UPDATE"), // 'GENERAL_UPDATE' | 'BANKING_DETAILS' | 'COMPLIANCE_RENEWAL'
   proposedData: jsonb("proposed_data").$type<Record<string, any>>().notNull(),
   currentDataSnapshot: jsonb("current_data_snapshot").$type<Record<string, any>>().notNull(),
-  status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected'
+  status: text("status").notNull().default("pending"), // 'pending', 'finance_approved', 'approved', 'rejected'
   reviewedBy: integer("reviewed_by").references(() => users.id),
   reviewedAt: timestamp("reviewed_at"),
+  secondReviewedBy: integer("second_reviewed_by").references(() => users.id), // For elevated dual review (Super Admin)
+  secondReviewedAt: timestamp("second_reviewed_at"),
   reviewNotes: text("review_notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -341,6 +418,7 @@ export const vendorDocuments = pgTable("vendor_documents", {
   id: serial("id").primaryKey(),
   vendorId: integer("vendor_id").references(() => vendors.id, { onDelete: 'cascade' }),
   draftId: integer("draft_id").references(() => vendorOnboardingDrafts.id, { onDelete: 'cascade' }),
+  caseId: integer("case_id").references((): any => vendorComplianceCases.id, { onDelete: 'set null' }),
   invitationId: integer("invitation_id").references(() => vendorOnboardingTokens.id),
   documentType: text("document_type").notNull(),
   documentName: text("document_name").notNull(),
@@ -356,6 +434,7 @@ export const vendorDocuments = pgTable("vendor_documents", {
 }, (table) => ({
   draftIdIdx: index("idx_vendor_documents_draft_id").on(table.draftId),
   reviewStatusIdx: index("idx_vendor_documents_review_status").on(table.reviewStatus),
+  caseIdIdx: index("idx_vendor_documents_case_id").on(table.caseId),
 }));
 
 export const vendorPerformance = pgTable("vendor_performance", {
@@ -563,6 +642,12 @@ export type VendorUploadIntent = InferModel<typeof vendorUploadIntents>;
 export type InsertVendorUploadIntent = InferModel<typeof vendorUploadIntents, "insert">;
 export type VendorChangeRequest = InferModel<typeof vendorChangeRequests>;
 export type InsertVendorChangeRequest = InferModel<typeof vendorChangeRequests, "insert">;
+export type VendorComplianceCase = InferModel<typeof vendorComplianceCases>;
+export type InsertVendorComplianceCase = InferModel<typeof vendorComplianceCases, "insert">;
+export type VendorComplianceOverride = InferModel<typeof vendorComplianceOverrides>;
+export type InsertVendorComplianceOverride = InferModel<typeof vendorComplianceOverrides, "insert">;
+export type VendorComplianceSettings = InferModel<typeof vendorComplianceSettings>;
+export type InsertVendorComplianceSettings = InferModel<typeof vendorComplianceSettings, "insert">;
 export type RateLimitBucket = InferModel<typeof rateLimitBuckets>;
 export type VendorDocument = InferModel<typeof vendorDocuments>;
 export type InsertVendorDocument = InferModel<typeof vendorDocuments, "insert">;
@@ -743,13 +828,14 @@ export const insertVendorSchema = createInsertSchema(vendors, {
 
 // Admin minimal draft creation schema
 export const vendorDraftCreationSchema = z.object({
-  companyName: z.string().min(2, "Company name must be at least 2 characters"),
+  companyName: z.string().min(2, "Company / Freelancer name must be at least 2 characters"),
   contactPerson: z.string().min(2, "Contact person name must be at least 2 characters"),
   email: z.string().email("Invalid email format"),
   contactNumber: z.string()
     .min(8, "Contact number must be at least 8 digits")
     .max(15, "Contact number cannot exceed 15 digits")
     .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
+  vendorType: z.enum(["company", "freelancer", "contractor", "consultant", "service_provider"]).default("company"),
   category: z.string().default("general"),
   payment_currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).default("QAR"),
   requiredDocumentTypes: z.array(z.object({
@@ -770,6 +856,7 @@ export const vendorSelfServiceSaveSchema = z.object({
   contactPerson: z.string().min(2).optional(),
   contactNumber: z.string().optional(),
   email: z.string().email().optional(),
+  vendorType: z.enum(["company", "freelancer", "contractor", "consultant", "service_provider"]).optional(),
   address: z.string().optional().nullable(),
   taxNumber: z.string().optional().nullable(),
   registrationNumber: z.string().optional().nullable(),

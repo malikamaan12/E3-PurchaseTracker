@@ -17,6 +17,7 @@ import {
 import { eq, and, or, sql, desc, ilike, inArray, not } from "drizzle-orm";
 import crypto from "crypto";
 import { ComplianceService } from "./ComplianceService";
+import { ComplianceEvaluationService } from "./ComplianceEvaluationService";
 import { notificationService } from "./NotificationService";
 
 export class ConflictError extends Error {
@@ -296,6 +297,7 @@ export class VendorOnboardingService {
       contactPerson: string;
       email: string;
       contactNumber: string;
+      vendorType?: string;
       category?: string;
       payment_currency?: string;
       requiredDocumentTypes?: Array<{ type: string; mandatory: boolean; description?: string }>;
@@ -317,13 +319,14 @@ export class VendorOnboardingService {
 
     const result = await db.transaction(async (tx) => {
       // 2. Insert draft
-      const [draft] = await tx
+      const insertedDrafts = await tx
         .insert(vendorOnboardingDrafts)
         .values({
           companyName: data.companyName.trim(),
           contactPerson: data.contactPerson.trim(),
           email: data.email.trim().toLowerCase(),
           contactNumber: data.contactNumber.trim(),
+          vendorType: data.vendorType || "company",
           category: data.category || "general",
           payment_currency: data.payment_currency || "QAR",
           requiredDocumentTypes: data.requiredDocumentTypes || [
@@ -337,9 +340,10 @@ export class VendorOnboardingService {
           version: 1,
         })
         .returning();
+      const draft = (insertedDrafts as any[])[0];
 
       // 3. Insert 24-hour token
-      const [tokenRecord] = await tx
+      const insertedTokens = await tx
         .insert(vendorOnboardingTokens)
         .values({
           draftId: draft.id,
@@ -348,6 +352,7 @@ export class VendorOnboardingService {
           expiresAt,
         })
         .returning();
+      const tokenRecord = (insertedTokens as any[])[0];
 
       // 4. Record audit log
       await tx.insert(auditLogs).values({
@@ -434,7 +439,7 @@ export class VendorOnboardingService {
       }
 
       // 2. Insert new token
-      const [newToken] = await tx
+      const insertedTokens = await tx
         .insert(vendorOnboardingTokens)
         .values({
           draftId: draftId || null,
@@ -444,6 +449,7 @@ export class VendorOnboardingService {
           expiresAt,
         })
         .returning();
+      const newToken = (insertedTokens as any[])[0];
 
       // 3. Audit log
       await tx.insert(auditLogs).values({
@@ -1280,6 +1286,15 @@ export class VendorOnboardingService {
 
       return [v];
     });
+
+    // Deterministically evaluate initial compliance status based on checklist & documents
+    try {
+      if (activeVendor?.id) {
+        await ComplianceEvaluationService.evaluateVendor(activeVendor.id, userId);
+      }
+    } catch (evalErr) {
+      console.error("[VendorOnboardingService] Initial compliance evaluation error:", evalErr);
+    }
 
     return {
       success: true,

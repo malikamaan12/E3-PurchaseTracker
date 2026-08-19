@@ -98,6 +98,12 @@ class ApiClient {
       const search = new URLSearchParams(params).toString();
       return this.request<any>(`/analytics/dashboard?${search}`);
     },
+    getComplianceOverride: (id: number) =>
+      this.request<{ success: boolean; override: any }>(`/requests/${id}/compliance-override`),
+    requestComplianceOverride: (id: number, data: { vendorId: number; justification: string }) =>
+      this.request<any>(`/requests/${id}/compliance-override`, { method: "POST", body: JSON.stringify(data) }),
+    reviewComplianceOverride: (id: number, data: { overrideId: number; action: string; rejectionReason?: string }) =>
+      this.request<any>(`/requests/${id}/compliance-override`, { method: "PATCH", body: JSON.stringify(data) }),
   };
 
   // Vendors Domain
@@ -110,6 +116,12 @@ class ApiClient {
     update: (id: number, data: any) => this.request<any>(`/vendors/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     rate: (id: number, rating: number) => 
       this.request<any>(`/vendors/${id}/rate`, { method: "POST", body: JSON.stringify({ rating }) }),
+    listComplianceCases: (vendorId: number) =>
+      this.request<{ success: boolean; cases: any[] }>(`/vendors/${vendorId}/compliance-cases`),
+    createComplianceCase: (vendorId: number, data: any) =>
+      this.request<any>(`/vendors/${vendorId}/compliance-cases`, { method: "POST", body: JSON.stringify(data) }),
+    extendGracePeriod: (vendorId: number, data: { days: number; reason: string }) =>
+      this.request<any>(`/vendors/${vendorId}/grace-period`, { method: "POST", body: JSON.stringify(data) }),
     documents: {
       list: (vendorId: number) => this.request<any[]>(`/vendors/${vendorId}/documents`),
       upload: (vendorId: number, data: any) => this.request<any>(`/vendors/${vendorId}/documents`, { method: "POST", body: JSON.stringify(data) }),

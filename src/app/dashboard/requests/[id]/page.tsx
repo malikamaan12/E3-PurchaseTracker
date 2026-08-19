@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { 
   ChevronLeft, Download, CheckCircle2, XCircle, Clock, FileText, 
   User, Building2, CreditCard, History, FileBadge, MessageSquare,
-  AlertTriangle, RotateCcw, Loader2, ShieldCheck, Calendar, Lock, Edit3, Trash2, Landmark, Coins, CircleDashed,
+  AlertTriangle, RotateCcw, Loader2, ShieldCheck, ShieldAlert, Calendar, Lock, Edit3, Trash2, Landmark, Coins, CircleDashed,
   Maximize2, ExternalLink, Paperclip
 } from "lucide-react";
 import { format } from "date-fns";
@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import { cn, safeFormatDate } from "@/lib/utils";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
+import { RequestComplianceOverrideModal } from "@/components/requests/RequestComplianceOverrideModal";
 
 export default function RequestDetailPage() {
   const params = useParams();
@@ -52,6 +53,9 @@ export default function RequestDetailPage() {
   // Clarification state (Approver / Super Admin)
   const [clarificationTarget, setClarificationTarget] = useState<{ approvalId: number; department: string; existingComments: string } | null>(null);
   const [clarificationNote, setClarificationNote] = useState("");
+
+  // Compliance override modal state
+  const [showOverrideModal, setShowOverrideModal] = useState(false);
 
   const { data: request, isLoading, error: queryError } = useQuery({
     queryKey: ["request", requestId],
@@ -441,31 +445,58 @@ export default function RequestDetailPage() {
                 <div className="border-t border-border/50 pt-5">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Vendor Information</h3>
                   <div className="space-y-1.5 bg-muted/20 p-4 rounded-xl border border-border/30">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
                       <p className="text-sm font-bold text-foreground">{request.vendor?.companyName}</p>
-                      {request.vendor?.status === 'pending' && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded uppercase font-bold border border-amber-500/20 flex items-center gap-1">
-                            <AlertTriangle className="w-3 h-3" /> Pending Approval
+                      <div className="flex items-center gap-2">
+                        {request.vendor?.status === 'pending' && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] bg-amber-500/10 text-amber-600 px-2 py-0.5 rounded uppercase font-bold border border-amber-500/20 flex items-center gap-1">
+                              <AlertTriangle className="w-3 h-3" /> Pending Approval
+                            </span>
+                            {isAdmin && (
+                              <Button
+                                size="sm"
+                                className="h-6 text-[10px] px-2 rounded-full"
+                                onClick={() => {
+                                  apiClient.vendors.patchStatus(request.vendor?.id, "active")
+                                    .then(() => {
+                                      toast.success("Vendor approved successfully.");
+                                      queryClient.invalidateQueries({ queryKey: ["request", requestId] });
+                                    })
+                                    .catch((err) => toast.error(err.message || "Failed to approve vendor"));
+                                }}
+                              >
+                                Approve Vendor
+                              </Button>
+                            )}
+                          </div>
+                        )}
+                        {request.vendor?.complianceStatus && (
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase border ${
+                            request.vendor.complianceStatus === 'compliant'
+                              ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
+                              : request.vendor.complianceStatus === 'grace_period'
+                              ? 'bg-purple-500/10 text-purple-600 border-purple-500/20'
+                              : request.vendor.complianceStatus === 'expiring_soon'
+                              ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                              : request.vendor.complianceStatus === 'non_compliant'
+                              ? 'bg-rose-500/10 text-rose-600 border-rose-500/20'
+                              : 'bg-secondary text-muted-foreground border-border'
+                          }`}>
+                            {request.vendor.complianceStatus.replace(/_/g, ' ')}
                           </span>
-                          {isAdmin && (
-                            <Button 
-                              size="sm" 
-                              className="h-6 text-[10px] px-2 rounded-full" 
-                              onClick={() => {
-                                apiClient.vendors.patchStatus(request.vendor?.id, "active")
-                                  .then(() => {
-                                    toast.success("Vendor approved successfully.");
-                                    queryClient.invalidateQueries({ queryKey: ["request", requestId] });
-                                  })
-                                  .catch((err) => toast.error(err.message || "Failed to approve vendor"));
-                              }}
-                            >
-                              Approve Vendor
-                            </Button>
-                          )}
-                        </div>
-                      )}
+                        )}
+                        {request.vendor?.complianceStatus === 'non_compliant' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 text-[10px] px-2 rounded-full border-amber-500/30 text-amber-600 hover:bg-amber-500/10 gap-1"
+                            onClick={() => setShowOverrideModal(true)}
+                          >
+                            <ShieldAlert className="w-3 h-3" /> Compliance Override
+                          </Button>
+                        )}
+                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                       <User className="w-3 h-3" /> {request.vendor?.contactPerson} • {request.vendor?.email}
@@ -1067,6 +1098,16 @@ export default function RequestDetailPage() {
           isOpen={showAuditModal} 
           onClose={() => setShowAuditModal(false)} 
           auditLogs={request.auditLogs || []} 
+        />
+      )}
+
+      {request?.vendor && (
+        <RequestComplianceOverrideModal
+          isOpen={showOverrideModal}
+          onClose={() => setShowOverrideModal(false)}
+          requestId={requestId}
+          requestNumber={request.requestNumber || `PR-${requestId}`}
+          vendor={request.vendor}
         />
       )}
 
