@@ -331,7 +331,7 @@ export class VendorOnboardingService {
             { type: "Tax Certificate", mandatory: true, description: "Tax identification certificate" },
             { type: "Establishment Card", mandatory: false, description: "Computer card / Municipality license" },
           ],
-          onboardingStatus: "link_active",
+          onboardingStatus: "invited",
           onboardingNotes: data.notes || null,
           createdBy: userId,
           version: 1,
@@ -420,7 +420,7 @@ export class VendorOnboardingService {
 
         await tx
           .update(vendorOnboardingDrafts)
-          .set({ onboardingStatus: "link_active", updatedAt: new Date() })
+          .set({ onboardingStatus: "invited", updatedAt: new Date() })
           .where(eq(vendorOnboardingDrafts.id, draftId));
       } else if (vendorId) {
         await tx
@@ -586,13 +586,6 @@ export class VendorOnboardingService {
           .update(vendorOnboardingTokens)
           .set({ status: "expired" })
           .where(eq(vendorOnboardingTokens.id, tokenRecord.id));
-
-        if (tokenRecord.draftId) {
-          await db
-            .update(vendorOnboardingDrafts)
-            .set({ onboardingStatus: "expired" })
-            .where(and(eq(vendorOnboardingDrafts.id, tokenRecord.draftId), eq(vendorOnboardingDrafts.onboardingStatus, "link_active")));
-        }
       }
       throw new UnauthorizedError("This invitation link expired after 24 hours. Please request a new link.");
     }
@@ -637,7 +630,7 @@ export class VendorOnboardingService {
   }
 
   /**
-   * Saves partial draft progress with Optimistic Concurrency Control
+   * Saves ongoing draft form data with Optimistic Concurrency Control (OCC)
    */
   public async saveDraftProgress({
     draftId,
@@ -647,9 +640,9 @@ export class VendorOnboardingService {
   }: {
     draftId: number;
     invitationId: number;
-    data: Record<string, any>;
+    data: Partial<VendorOnboardingDraft>;
     currentVersion: number;
-  }) {
+  }): Promise<VendorOnboardingDraft> {
     const [draft] = await db
       .select()
       .from(vendorOnboardingDrafts)
@@ -657,11 +650,12 @@ export class VendorOnboardingService {
       .limit(1);
 
     if (!draft) {
-      throw new NotFoundError("Draft not found.");
+      throw new NotFoundError("Vendor draft not found.");
     }
 
+    // Validate draft is in an editable state
     if (draft.onboardingStatus === "submitted" || draft.onboardingStatus === "approved") {
-      throw new ValidationError("Submitted or approved profiles cannot be edited.");
+      throw new ConflictError("This profile has already been submitted and cannot be edited.");
     }
 
     // OCC Check
@@ -670,7 +664,7 @@ export class VendorOnboardingService {
     }
 
     const nextVersion = draft.version + 1;
-    const nextStatus = draft.onboardingStatus === "link_active" ? "in_progress" : draft.onboardingStatus;
+    const nextStatus = draft.onboardingStatus === "invited" ? "in_progress" : draft.onboardingStatus;
 
     const [updatedDraft] = await db
       .update(vendorOnboardingDrafts)

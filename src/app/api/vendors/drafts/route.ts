@@ -109,7 +109,17 @@ export async function POST(req: NextRequest) {
     const status = error.statusCode || 500;
     if (status >= 500) {
       const correlationId = crypto.randomUUID();
-      console.error(`[VENDOR_INVITATION_ERROR:${correlationId}]`, error);
+      console.error(`[VENDOR_INVITATION_ERROR:${correlationId}]`, {
+        name: error?.name,
+        message: error?.message,
+        code: error?.code,
+        stack: error?.stack,
+        cause: error?.cause ? {
+          name: (error.cause as any)?.name,
+          message: (error.cause as any)?.message,
+          code: (error.cause as any)?.code,
+        } : undefined,
+      });
       return NextResponse.json(
         {
           error: `Unable to create the vendor invitation. Please try again or contact the administrator. Reference: ${correlationId}`,

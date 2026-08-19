@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
           : null,
         documents,
         requiredDocumentTypes: session.draft?.requiredDocumentTypes || [],
-        onboardingStatus: session.draft?.onboardingStatus || (session.vendor ? "approved" : "link_active"),
+        onboardingStatus: session.draft?.onboardingStatus || (session.vendor ? "approved" : "invited"),
         onboardingNotes: session.draft?.onboardingNotes || null,
         expiresAt: session.tokenRecord.expiresAt,
         remainingSeconds: session.remainingSeconds,

@@ -243,7 +243,7 @@ export const vendorOnboardingDrafts = pgTable("vendor_onboarding_drafts", {
     mandatory: boolean;
     description?: string;
   }>>().default([]),
-  onboardingStatus: text("onboarding_status").notNull().default("link_active"),
+  onboardingStatus: text("onboarding_status").notNull().default("invited"),
   onboardingNotes: text("onboarding_notes"),
   submittedAt: timestamp("submitted_at"),
   promotedVendorId: integer("promoted_vendor_id").references(() => vendors.id),
