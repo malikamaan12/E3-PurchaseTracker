@@ -20,7 +20,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 const budgetSplitSchema = z.object({
-  departmentId: z.coerce.number().positive("Select department"),
+  departmentId: z.coerce.number().positive("Please select a valid department"),
   amount: z.coerce.number().min(0, "Amount cannot be negative"),
 });
 
@@ -31,7 +31,16 @@ const projectSchema = z.object({
   validFrom: z.string().optional().nullable(),
   validTo: z.string().optional().nullable(),
   budgetSplits: z.array(budgetSplitSchema).optional().default([]),
-});
+}).refine(
+  (data) => {
+    const deptIds = (data.budgetSplits || []).map((s) => Number(s.departmentId)).filter((id) => id > 0);
+    return new Set(deptIds).size === deptIds.length;
+  },
+  {
+    message: "Duplicate department allocations are not allowed. Each department can only have one budget split.",
+    path: ["budgetSplits"],
+  }
+);
 
 type ProjectFormValues = z.infer<typeof projectSchema>;
 
@@ -75,6 +84,20 @@ export default function ProjectModal({ isOpen, onClose, projectId, departments, 
   const totalBudget = watch("totalBudget") || 0;
   const isOverAllocated = totalAllocated > totalBudget;
 
+  // Calculate duplicate departments
+  const duplicateDepartmentIds = formBudgetSplits.reduce((acc, split, _, arr) => {
+    const dId = Number(split.departmentId);
+    if (dId > 0 && arr.filter(s => Number(s.departmentId) === dId).length > 1) {
+      acc.add(dId);
+    }
+    return acc;
+  }, new Set<number>());
+
+  const hasDuplicateDepartments = duplicateDepartmentIds.size > 0;
+  const allocatedDeptIds = new Set(formBudgetSplits.map(s => Number(s.departmentId)).filter(id => id > 0));
+  const availableDepartments = departments.filter(d => !allocatedDeptIds.has(Number(d.id)));
+  const allDepartmentsAllocated = availableDepartments.length === 0 && departments.length > 0;
+
   useEffect(() => {
     if (isOpen && projectId) {
       fetchProjectDetails(projectId);
@@ -112,9 +135,27 @@ export default function ProjectModal({ isOpen, onClose, projectId, departments, 
     }
   };
 
+  const handleAddAllocation = () => {
+    // Find first department that is not yet allocated
+    const nextAvailable = departments.find(d => !allocatedDeptIds.has(Number(d.id)));
+    append({ departmentId: nextAvailable ? Number(nextAvailable.id) : 0, amount: 0 });
+  };
+
   const onSubmit = async (data: ProjectFormValues) => {
     if (isOverAllocated) {
       toast.error("Total departmental allocations cannot exceed the project budget limit.");
+      return;
+    }
+
+    const deptIds = (data.budgetSplits || []).map(s => Number(s.departmentId)).filter(id => id > 0);
+    if (new Set(deptIds).size !== deptIds.length) {
+      toast.error("Duplicate department allocations are not allowed. Each department can only have one budget allocation.");
+      return;
+    }
+
+    const unassignedSplits = (data.budgetSplits || []).some(s => Number(s.departmentId) <= 0);
+    if (unassignedSplits) {
+      toast.error("Please select a valid department for all budget allocations.");
       return;
     }
 
@@ -247,55 +288,87 @@ export default function ProjectModal({ isOpen, onClose, projectId, departments, 
                              <Building2 className="w-4 h-4 text-primary" />
                              Departmental Budget Splits
                           </h3>
-                          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Provision specific ceilings for individual departments</p>
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mt-1">Provision specific ceilings for individual departments (unique per department)</p>
                        </div>
                        <button 
                          type="button"
-                         onClick={() => append({ departmentId: 0, amount: 0 })}
-                         className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 transition-colors"
+                         onClick={handleAddAllocation}
+                         disabled={allDepartmentsAllocated}
+                         className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary hover:text-primary/80 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                         title={allDepartmentsAllocated ? "All available departments already allocated" : "Add Department Allocation"}
                        >
                          <Plus className="w-3 h-3" />
-                         Add Allocation
+                         {allDepartmentsAllocated ? "All Allocated" : "Add Allocation"}
                        </button>
                     </div>
 
+                    {hasDuplicateDepartments && (
+                      <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center gap-2 text-rose-500 text-xs font-bold">
+                        <AlertCircle className="w-4 h-4 shrink-0" />
+                        <span>Duplicate department detected. Each department can only have one budget allocation in a project.</span>
+                      </div>
+                    )}
+
                     <div className="space-y-3">
-                       {fields.map((field, index) => (
-                         <motion.div 
-                           initial={{ opacity: 0, y: -10 }}
-                           animate={{ opacity: 1, y: 0 }}
-                           key={field.id} 
-                           className="flex items-center gap-4 bg-secondary/30 p-4 rounded-2xl border border-border/50 group"
-                         >
-                           <div className="flex-1">
-                              <select 
-                                {...register(`budgetSplits.${index}.departmentId` as const)}
-                                className="w-full bg-secondary border border-border rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 focus:ring-primary/10 outline-none appearance-none"
-                              >
-                                <option value="0">Select Department...</option>
-                                {departments.map(d => (
-                                  <option key={d.id} value={d.id}>{d.name}</option>
-                                ))}
-                              </select>
-                           </div>
-                           <div className="flex-1 relative">
-                              <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/30" />
-                              <input 
-                                type="number"
-                                {...register(`budgetSplits.${index}.amount` as const)}
-                                className="w-full bg-secondary border border-border rounded-xl pl-9 pr-4 py-3 text-xs font-black focus:ring-2 focus:ring-primary/10 outline-none"
-                                placeholder="Amount"
-                              />
-                           </div>
-                           <button 
-                             type="button"
-                             onClick={() => remove(index)}
-                             className="p-3 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 rounded-xl transition-all"
+                       {fields.map((field, index) => {
+                         const currentDeptId = Number(formBudgetSplits[index]?.departmentId || 0);
+                         const isDuplicate = duplicateDepartmentIds.has(currentDeptId);
+
+                         return (
+                           <motion.div 
+                             initial={{ opacity: 0, y: -10 }}
+                             animate={{ opacity: 1, y: 0 }}
+                             key={field.id} 
+                             className={`flex items-center gap-4 bg-secondary/30 p-4 rounded-2xl border transition-all ${
+                               isDuplicate ? 'border-rose-500/60 bg-rose-500/5' : 'border-border/50'
+                             } group`}
                            >
-                             <Trash2 className="w-4 h-4" />
-                           </button>
-                         </motion.div>
-                       ))}
+                             <div className="flex-1">
+                                <select 
+                                  {...register(`budgetSplits.${index}.departmentId` as const)}
+                                  className={`w-full bg-secondary border rounded-xl px-4 py-3 text-xs font-bold focus:ring-2 outline-none appearance-none ${
+                                    isDuplicate 
+                                      ? 'border-rose-500/60 focus:ring-rose-500/20 text-rose-500' 
+                                      : 'border-border focus:ring-primary/10'
+                                  }`}
+                                >
+                                  <option value="0">Select Department...</option>
+                                  {departments.map(d => {
+                                    const isSelectedElsewhere = formBudgetSplits.some(
+                                      (s, sIdx) => sIdx !== index && Number(s.departmentId) === Number(d.id)
+                                    );
+                                    return (
+                                      <option 
+                                        key={d.id} 
+                                        value={d.id}
+                                        disabled={isSelectedElsewhere}
+                                      >
+                                        {d.name} {isSelectedElsewhere ? "(Already Allocated)" : ""}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                             </div>
+                             <div className="flex-1 relative">
+                                <DollarSign className="absolute left-4 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/30" />
+                                <input 
+                                  type="number"
+                                  {...register(`budgetSplits.${index}.amount` as const)}
+                                  className="w-full bg-secondary border border-border rounded-xl pl-9 pr-4 py-3 text-xs font-black focus:ring-2 focus:ring-primary/10 outline-none"
+                                  placeholder="Amount"
+                                />
+                             </div>
+                             <button 
+                               type="button"
+                               onClick={() => remove(index)}
+                               className="p-3 hover:bg-rose-500/10 text-muted-foreground hover:text-rose-500 rounded-xl transition-all"
+                               title="Remove Allocation"
+                             >
+                               <Trash2 className="w-4 h-4" />
+                             </button>
+                           </motion.div>
+                         );
+                       })}
 
                        {fields.length === 0 && (
                          <div className="py-10 text-center border-2 border-dashed border-border rounded-[2rem] bg-secondary/10">
@@ -351,7 +424,7 @@ export default function ProjectModal({ isOpen, onClose, projectId, departments, 
               <button 
                 form="project-form"
                 type="submit"
-                disabled={isSubmitting || isLoading || isOverAllocated}
+                disabled={isSubmitting || isLoading || isOverAllocated || hasDuplicateDepartments}
                 className="bg-primary text-primary-foreground px-10 py-4 rounded-[1.25rem] font-black text-xs uppercase tracking-widest shadow-2xl shadow-primary/20 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:grayscale transition-all flex items-center gap-3"
               >
                 {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}

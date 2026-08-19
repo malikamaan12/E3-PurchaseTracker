@@ -45,6 +45,28 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
+    // If budget splits are updated, validate uniqueness first
+    let budgetInserts: Array<{ subPurposeId: number; departmentId: number; allocatedAmount: number }> = [];
+    if (body.budgetSplits && Array.isArray(body.budgetSplits)) {
+      const validSplits = body.budgetSplits
+        .map((split: any) => ({
+          subPurposeId: parseInt(projectId, 10),
+          departmentId: Number(split.departmentId),
+          allocatedAmount: Number(split.amount || split.allocatedAmount || 0),
+        }))
+        .filter((s: any) => s.departmentId > 0);
+
+      const deptIds = validSplits.map((s: any) => s.departmentId);
+      if (new Set(deptIds).size !== deptIds.length) {
+        return NextResponse.json({
+          message: "Duplicate department allocations are not allowed. Each department can only have one budget split per project.",
+          errors: { budgetSplits: ["Duplicate department IDs detected."] }
+        }, { status: 400 });
+      }
+
+      budgetInserts = validSplits;
+    }
+
     // Sequential Update for Sub-Purpose and Budget Updates (Neon HTTP compatible)
     const [project] = await db
       .update(subPurposes)
@@ -62,17 +84,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
       .where(eq(subPurposes.id, parseInt(projectId)))
       .returning();
 
-    // If budget splits are updated, re-sync them
+    // Re-sync splits if provided
     if (body.budgetSplits && Array.isArray(body.budgetSplits)) {
       // Clear existing splits and insert new ones
       await db.delete(subPurposeBudgets).where(eq(subPurposeBudgets.subPurposeId, parseInt(projectId)));
       
-      const budgetInserts = body.budgetSplits.map((split: any) => ({
-        subPurposeId: project.id,
-        departmentId: Number(split.departmentId),
-        allocatedAmount: Number(split.amount || split.allocatedAmount || 0),
-      }));
-
       if (budgetInserts.length > 0) {
         await db.insert(subPurposeBudgets).values(budgetInserts);
       }
@@ -81,7 +97,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Params }) {
     return NextResponse.json(project);
   } catch (error: any) {
     console.error("[Native Admin API] Sub-Purpose PATCH Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
 

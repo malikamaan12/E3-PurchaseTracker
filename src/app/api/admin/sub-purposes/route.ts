@@ -86,6 +86,27 @@ export async function POST(req: NextRequest) {
 
     const { id: _id, ...insertData } = validationResult.data as any;
 
+    // Validate budget splits if provided
+    let budgetInserts: Array<{ subPurposeId: number; departmentId: number; allocatedAmount: number }> = [];
+    if (body.budgetSplits && Array.isArray(body.budgetSplits)) {
+      const validSplits = body.budgetSplits
+        .map((split: any) => ({
+          departmentId: Number(split.departmentId),
+          allocatedAmount: Number(split.amount || split.allocatedAmount || 0),
+        }))
+        .filter((s: any) => s.departmentId > 0);
+
+      const deptIds = validSplits.map((s: any) => s.departmentId);
+      if (new Set(deptIds).size !== deptIds.length) {
+        return NextResponse.json({
+          message: "Duplicate department allocations are not allowed. Each department can only have one budget split per project.",
+          errors: { budgetSplits: ["Duplicate department IDs detected."] }
+        }, { status: 400 });
+      }
+
+      budgetInserts = validSplits;
+    }
+
     // Phase 6: Sequential Execution for Project + Budget Splits (Neon HTTP compatible)
     const [project] = await db
       .insert(subPurposes)
@@ -97,21 +118,18 @@ export async function POST(req: NextRequest) {
       .returning();
 
     // If budget splits are provided, insert them
-    if (body.budgetSplits && Array.isArray(body.budgetSplits)) {
-      const budgetInserts = body.budgetSplits.map((split: any) => ({
-        subPurposeId: project.id,
-        departmentId: Number(split.departmentId),
-        allocatedAmount: Number(split.amount || split.allocatedAmount || 0),
-      }));
-
-      if (budgetInserts.length > 0) {
-        await db.insert(subPurposeBudgets).values(budgetInserts);
-      }
+    if (budgetInserts.length > 0) {
+      await db.insert(subPurposeBudgets).values(
+        budgetInserts.map((b) => ({
+          ...b,
+          subPurposeId: project.id,
+        }))
+      );
     }
 
     return NextResponse.json(project, { status: 201 });
   } catch (error: any) {
     console.error("[Native Admin API] Sub-Purposes POST Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
