@@ -4,21 +4,23 @@ import {
   purchaseRequests, 
   approvals, 
   paymentInstallments, 
-  vendors, 
   departments,
   subPurposeBudgets,
   users,
   subPurposes
 } from "@db/schema";
-import { sql, eq, and, isNotNull, gte, lte, desc, sum, count, avg, inArray } from "drizzle-orm";
+import { sql, eq, and, or, isNotNull, gte, lte, sum, count, avg, inArray } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { FinancialMetricsService } from "@/lib/services/FinancialMetricsService";
+import { normalizeDepartmentAssignments } from "@/lib/auth-shared";
+import { safeFormatDate } from "@/lib/utils";
+import crypto from "crypto";
 
 export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/requests/analytics
- * Extraordinary Analytics Aggregation Engine with Dynamic Filtering
+ * Analytics Aggregation Engine with Dynamic Filtering and Multi-Department RBAC Scoping
  */
 export async function GET(req: NextRequest) {
   try {
@@ -33,12 +35,26 @@ export async function GET(req: NextRequest) {
     const endDate = searchParams.get("endDate");
     const vendorId = searchParams.get("vendorId");
     const status = searchParams.get("status");
-    const filterDept = searchParams.get("departmentId"); // ID or Name? We'll use Name from users table
+    const filterDept = searchParams.get("departmentId");
 
-    const userDept = user.department;
+    const isSuperAdmin = user.role === 'super_admin';
     const userDepts = (user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean);
     const userDeptsLower = userDepts.map((d: string) => d.toLowerCase().trim());
-    const isAdmin = user.role === 'admin' || user.role === 'super_admin' || userDeptsLower.some((d: string) => ["finance", "ceo office", "management"].includes(d));
+    const isAdmin = user.role === 'admin' || isSuperAdmin || userDeptsLower.some((d: string) => ["finance", "ceo office", "management"].includes(d));
+
+    // Approver department resolution
+    const approverDepts: string[] = [];
+    if (user.role === 'approver' && user.department) {
+      approverDepts.push(user.department);
+    }
+    const normalizedAssignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);
+    for (const assignment of normalizedAssignments) {
+      if (assignment.status === 'active' && (assignment.role === 'approver' || assignment.role === 'both')) {
+        if (assignment.department && !approverDepts.includes(assignment.department)) {
+          approverDepts.push(assignment.department);
+        }
+      }
+    }
 
     // 2. Build Dynamic Filters
     const prFilters: any[] = [];
@@ -47,9 +63,21 @@ export async function GET(req: NextRequest) {
     if (vendorId) prFilters.push(eq(purchaseRequests.vendorId, parseInt(vendorId)));
     if (status) prFilters.push(eq(purchaseRequests.status, status));
 
-    // RBAC: Force department scoping for standard users
+    // RBAC: Force department and approver scoping for non-admin users
     if (!isAdmin) {
-      prFilters.push(inArray(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, userDepts));
+      const visibilityConditions: any[] = [];
+      if (userDepts.length > 0) {
+        visibilityConditions.push(inArray(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, userDepts));
+      }
+      visibilityConditions.push(eq(purchaseRequests.requesterId, user.id));
+
+      if (approverDepts.length > 0) {
+        visibilityConditions.push(
+          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.department} IN ${approverDepts})`
+        );
+      }
+
+      prFilters.push(or(...visibilityConditions));
     } else if (filterDept) {
       prFilters.push(eq(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, filterDept));
     }
@@ -75,9 +103,11 @@ export async function GET(req: NextRequest) {
       .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(eq(paymentInstallments.status, 'paid'), whereClause));
 
-    const overview = await FinancialMetricsService.getGlobalFinancialMetrics(!isAdmin ? (userDept || undefined) : (filterDept || undefined));
+    const overview = await FinancialMetricsService.getGlobalFinancialMetrics(
+      !isAdmin ? (userDepts[0] || user.department || undefined) : (filterDept || undefined)
+    );
 
-    // ─── 2. NEW: PAYMENT COMPLIANCE (On-time vs Late) ────────────────────────
+    // ─── 2. PAYMENT COMPLIANCE (On-time vs Late) ────────────────────────
     const complianceData = await db.select({
       onTimeCount: sql`count(*) FILTER (WHERE ${paymentInstallments.actualPaymentDate} <= ${paymentInstallments.dueDate} AND ${paymentInstallments.rescheduledDate} IS NULL)`,
       lateCount: sql`count(*) FILTER (WHERE ${paymentInstallments.actualPaymentDate} > ${paymentInstallments.dueDate} OR ${paymentInstallments.rescheduledDate} IS NOT NULL)`,
@@ -86,7 +116,7 @@ export async function GET(req: NextRequest) {
       .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(eq(paymentInstallments.status, 'paid'), whereClause));
 
-    // ─── 3. NEW: PROCUREMENT CYCLE TIME (Line Chart Trends) ──────────────────
+    // ─── 3. PROCUREMENT CYCLE TIME (Line Chart Trends) ──────────────────
     const cycleTimeTrends = await db.select({
       month: sql`DATE_TRUNC('month', ${purchaseRequests.createdAt})`,
       avgDays: avg(sql`EXTRACT(EPOCH FROM (
@@ -98,7 +128,7 @@ export async function GET(req: NextRequest) {
       .groupBy(sql`DATE_TRUNC('month', ${purchaseRequests.createdAt})`)
       .orderBy(sql`DATE_TRUNC('month', ${purchaseRequests.createdAt})`);
 
-    // ─── 4. NEW: PROJECT SPEND (Stacked Bar) ────────────────────────────────
+    // ─── 4. PROJECT SPEND (Stacked Bar) ────────────────────────────────
     const projectSpend = await db.select({
       projectName: subPurposes.name,
       totalPaid: sum(paymentInstallments.paidAmount),
@@ -148,10 +178,9 @@ export async function GET(req: NextRequest) {
       .groupBy(approvals.department);
 
     // ─── 7. BUDGET UTILIZATION (Filtered) ──────────────────────────────────
-    // We filter departments to show either all or just the filtered one
     let targetDepts = await db.select({ name: departments.name, id: departments.id }).from(departments);
     if (!isAdmin) {
-      targetDepts = targetDepts.filter(d => d.name === userDept);
+      targetDepts = targetDepts.filter(d => userDepts.includes(d.name));
     } else if (filterDept) {
       targetDepts = targetDepts.filter(d => d.name === filterDept);
     }
@@ -167,7 +196,7 @@ export async function GET(req: NextRequest) {
         .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
         .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
         .where(and(
-          eq(users.department, b.name),
+          eq(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, b.name),
           eq(paymentInstallments.status, 'paid'),
           whereClause
         ));
@@ -235,15 +264,17 @@ export async function GET(req: NextRequest) {
       budgets: budgetsWithActuals || []
     });
 
-    // Cache for 5 minutes privately (per user browser) to avoid heavy re-aggregation
-    response.headers.set('Cache-Control', 'private, max-age=300, stale-while-revalidate=600');
+    response.headers.set('Cache-Control', 'private, max-age=60, stale-while-revalidate=120');
     return response;
 
   } catch (error: any) {
-    console.error("[Analytics API] Aggregation Error:", error);
+    const correlationId = crypto.randomUUID();
+    console.error(`[Analytics API Error:${correlationId}]`, error);
     return NextResponse.json({ 
       error: "Aggregation failed", 
-      details: error.message 
+      message: error.message,
+      correlationId
     }, { status: 500 });
   }
 }
+
