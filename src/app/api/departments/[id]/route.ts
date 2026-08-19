@@ -12,7 +12,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   try {
     const { id: paramId } = await params;
     const user = await getAuthenticatedUser(req);
-    if (!user || user.role !== "admin") {
+    if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -48,7 +48,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   try {
     const { id: paramId } = await params;
     const user = await getAuthenticatedUser(req);
-    if (!user || user.role !== "admin") {
+    if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

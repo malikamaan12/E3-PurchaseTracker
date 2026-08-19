@@ -1,9 +1,10 @@
 import ExcelJS from 'exceljs';
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@db';
-import { purchaseRequests, users, vendors, subPurposes } from '@db/schema';
-import { eq, desc } from 'drizzle-orm';
+import { purchaseRequests, users, vendors, subPurposes, approvals } from '@db/schema';
+import { eq, desc, and, or, inArray, sql } from 'drizzle-orm';
 import { getAuthenticatedUser } from '@/lib/auth-next';
+import { normalizeDepartmentAssignments } from '@/lib/auth-shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,7 +13,48 @@ export async function GET(req: NextRequest) {
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    // Fetch all requests with joined data
+    const isSuperAdmin = user.role === 'super_admin';
+    const isAdmin = user.role === 'admin' || isSuperAdmin;
+    const userDepts = (user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean);
+
+    // Compute approver authority departments
+    const approverDepts: string[] = [];
+    if (user.role === 'approver' && user.department) {
+      approverDepts.push(user.department);
+    }
+    const normalizedAssignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);
+    for (const assignment of normalizedAssignments) {
+      if (assignment.status === 'active' && (assignment.role === 'approver' || assignment.role === 'both')) {
+        if (assignment.department && !approverDepts.includes(assignment.department)) {
+          approverDepts.push(assignment.department);
+        }
+      }
+    }
+
+    const whereConditions: any[] = [];
+
+    if (!isSuperAdmin) {
+      whereConditions.push(
+        sql`(${purchaseRequests.status} != 'pending_dept_head' OR COALESCE(${purchaseRequests.department}, ${users.department}) IN ${userDepts} OR ${purchaseRequests.requesterId} = ${user.id})`
+      );
+    }
+
+    if (!isAdmin) {
+      const visibilityConditions = [
+        inArray(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, userDepts),
+        eq(purchaseRequests.requesterId, user.id)
+      ];
+
+      if (approverDepts.length > 0) {
+        visibilityConditions.push(
+          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.department} IN ${approverDepts})`
+        );
+      }
+
+      whereConditions.push(or(...visibilityConditions));
+    }
+
+    // Fetch scoped requests with joined data
     const requests = await db
       .select({
         id: purchaseRequests.id,
@@ -25,7 +67,7 @@ export async function GET(req: NextRequest) {
         paymentStructure: purchaseRequests.paymentStructure,
         createdAt: purchaseRequests.createdAt,
         requesterName: users.username,
-        department: users.department,
+        department: sql<string>`COALESCE(${purchaseRequests.department}, ${users.department})`,
         vendorName: vendors.companyName,
         projectName: subPurposes.name,
       })
@@ -33,6 +75,7 @@ export async function GET(req: NextRequest) {
       .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .leftJoin(vendors, eq(purchaseRequests.vendorId, vendors.id))
       .leftJoin(subPurposes, eq(purchaseRequests.subPurposeId, subPurposes.id))
+      .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(purchaseRequests.createdAt));
 
     const workbook = new ExcelJS.Workbook();

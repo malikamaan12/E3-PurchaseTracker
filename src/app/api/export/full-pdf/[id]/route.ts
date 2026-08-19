@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
 import { purchaseRequests, pdfSettings } from "@db/schema";
 import { getAuthenticatedUser } from "@/lib/auth-next";
+import { normalizeDepartmentAssignments } from "@/lib/auth-shared";
 import { generatePurchaseRequestPdf } from "@/lib/pdf/RequestPdfGenerator";
 import { fetchPdfAssetBuffer } from "@/lib/pdf/image-loader";
 
@@ -67,7 +68,34 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     const requestData = await getFullRequestData(requestId) as any;
     if (!requestData) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    const canView = user.role === "admin" || requestData.requesterId === user.id || requestData.approvals.some((a: any) => a.approverId === user.id);
+    const isSuperAdmin = user.role === "super_admin";
+    const isAdmin = user.role === "admin" || isSuperAdmin;
+    const userDepts = (user.departments || [user.department])
+      .filter(Boolean)
+      .map((d: any) => (typeof d === "string" ? d : d.department || "").toLowerCase().trim());
+    const reqDept = (requestData.department || requestData.requester?.department || "").toLowerCase().trim();
+    const isDeptMember = userDepts.includes(reqDept);
+    const isRequester = requestData.requesterId === user.id;
+
+    // Check if user is an authorized approver for any approval slot on this request
+    const approverDepts: string[] = [];
+    if (user.role === 'approver' && user.department) {
+      approverDepts.push(user.department.toLowerCase().trim());
+    }
+    const normalizedAssignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);
+    for (const assignment of normalizedAssignments) {
+      if (assignment.status === 'active' && (assignment.role === 'approver' || assignment.role === 'both')) {
+        if (assignment.department) {
+          approverDepts.push(assignment.department.toLowerCase().trim());
+        }
+      }
+    }
+
+    const isApproverForReq = (requestData.approvals || []).some((a: any) =>
+      a.approverId === user.id || (a.department && approverDepts.includes(a.department.toLowerCase().trim()))
+    );
+
+    const canView = isAdmin || isRequester || isDeptMember || isApproverForReq;
     if (!canView) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
 
     const { PDFDocument, rgb } = await import("pdf-lib");
