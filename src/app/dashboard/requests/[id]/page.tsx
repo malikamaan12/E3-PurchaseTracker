@@ -516,114 +516,130 @@ export default function RequestDetailPage() {
           </div>
 
           {/* Payment Milestones Display for Requester/Approvers */}
-          {installments.length > 0 && (
-            <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
-              <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex flex-wrap justify-between items-center gap-3">
-                <div className="flex items-center gap-2">
-                  <div className="bg-blue-500/10 p-1.5 rounded-lg">
-                    <Coins className="w-4 h-4 text-blue-600" />
-                  </div>
-                  <h2 className="font-semibold text-sm tracking-tight">Payment Milestones & Clearance</h2>
-                </div>
+          {installments.length > 0 && (() => {
+            const totalAuthorization = ((Number(request.totalEstimatedCost) || 0) + (Number(request.freightAmount) || 0));
+            const totalDisbursed = installments
+              .filter((m: any) => m.status === 'paid' || m.status === 'partial' || m.status === 'settled_savings')
+              .reduce((sum: number, m: any) => sum + (Number(m.paidAmount) || 0), 0);
 
-                <div className="flex items-center gap-3 text-xs font-mono">
-                  <span className="text-muted-foreground">
-                    Disbursed: <strong className="text-primary font-bold">{installments.filter((m: any) => m.status === 'paid' || m.status === 'partial' || m.status === 'settled_savings').reduce((sum: number, m: any) => sum + (Number(m.paidAmount) || 0), 0).toLocaleString()}</strong> / {installments.reduce((sum: number, m: any) => sum + (Number(m.calculatedAmount) || 0), 0).toLocaleString()} {request.currency || 'QAR'}
-                  </span>
-                </div>
-              </div>
-              <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {installments.map((milestone: any, idx: number) => {
-                  const isPaid = milestone.status === 'paid' || milestone.status === 'settled_savings';
-                  const isPartial = milestone.status === 'partial';
-                  const calcAmount = Number(milestone.calculatedAmount || 0);
-                  const paidAmount = Number(milestone.paidAmount || 0);
-                  const percentPaid = calcAmount > 0 ? Math.min(100, Math.round((paidAmount / calcAmount) * 100)) : 0;
-                  
-                  return (
-                    <div key={milestone.id || idx} className="bg-background border border-border/50 rounded-2xl p-5 shadow-sm hover:border-primary/30 transition-all flex flex-col justify-between gap-4">
-                      <div>
-                        <div className="flex justify-between items-start gap-2 mb-2">
-                          <div className="font-bold text-sm text-foreground">{milestone.installmentName}</div>
-                          {isPaid ? (
-                            <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 shrink-0">
-                              <CheckCircle2 className="w-3 h-3" /> Paid
-                            </span>
-                          ) : isPartial ? (
-                            <span className="bg-amber-500/10 text-amber-600 border border-amber-500/20 px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 shrink-0">
-                              <CircleDashed className="w-3 h-3" /> Partial ({percentPaid}%)
-                            </span>
-                          ) : (
-                            <span className="bg-muted text-muted-foreground border border-border/50 px-2 py-0.5 rounded-full text-[11px] font-semibold flex items-center gap-1 shrink-0">
-                              <Clock className="w-3 h-3" /> Pending
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Transaction Reference & Clearance Date */}
-                        <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mt-1">
-                          <span>Due: {new Date(milestone.dueDate).toLocaleDateString()}</span>
-                          {milestone.actualPaymentDate && (
-                            <span className="text-foreground/80 font-mono text-[11px] bg-muted/40 px-1.5 py-0.5 rounded">
-                              Cleared: {new Date(milestone.actualPaymentDate).toLocaleDateString()}
-                            </span>
-                          )}
-                          {milestone.transactionReference && (
-                            <span className="text-foreground font-mono font-semibold text-[11px] bg-primary/5 text-primary border border-primary/20 px-1.5 py-0.5 rounded">
-                              Ref: {milestone.transactionReference}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Notes */}
-                        {milestone.financeNotes && (
-                          <div className="mt-2.5 text-[11px] bg-muted/30 border border-border/30 rounded-xl p-2 text-muted-foreground flex items-start gap-1.5">
-                            <MessageSquare className="w-3 h-3 text-primary shrink-0 mt-0.5" />
-                            <span className="line-clamp-2">{milestone.financeNotes}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Amounts and Progress */}
-                      <div className="space-y-2 pt-3 border-t border-border/40 mt-auto">
-                        <div className="flex justify-between text-xs items-center">
-                          <span className="text-muted-foreground">Authorized:</span>
-                          <span className="font-mono font-bold text-sm text-foreground">
-                            {calcAmount.toLocaleString()} <span className="text-[10px] text-muted-foreground">{request.currency || 'QAR'}</span>
-                          </span>
-                        </div>
-
-                        {(isPaid || isPartial) && (
-                          <div className="flex justify-between text-xs items-center">
-                            <span className="text-primary font-semibold">Disbursed:</span>
-                            <span className="font-mono font-bold text-sm text-primary">
-                              {paidAmount.toLocaleString()} <span className="text-[10px] text-primary/70">{request.currency || 'QAR'}</span>
-                            </span>
-                          </div>
-                        )}
-
-                        {isPartial && (
-                          <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
-                            <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${percentPaid}%` }} />
-                          </div>
-                        )}
-
-                        {milestone.attachmentUrl && (
-                          <button
-                            type="button"
-                            onClick={() => window.open(milestone.attachmentUrl, '_blank')}
-                            className="w-full mt-1.5 flex items-center justify-center gap-1.5 text-[11px] text-primary hover:text-primary/80 font-bold bg-primary/10 hover:bg-primary/20 border border-primary/20 py-1.5 rounded-xl transition-all"
-                          >
-                            <Paperclip className="w-3 h-3" /> View Payment Slip
-                          </button>
-                        )}
-                      </div>
+            return (
+              <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+                <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex flex-wrap justify-between items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-blue-500/10 p-1.5 rounded-lg">
+                      <Coins className="w-4 h-4 text-blue-600" />
                     </div>
-                  );
-                })}
+                    <h2 className="font-semibold text-sm tracking-tight">Payment Milestones & Clearance</h2>
+                  </div>
+
+                  <div className="flex items-center gap-3 text-xs font-mono">
+                    <span className="text-muted-foreground">
+                      Disbursed: <strong className="text-primary font-bold">{totalDisbursed.toLocaleString()}</strong> / {totalAuthorization.toLocaleString()} {request.currency || 'QAR'}
+                    </span>
+                  </div>
+                </div>
+                <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {installments.map((milestone: any, idx: number) => {
+                    const isPaid = milestone.status === 'paid' || milestone.status === 'settled_savings';
+                    const isPartial = milestone.status === 'partial';
+                    const calcAmount = milestone.valueType === "PERCENTAGE" && Number(milestone.amountValue) > 0
+                      ? Math.round((Number(milestone.amountValue) / 100) * totalAuthorization)
+                      : (Number(milestone.calculatedAmount) || Number(milestone.amountValue) || 0);
+                    const paidAmount = Number(milestone.paidAmount || 0);
+                    const percentPaid = calcAmount > 0 ? Math.min(100, Math.round((paidAmount / calcAmount) * 100)) : 0;
+                    
+                    return (
+                      <div key={milestone.id || idx} className="bg-background border border-border/50 rounded-2xl p-5 shadow-sm hover:border-primary/30 transition-all flex flex-col justify-between gap-4">
+                        <div>
+                          <div className="flex justify-between items-start gap-2 mb-2">
+                            <div className="font-bold text-sm text-foreground">
+                              {milestone.installmentName}
+                              {milestone.valueType === "PERCENTAGE" && Number(milestone.amountValue) > 0 && (
+                                <span className="text-xs font-normal text-muted-foreground ml-1.5 font-mono">
+                                  ({milestone.amountValue}%)
+                                </span>
+                              )}
+                            </div>
+                            {isPaid ? (
+                              <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 shrink-0">
+                                <CheckCircle2 className="w-3 h-3" /> Paid
+                              </span>
+                            ) : isPartial ? (
+                              <span className="bg-amber-500/10 text-amber-600 border border-amber-500/20 px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 shrink-0">
+                                <CircleDashed className="w-3 h-3" /> Partial ({percentPaid}%)
+                              </span>
+                            ) : (
+                              <span className="bg-muted text-muted-foreground border border-border/50 px-2 py-0.5 rounded-full text-[11px] font-semibold flex items-center gap-1 shrink-0">
+                                <Clock className="w-3 h-3" /> Pending
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Transaction Reference & Clearance Date */}
+                          <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground mt-1">
+                            <span>Due: {new Date(milestone.dueDate).toLocaleDateString()}</span>
+                            {milestone.actualPaymentDate && (
+                              <span className="text-foreground/80 font-mono text-[11px] bg-muted/40 px-1.5 py-0.5 rounded">
+                                Cleared: {new Date(milestone.actualPaymentDate).toLocaleDateString()}
+                              </span>
+                            )}
+                            {milestone.transactionReference && (
+                              <span className="text-foreground font-mono font-semibold text-[11px] bg-primary/5 text-primary border border-primary/20 px-1.5 py-0.5 rounded">
+                                Ref: {milestone.transactionReference}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Notes */}
+                          {milestone.financeNotes && (
+                            <div className="mt-2.5 text-[11px] bg-muted/30 border border-border/30 rounded-xl p-2 text-muted-foreground flex items-start gap-1.5">
+                              <MessageSquare className="w-3 h-3 text-primary shrink-0 mt-0.5" />
+                              <span className="line-clamp-2">{milestone.financeNotes}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Amounts and Progress */}
+                        <div className="space-y-2 pt-3 border-t border-border/40 mt-auto">
+                          <div className="flex justify-between text-xs items-center">
+                            <span className="text-muted-foreground">Authorized:</span>
+                            <span className="font-mono font-bold text-sm text-foreground">
+                              {calcAmount.toLocaleString()} <span className="text-[10px] text-muted-foreground">{request.currency || 'QAR'}</span>
+                            </span>
+                          </div>
+
+                          {(isPaid || isPartial) && (
+                            <div className="flex justify-between text-xs items-center">
+                              <span className="text-primary font-semibold">Disbursed:</span>
+                              <span className="font-mono font-bold text-sm text-primary">
+                                {paidAmount.toLocaleString()} <span className="text-[10px] text-primary/70">{request.currency || 'QAR'}</span>
+                              </span>
+                            </div>
+                          )}
+
+                          {isPartial && (
+                            <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
+                              <div className="bg-amber-500 h-full rounded-full transition-all duration-500" style={{ width: `${percentPaid}%` }} />
+                            </div>
+                          )}
+
+                          {milestone.attachmentUrl && (
+                            <button
+                              type="button"
+                              onClick={() => window.open(milestone.attachmentUrl, '_blank')}
+                              className="w-full mt-1.5 flex items-center justify-center gap-1.5 text-[11px] text-primary hover:text-primary/80 font-bold bg-primary/10 hover:bg-primary/20 border border-primary/20 py-1.5 rounded-xl transition-all"
+                            >
+                              <Paperclip className="w-3 h-3" /> View Payment Slip
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
             <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex justify-between items-center">
@@ -811,10 +827,10 @@ export default function RequestDetailPage() {
               </Button>
             </div>
             <div className="p-6">
-              <div className="relative border-l-2 border-muted ml-3 space-y-8 pb-4">
+              <div className="relative border-l-2 border-muted ml-3 space-y-6 pb-2">
                 <TimelineItem 
                   title="Request Initiated"
-                  desc={`By ${request.requester?.username}`}
+                  desc={`By ${request.requester?.username || "Requester"}`}
                   time={safeFormatDate(request.createdAt, "MMM dd, yyyy")}
                   status="completed"
                 />
@@ -838,41 +854,38 @@ export default function RequestDetailPage() {
                     const isRejected = approval.status === 'rejected';
                     
                     return (
-                      <div key={approval.id} className="relative group/approval">
-                        <TimelineItem 
-                          title={`${approval.department} Approval`}
-                          desc={
-                            <div className="space-y-1 mt-0.5">
-                              <div>{isApproved ? `Approved by ${approval.approver?.username}` : isRejected ? "Rejected" : "Pending Action"}</div>
-                              {approval.comments && (
-                                <div className="text-[11px] bg-muted/40 border border-border/40 rounded-lg p-2 text-foreground/80 font-normal whitespace-pre-line mt-1">
-                                  {approval.comments}
-                                </div>
-                              )}
+                      <TimelineItem 
+                        key={approval.id}
+                        title={`${approval.department} Approval`}
+                        desc={
+                          <div className="space-y-1.5 mt-0.5">
+                            <div className="font-medium text-foreground/90">
+                              {isApproved ? `Approved by ${approval.approver?.username || "Approver"}` : isRejected ? "Rejected" : "Pending Action"}
                             </div>
-                          }
-                          time={approval.processedAt ? safeFormatDate(approval.processedAt, "MMM dd, yyyy") : undefined}
-                          status={isApproved ? 'completed' : isRejected ? 'error' : isPending ? 'current' : 'pending'}
-                        />
-
-                        {/* Actions for Approved stage */}
-                        {isApproved && (
-                          <div className="absolute right-0 top-0 flex items-center gap-1.5">
-                            {/* Approver / Super Admin Add Clarification Button */}
-                            {(isSuperAdmin || approval.approverId === user?.id) && (
-                              <button
-                                onClick={() => setClarificationTarget({
-                                  approvalId: approval.id,
-                                  department: approval.department,
-                                  existingComments: approval.comments || "",
-                                })}
-                                className="text-xs font-bold text-primary hover:text-primary-foreground border border-primary/30 hover:border-primary hover:bg-primary rounded-xl px-3 py-2 transition-all flex items-center gap-1.5 min-h-[44px] touch-target"
-                                title="Add clarification / condition to this approval"
-                                aria-label="Add clarification"
-                              >
-                                <MessageSquare className="w-3.5 h-3.5" /> Clarify
-                              </button>
+                            {approval.comments && (
+                              <div className="text-[11px] bg-muted/40 border border-border/40 rounded-xl p-2.5 text-foreground/90 font-normal whitespace-pre-line">
+                                {approval.comments}
+                              </div>
                             )}
+                          </div>
+                        }
+                        time={approval.processedAt ? safeFormatDate(approval.processedAt, "MMM dd, yyyy") : undefined}
+                        status={isApproved ? 'completed' : isRejected ? 'error' : isPending ? 'current' : 'pending'}
+                        actions={isApproved && (isSuperAdmin || approval.approverId === user?.id) ? (
+                          <div className="flex items-center gap-2 pt-1 flex-wrap">
+                            {/* Approver / Super Admin Add Clarification Button */}
+                            <button
+                              onClick={() => setClarificationTarget({
+                                approvalId: approval.id,
+                                department: approval.department,
+                                existingComments: approval.comments || "",
+                              })}
+                              className="text-xs font-bold text-primary hover:text-primary-foreground border border-primary/30 hover:bg-primary rounded-xl px-3 py-1.5 transition-all flex items-center gap-1.5 shadow-sm"
+                              title="Add clarification / condition to this approval"
+                              aria-label="Add clarification"
+                            >
+                              <MessageSquare className="w-3.5 h-3.5" /> Clarify
+                            </button>
 
                             {/* Super Admin Exclusive Revoke Button */}
                             {isSuperAdmin && (
@@ -882,7 +895,7 @@ export default function RequestDetailPage() {
                                   department: approval.department,
                                   approverName: approval.approver?.username || `User #${approval.approverId}`,
                                 })}
-                                className="text-xs font-bold text-rose-500 hover:text-rose-600 border border-rose-500/30 hover:border-rose-500 hover:bg-rose-500/10 rounded-xl px-3 py-2 transition-all flex items-center gap-1.5 min-h-[44px] touch-target"
+                                className="text-xs font-bold text-rose-500 hover:text-white border border-rose-500/30 hover:bg-rose-500 rounded-xl px-3 py-1.5 transition-all flex items-center gap-1.5 shadow-sm"
                                 title={`Revoke ${approval.department} approval (Super Admin only)`}
                                 aria-label={`Revoke ${approval.department} approval`}
                               >
@@ -890,16 +903,16 @@ export default function RequestDetailPage() {
                               </button>
                             )}
                           </div>
-                        )}
-                      </div>
+                        ) : undefined}
+                      />
                     );
                   });
                 })()}
 
                 <TimelineItem 
                   title="Final Status"
-                  desc={request.status === 'approved' ? "Ready for procurement" : "Awaiting sign-offs"}
-                  status={request.status === 'approved' ? 'completed' : 'pending'}
+                  desc={request.status === 'approved' ? "Ready for procurement" : request.status === 'fully_paid' ? "Procurement completed & settled" : "Awaiting sign-offs"}
+                  status={request.status === 'approved' || request.status === 'fully_paid' ? 'completed' : 'pending'}
                 />
               </div>
             </div>
@@ -1167,24 +1180,43 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-function TimelineItem({ title, desc, time, status }: { title: string, desc: React.ReactNode, time?: string, status: string }) {
+function TimelineItem({ 
+  title, 
+  desc, 
+  time, 
+  status, 
+  actions 
+}: { 
+  title: string; 
+  desc: React.ReactNode; 
+  time?: string; 
+  status: string; 
+  actions?: React.ReactNode; 
+}) {
   const configs = {
-    completed: "bg-emerald-500 border-emerald-200 dark:border-emerald-900 shadow-[0_0_0_4px_rgba(16,185,129,0.1)]",
-    error: "bg-destructive border-red-200 dark:border-red-900 shadow-[0_0_0_4px_rgba(239,68,68,0.1)]",
-    current: "bg-primary border-primary/20 shadow-[0_0_0_4px_rgba(59,130,246,0.2)] animate-pulse",
+    completed: "bg-emerald-500 border-emerald-200 dark:border-emerald-900 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]",
+    error: "bg-destructive border-red-200 dark:border-red-900 shadow-[0_0_0_4px_rgba(239,68,68,0.15)]",
+    current: "bg-primary border-primary/20 shadow-[0_0_0_4px_rgba(59,130,246,0.25)] animate-pulse",
     pending: "bg-background border-border shadow-none",
   };
   const config = configs[status as keyof typeof configs] || configs.pending;
 
   return (
-    <div className="relative pl-7">
+    <div className="relative pl-7 pb-2 last:pb-0">
       <div className={`absolute -left-[9px] top-1.5 w-4 h-4 rounded-full border-2 ${config} z-10 transition-all`} />
-      <div className="flex justify-between items-start group">
-        <div>
-          <p className={`text-sm font-bold tracking-tight ${status === 'pending' ? 'text-muted-foreground' : 'text-foreground'}`}>{title}</p>
-          <div className="text-xs text-muted-foreground mt-1">{desc}</div>
+      <div className="space-y-1">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <p className={`text-sm font-bold tracking-tight ${status === 'pending' ? 'text-muted-foreground' : 'text-foreground'}`}>
+            {title}
+          </p>
+          {time && (
+            <span className="text-[10px] uppercase font-mono tracking-wider font-semibold text-muted-foreground bg-secondary/80 px-2 py-0.5 rounded-md border border-border/50">
+              {time}
+            </span>
+          )}
         </div>
-        {time && <span className="text-[10px] uppercase font-mono tracking-wider font-semibold text-muted-foreground/70">{time}</span>}
+        <div className="text-xs text-muted-foreground leading-relaxed">{desc}</div>
+        {actions && <div className="pt-2">{actions}</div>}
       </div>
     </div>
   );

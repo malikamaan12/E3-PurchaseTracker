@@ -316,11 +316,18 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
         estimatedCost: item.estimatedCost * exchangeRate
       }));
       
-      const convertedInstallments = data.installments.map(inst => ({
-        ...inst,
-        amountValue: inst.valueType === "FIXED_AMOUNT" ? inst.amountValue * exchangeRate : inst.amountValue,
-        calculatedAmount: inst.calculatedAmount * exchangeRate
-      }));
+      const totalCostBase = (data.totalEstimatedCost + (data.freightAmount || 0)) * exchangeRate;
+      const convertedInstallments = data.installments.map(inst => {
+        const amtValue = inst.valueType === "FIXED_AMOUNT" ? inst.amountValue * exchangeRate : inst.amountValue;
+        const calcAmt = inst.valueType === "PERCENTAGE"
+          ? Math.round((amtValue / 100) * totalCostBase)
+          : Math.round(amtValue);
+        return {
+          ...inst,
+          amountValue: amtValue,
+          calculatedAmount: calcAmt
+        };
+      });
 
       const finalizedData = { 
         ...data, 
