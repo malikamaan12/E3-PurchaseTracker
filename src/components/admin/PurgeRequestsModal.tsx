@@ -67,7 +67,7 @@ export function PurgeRequestsModal({ trigger }: PurgeRequestsModalProps) {
       </Dialog.Trigger>
       
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[1000] animate-in fade-in duration-300" />
+        <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000] animate-in fade-in duration-300" />
         <Dialog.Content className="fixed left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] w-[95vw] max-w-[480px] z-[1001] outline-none">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}

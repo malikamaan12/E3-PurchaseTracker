@@ -51,7 +51,7 @@ export function CommandPalette() {
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
       <CommandInput placeholder="Type a command or search destination..." />
-      <CommandList className="custom-scrollbar border-t border-white/5">
+      <CommandList className="custom-scrollbar border-t border-border">
         <CommandEmpty className="py-6 text-center text-xs text-muted-foreground">
           No matching commands or pages found.
         </CommandEmpty>
@@ -79,7 +79,7 @@ export function CommandPalette() {
           </CommandItem>
         </CommandGroup>
 
-        <CommandSeparator className="my-1 bg-white/5" />
+        <CommandSeparator className="my-1 bg-border" />
 
         <CommandGroup heading="Actions">
           <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/requests?new=true"))}>
@@ -94,7 +94,7 @@ export function CommandPalette() {
 
         {isAdmin && (
           <>
-            <CommandSeparator className="my-1 bg-white/5" />
+            <CommandSeparator className="my-1 bg-border" />
             <CommandGroup heading="Administration">
               <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/admin"))}>
                 <Settings className="mr-2 h-4 w-4 text-rose-400" />

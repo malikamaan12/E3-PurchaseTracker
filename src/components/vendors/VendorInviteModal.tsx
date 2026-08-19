@@ -179,23 +179,23 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl relative">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+      <div className="bg-card border border-border/80 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl relative custom-scrollbar">
         {/* Header */}
-        <div className="sticky top-0 bg-slate-900/95 border-b border-slate-800 p-5 flex items-center justify-between z-10">
+        <div className="sticky top-0 bg-card/95 backdrop-blur border-b border-border p-5 flex items-center justify-between z-10">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary">
               <Send className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">Invite Vendor (Self-Service)</h2>
-              <p className="text-xs text-slate-400">Generate a secure 24-hour self-service onboarding link</p>
+              <h2 className="text-base font-bold text-foreground">Invite Vendor (Self-Service)</h2>
+              <p className="text-xs text-muted-foreground">Generate a secure 24-hour self-service onboarding link</p>
             </div>
           </div>
           <button
             type="button"
             onClick={resetModal}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -206,25 +206,25 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
           {createdResult ? (
             /* Success View with Copy Link */
             <div className="space-y-6 text-center py-2">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center mx-auto shadow-inner">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 flex items-center justify-center mx-auto shadow-inner">
                 <CheckCircle2 className="w-7 h-7" />
               </div>
 
               <div>
-                <h3 className="text-lg font-bold text-white">Invitation Link Ready</h3>
-                <p className="text-xs text-slate-300 mt-1 max-w-md mx-auto">
+                <h3 className="text-lg font-bold text-foreground">Invitation Link Ready</h3>
+                <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
                   A secure 24-hour self-service link has been created for{" "}
-                  <strong className="text-white">{companyName}</strong>.
+                  <strong className="text-foreground font-semibold">{companyName}</strong>.
                 </p>
               </div>
 
               {/* Link Box */}
-              <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 text-left space-y-3">
+              <div className="bg-secondary/40 border border-border rounded-2xl p-4 text-left space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Encrypted Invitation URL
                   </span>
-                  <span className="text-[11px] font-mono text-amber-400 flex items-center gap-1">
+                  <span className="text-[11px] font-mono text-amber-600 dark:text-amber-400 flex items-center gap-1 font-semibold">
                     <Clock className="w-3 h-3" /> Valid for 24 Hours
                   </span>
                 </div>
@@ -234,20 +234,20 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                     type="text"
                     readOnly
                     value={createdResult.invitationUrl}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs font-mono text-slate-300 focus:outline-none"
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs font-mono text-foreground focus:outline-none"
                   />
                   <button
                     type="button"
                     onClick={handleCopyLink}
-                    className="px-4 py-2 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors min-h-[38px]"
+                    className="px-4 py-2 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center gap-1.5 shrink-0 transition-colors min-h-[38px] shadow-sm"
                   >
                     {copied ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
                     <span>{copied ? "Copied!" : "Copy"}</span>
                   </button>
                 </div>
 
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 inline mr-1" />
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 inline mr-1" />
                   For security, the raw token is only displayed here and will not appear in server logs or database records.
                 </p>
               </div>
@@ -258,7 +258,7 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                   href={createdResult.mailtoUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors min-h-[44px]"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-semibold flex items-center justify-center gap-2 transition-colors min-h-[44px] border border-border shadow-sm"
                 >
                   <Mail className="w-4 h-4 text-primary" />
                   <span>Send via Email Client</span>
@@ -268,7 +268,7 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                 <button
                   type="button"
                   onClick={resetModal}
-                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-semibold transition-colors min-h-[44px]"
+                  className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold transition-colors min-h-[44px] shadow-sm"
                 >
                   Done
                 </button>
@@ -278,47 +278,47 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
             /* Form View */
             <form onSubmit={handleSubmit} className="space-y-6">
               {errorMessage && (
-                <div className="p-3.5 bg-rose-950/40 border border-rose-900/80 rounded-xl text-xs text-rose-300 flex items-center gap-2">
-                  <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+                <div className="p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-xl text-xs text-rose-600 dark:text-rose-400 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-500 shrink-0" />
                   <span>{errorMessage}</span>
                 </div>
               )}
 
               {/* Duplicate Warning */}
               {duplicateWarning?.hasDuplicate && (
-                <div className="p-4 bg-amber-950/50 border border-amber-800/80 rounded-xl space-y-3">
+                <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-3">
                   <div className="flex items-start gap-2.5">
-                    <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                     <div>
-                      <h4 className="text-xs font-bold text-amber-200">Potential Duplicate Vendor Detected</h4>
-                      <p className="text-[11px] text-amber-300/90 mt-0.5 leading-snug">
+                      <h4 className="text-xs font-bold text-amber-700 dark:text-amber-300">Potential Duplicate Vendor Detected</h4>
+                      <p className="text-[11px] text-amber-800/90 dark:text-amber-200/90 mt-0.5 leading-snug">
                         Matching records were found in the database. Please review before proceeding:
                       </p>
                     </div>
                   </div>
 
-                  <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1">
+                  <div className="space-y-1.5 max-h-28 overflow-y-auto pr-1 custom-scrollbar">
                     {duplicateWarning.matches.map((m: any, idx: number) => (
                       <div
                         key={idx}
-                        className="bg-slate-950/70 border border-slate-800 rounded-lg p-2 flex items-center justify-between text-[11px]"
+                        className="bg-card border border-amber-500/20 rounded-lg p-2 flex items-center justify-between text-[11px]"
                       >
-                        <span className="font-medium text-white">{m.name}</span>
-                        <span className="text-amber-400 font-mono">
+                        <span className="font-medium text-foreground">{m.name}</span>
+                        <span className="text-amber-600 dark:text-amber-400 font-mono font-semibold">
                           Matched via {m.matchedField} ({m.type})
                         </span>
                       </div>
                     ))}
                   </div>
 
-                  <label className="flex items-center gap-2 pt-1 border-t border-amber-900/60 cursor-pointer">
+                  <label className="flex items-center gap-2 pt-1 border-t border-amber-500/20 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={overrideDuplicate}
                       onChange={(e) => setOverrideDuplicate(e.target.checked)}
-                      className="w-3.5 h-3.5 rounded border-amber-700 text-amber-500 focus:ring-amber-500 bg-slate-900"
+                      className="w-3.5 h-3.5 rounded border-border text-amber-600 focus:ring-amber-500 bg-background"
                     />
-                    <span className="text-[11px] font-medium text-amber-200">
+                    <span className="text-[11px] font-medium text-amber-800 dark:text-amber-200">
                       Authorized exception: Proceed with creating this invitation anyway.
                     </span>
                   </label>
@@ -327,7 +327,7 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
 
               {/* Vendor Classification Selector */}
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-slate-300">
+                <label className="block text-xs font-semibold text-foreground">
                   Vendor Classification*
                 </label>
                 <div className="grid grid-cols-2 gap-3">
@@ -336,8 +336,8 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                     onClick={() => handleVendorTypeChange("company")}
                     className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-semibold transition-all ${
                       vendorType === "company"
-                        ? "bg-primary/10 border-primary text-white shadow-sm"
-                        : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white"
+                        ? "bg-primary/10 border-primary text-primary shadow-sm"
+                        : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
                     }`}
                   >
                     <Building2 className="w-4 h-4 text-primary" />
@@ -349,8 +349,8 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                     onClick={() => handleVendorTypeChange("freelancer")}
                     className={`flex items-center justify-center gap-2 p-3 rounded-xl border text-xs font-semibold transition-all ${
                       vendorType === "freelancer"
-                        ? "bg-primary/10 border-primary text-white shadow-sm"
-                        : "bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white"
+                        ? "bg-primary/10 border-primary text-primary shadow-sm"
+                        : "bg-secondary/40 border-border text-muted-foreground hover:text-foreground hover:bg-secondary"
                     }`}
                   >
                     <User className="w-4 h-4 text-primary" />
@@ -362,10 +362,10 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
               {/* Basic Details */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1">
+                  <label className="block text-xs font-medium text-foreground mb-1.5 flex items-center gap-1">
                     {vendorType === "freelancer" ? <User className="w-3.5 h-3.5 text-primary" /> : <Building2 className="w-3.5 h-3.5 text-primary" />}
                     <span>{vendorType === "freelancer" ? "Freelancer Full Name / Trade Name*" : "Company Name*"}</span>
-                    {isCheckingDuplicates && <Loader2 className="w-3 h-3 animate-spin text-slate-400 ml-1" />}
+                    {isCheckingDuplicates && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground ml-1" />}
                   </label>
                   <input
                     type="text"
@@ -373,12 +373,12 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                     placeholder={vendorType === "freelancer" ? "e.g. John Doe (Freelance Audio Engineer)" : "e.g. Al-Sulaiti Engineering Services"}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-primary transition-colors min-h-[44px]"
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors min-h-[44px]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1">
+                  <label className="block text-xs font-medium text-foreground mb-1.5 flex items-center gap-1">
                     <User className="w-3.5 h-3.5 text-primary" />
                     <span>Contact Person*</span>
                   </label>
@@ -388,12 +388,12 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                     value={contactPerson}
                     onChange={(e) => setContactPerson(e.target.value)}
                     placeholder="e.g. Ahmed Al-Sulaiti"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-primary transition-colors min-h-[44px]"
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors min-h-[44px]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1">
+                  <label className="block text-xs font-medium text-foreground mb-1.5 flex items-center gap-1">
                     <Mail className="w-3.5 h-3.5 text-primary" />
                     <span>Contact Email*</span>
                   </label>
@@ -403,12 +403,12 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="e.g. info@alsulaiti.qa"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-primary transition-colors min-h-[44px]"
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors min-h-[44px]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5 flex items-center gap-1">
+                  <label className="block text-xs font-medium text-foreground mb-1.5 flex items-center gap-1">
                     <Phone className="w-3.5 h-3.5 text-primary" />
                     <span>Contact Phone*</span>
                   </label>
@@ -418,16 +418,16 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                     value={contactNumber}
                     onChange={(e) => setContactNumber(e.target.value)}
                     placeholder="e.g. +974 4400 1234"
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-primary transition-colors min-h-[44px]"
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors min-h-[44px]"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1.5">Currency*</label>
+                  <label className="block text-xs font-medium text-foreground mb-1.5">Currency*</label>
                   <select
                     value={currency}
                     onChange={(e) => setCurrency(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-primary transition-colors min-h-[44px]"
+                    className="w-full bg-background border border-border rounded-xl px-3.5 py-2.5 text-xs text-foreground focus:outline-none focus:border-primary transition-colors min-h-[44px]"
                   >
                     <option value="QAR">QAR - Qatari Riyal</option>
                     <option value="USD">USD - US Dollar</option>
@@ -439,38 +439,38 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
               </div>
 
               {/* Required Documents Checklist */}
-              <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
+              <div className="bg-secondary/30 border border-border rounded-2xl p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-semibold text-white flex items-center gap-1.5">
+                  <label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
                     <FileCheck className="w-4 h-4 text-primary" />
                     <span>Required Compliance Checklist</span>
                   </label>
-                  <span className="text-[11px] text-slate-400">Configure mandatory documents</span>
+                  <span className="text-[11px] text-muted-foreground">Configure mandatory documents</span>
                 </div>
 
                 <div className="space-y-2">
                   {documentChecklist.map((doc, idx) => (
                     <div
                       key={idx}
-                      className="bg-slate-900 border border-slate-800 rounded-lg p-2.5 flex items-center justify-between gap-3 text-xs"
+                      className="bg-card border border-border rounded-xl p-2.5 flex items-center justify-between gap-3 text-xs"
                     >
-                      <span className="font-medium text-slate-200">{doc.type}</span>
+                      <span className="font-medium text-foreground">{doc.type}</span>
                       <div className="flex items-center gap-3">
                         <label className="flex items-center gap-1.5 cursor-pointer">
                           <input
                             type="checkbox"
                             checked={doc.mandatory}
                             onChange={() => handleToggleMandatory(idx)}
-                            className="w-3.5 h-3.5 rounded border-slate-700 text-primary focus:ring-primary bg-slate-950"
+                            className="w-3.5 h-3.5 rounded border-border text-primary focus:ring-primary bg-background"
                           />
-                          <span className={doc.mandatory ? "text-amber-400 font-medium" : "text-slate-400"}>
+                          <span className={doc.mandatory ? "text-amber-600 dark:text-amber-400 font-semibold" : "text-muted-foreground"}>
                             {doc.mandatory ? "Mandatory" : "Optional"}
                           </span>
                         </label>
                         <button
                           type="button"
                           onClick={() => handleRemoveDoc(idx)}
-                          className="text-slate-500 hover:text-rose-400 transition-colors p-1"
+                          className="text-muted-foreground hover:text-rose-500 transition-colors p-1"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -485,12 +485,12 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                     value={customDocName}
                     onChange={(e) => setCustomDocName(e.target.value)}
                     placeholder="Add custom document requirement..."
-                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-primary"
+                    className="flex-1 bg-background border border-border rounded-xl px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary"
                   />
                   <button
                     type="button"
                     onClick={handleAddCustomDoc}
-                    className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1 shrink-0"
+                    className="px-3 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-medium flex items-center gap-1 shrink-0 border border-border shadow-sm"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>Add</span>
@@ -500,7 +500,7 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
 
               {/* Admin Notes */}
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1.5">
+                <label className="block text-xs font-medium text-foreground mb-1.5">
                   Internal Notes / Instructions (Optional)
                 </label>
                 <textarea
@@ -508,23 +508,23 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                   onChange={(e) => setNotes(e.target.value)}
                   rows={2}
                   placeholder="Special onboarding instructions or project context..."
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-primary transition-colors resize-none"
+                  className="w-full bg-background border border-border rounded-xl px-3.5 py-2 text-xs text-foreground focus:outline-none focus:border-primary transition-colors resize-none"
                 />
               </div>
 
               {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-end gap-3 pt-3 border-t border-border">
                 <button
                   type="button"
                   onClick={resetModal}
-                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-white hover:bg-slate-800 transition-colors min-h-[44px]"
+                  className="px-4 py-2.5 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors min-h-[44px]"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-white text-xs font-semibold flex items-center gap-2 shadow-lg shadow-primary/20 transition-all min-h-[44px]"
+                  className="px-6 py-2.5 rounded-xl bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center gap-2 shadow-md shadow-primary/20 transition-all min-h-[44px]"
                 >
                   {isSubmitting ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

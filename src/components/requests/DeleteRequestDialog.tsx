@@ -33,7 +33,7 @@ export function DeleteRequestDialog({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+                className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm"
               />
             </AlertDialog.Overlay>
             <AlertDialog.Content asChild>
@@ -41,9 +41,9 @@ export function DeleteRequestDialog({
                 initial={{ opacity: 0, scale: 0.95, y: 10 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                className="fixed left-[50%] top-[50%] z-[101] w-full max-w-md translate-x-[-50%] translate-y-[-50%] p-6 focus:outline-none"
+                className="fixed left-[50%] top-[50%] z-[201] w-[92vw] max-w-md translate-x-[-50%] translate-y-[-50%] p-2 focus:outline-none"
               >
-                <div className="bg-white/50 dark:bg-gray-900/50 backdrop-blur-xl border border-white/30 dark:border-gray-800 rounded-3xl shadow-2xl overflow-hidden p-8 text-center">
+                <div className="bg-card border border-border rounded-3xl shadow-2xl overflow-hidden p-8 text-center">
                   <div className="mx-auto w-14 h-14 rounded-2xl bg-rose-500/10 flex items-center justify-center mb-6">
                     <AlertCircle className="w-8 h-8 text-rose-500" />
                   </div>

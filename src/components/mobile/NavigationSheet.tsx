@@ -34,7 +34,8 @@ interface NavigationSheetProps {
 
 export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
   const { user, isAdmin, isSuperAdmin } = useAuth();
-  const { theme, setTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
   const { highPerformanceMode, setHighPerformanceMode } = usePerformance();
   const router = useRouter();
   const pathname = usePathname();
@@ -154,17 +155,17 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
 
             {/* Theme Toggle Button */}
             <button
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+              onClick={() => setTheme(isDark ? "light" : "dark")}
+              aria-label={`Switch to ${isDark ? "light" : "dark"} theme`}
               className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-card border border-border text-foreground hover:bg-secondary transition-all touch-target"
             >
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center">
-                  {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+                  {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </div>
                 <div className="text-left">
                   <p className="text-sm font-semibold">Appearance Theme</p>
-                  <p className="text-xs text-muted-foreground">Current: {theme === "dark" ? "Dark Mode" : "Light Mode"}</p>
+                  <p className="text-xs text-muted-foreground">Current: {isDark ? "Dark Mode" : "Light Mode"}</p>
                 </div>
               </div>
               <span className="text-xs font-bold text-brand-primary">Toggle</span>

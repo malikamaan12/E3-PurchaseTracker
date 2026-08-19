@@ -258,10 +258,14 @@ export default function TopNav() {
 
           {/* NOTIFICATION PORTAL */}
           {isNotifOpen && createPortal(
-            <div className="fixed inset-0 z-[99999] pointer-events-none">
+            <div className="fixed inset-0 z-[99999]">
+              <div
+                className="fixed inset-0 bg-black/20 md:bg-transparent"
+                onClick={() => setIsNotifOpen(false)}
+              />
               <div
                 ref={portalRef}
-                className="absolute pointer-events-auto bg-card border border-border rounded-2xl shadow-2xl overflow-hidden w-[90vw] max-w-[380px] animate-fade-scale-in"
+                className="absolute bg-card border border-border rounded-2xl shadow-2xl overflow-hidden w-[90vw] max-w-[380px] animate-fade-scale-in z-[100000]"
                 style={{
                   top: notifRef.current ? notifRef.current.getBoundingClientRect().bottom + 12 : '80px',
                   right: notifRef.current ? Math.max(16, window.innerWidth - notifRef.current.getBoundingClientRect().right) : '16px'

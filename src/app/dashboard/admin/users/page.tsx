@@ -75,15 +75,15 @@ function CreateDepartmentModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-zinc-950 border border-white/10 rounded-3xl w-[95vw] md:max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-300">
-        <div className="flex items-center gap-3 pb-4 border-b border-white/5">
-          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-card border border-border rounded-3xl w-[95vw] md:max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="flex items-center gap-3 pb-4 border-b border-border">
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500">
             <Building2 className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white font-serif">Add New Department</h2>
-            <p className="text-xs text-zinc-400">Register a new department in the organization.</p>
+            <h2 className="text-xl font-bold text-foreground font-serif">Add New Department</h2>
+            <p className="text-xs text-muted-foreground">Register a new department in the organization.</p>
           </div>
         </div>
 
@@ -96,10 +96,10 @@ function CreateDepartmentModal({
           createDeptMutation.mutate({ name: name.trim(), isApprover });
         }} className="py-4 space-y-4">
           <div>
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5 ml-1">Department Name</label>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5 ml-1">Department Name</label>
             <input
               placeholder="e.g. Logistics & Fleet, Legal..."
-              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
+              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-primary/50 transition-colors"
               value={name}
               onChange={e => setName(e.target.value)}
               required
@@ -107,7 +107,7 @@ function CreateDepartmentModal({
             />
           </div>
 
-          <label className="flex items-center gap-3 p-3 bg-zinc-900/60 border border-white/5 rounded-xl cursor-pointer hover:bg-zinc-900 transition-colors">
+          <label className="flex items-center gap-3 p-3 bg-secondary/40 border border-border rounded-xl cursor-pointer hover:bg-secondary transition-colors">
             <input
               type="checkbox"
               checked={isApprover}
@@ -115,8 +115,8 @@ function CreateDepartmentModal({
               className="w-4 h-4 rounded text-brand-primary accent-brand-primary cursor-pointer"
             />
             <div>
-              <p className="text-xs font-semibold text-white">Approver Department</p>
-              <p className="text-[10px] text-zinc-400">Members of this department will have default approval capabilities.</p>
+              <p className="text-xs font-semibold text-foreground">Approver Department</p>
+              <p className="text-[10px] text-muted-foreground">Members of this department will have default approval capabilities.</p>
             </div>
           </label>
 
@@ -124,14 +124,14 @@ function CreateDepartmentModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors border border-border"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={createDeptMutation.isPending}
-              className="flex-1 px-4 py-2.5 bg-brand-primary rounded-xl text-sm font-bold text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 bg-brand-primary rounded-xl text-sm font-bold text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 shadow-sm"
             >
               {createDeptMutation.isPending ? "Creating..." : "Add Department"}
             </button>
@@ -225,17 +225,17 @@ function CreateUserModal({
   );
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-zinc-950 border border-white/10 rounded-3xl w-[95vw] md:max-w-xl max-h-[85vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-300 custom-scrollbar">
-        <div className="p-6 border-b border-white/5 bg-white/5 flex items-center justify-between">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-card border border-border rounded-3xl w-[95vw] md:max-w-xl max-h-[85vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-300 custom-scrollbar">
+        <div className="p-6 border-b border-border bg-secondary/30 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-white font-serif">Create New User</h2>
-            <p className="text-xs text-zinc-400 mt-1">Onboard a new system user with roles and department assignments.</p>
+            <h2 className="text-xl font-bold text-foreground font-serif">Create New User</h2>
+            <p className="text-xs text-muted-foreground mt-1">Onboard a new system user with roles and department assignments.</p>
           </div>
           <button
             type="button"
             onClick={onOpenCreateDept}
-            className="flex items-center gap-1 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white rounded-xl text-xs font-semibold transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-xl text-xs font-semibold transition-colors"
           >
             <Plus className="w-3.5 h-3.5" />
             New Dept
@@ -245,11 +245,11 @@ function CreateUserModal({
         <form onSubmit={(e) => { e.preventDefault(); createMutation.mutate(formData); }} className="p-6 space-y-4">
           <div className="space-y-4">
             <div>
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5 ml-1">Account Info</label>
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5 ml-1">Account Info</label>
               <div className="grid grid-cols-2 gap-3">
                 <input
                   placeholder="Username"
-                  className="bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
+                  className="bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-primary/50 transition-colors"
                   value={formData.username}
                   onChange={e => setFormData({...formData, username: e.target.value})}
                   required
@@ -257,7 +257,7 @@ function CreateUserModal({
                 <input
                   placeholder="Password"
                   type="password"
-                  className="bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
+                  className="bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-primary/50 transition-colors"
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
                   required
@@ -268,7 +268,7 @@ function CreateUserModal({
             <input
               placeholder="Email Address"
               type="email"
-              className="w-full bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
+              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-primary/50 transition-colors"
               value={formData.email}
               onChange={e => setFormData({...formData, email: e.target.value})}
               required
@@ -276,7 +276,7 @@ function CreateUserModal({
 
             <div className="grid grid-cols-2 gap-3">
               <select
-                className="bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors appearance-none"
+                className="bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-primary/50 transition-colors appearance-none"
                 value={formData.role}
                 onChange={e => setFormData({...formData, role: e.target.value})}
               >
@@ -288,7 +288,7 @@ function CreateUserModal({
               </select>
 
               <select
-                className="bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors appearance-none"
+                className="bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-primary/50 transition-colors appearance-none"
                 value={formData.department}
                 onChange={e => {
                   const newDept = e.target.value;
@@ -308,12 +308,12 @@ function CreateUserModal({
             </div>
 
             {/* Additional Assigned Departments Section */}
-            <div className="bg-zinc-900/40 p-3.5 rounded-2xl border border-white/5 space-y-2.5">
+            <div className="bg-secondary/30 p-3.5 rounded-2xl border border-border space-y-2.5">
               <div className="flex items-center justify-between">
-                <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">
                   Additional Assigned Departments ({formData.assignedDepartments.length})
                 </label>
-                <span className="text-[10px] text-zinc-500">Multi-Dept Access</span>
+                <span className="text-[10px] text-muted-foreground font-medium">Multi-Dept Access</span>
               </div>
 
               {formData.assignedDepartments.length > 0 && (
@@ -321,16 +321,16 @@ function CreateUserModal({
                   {formData.assignedDepartments.map(a => (
                     <div
                       key={a.department}
-                      className="flex items-center gap-2 px-2.5 py-1 bg-zinc-900 border border-white/10 rounded-xl text-xs text-white"
+                      className="flex items-center gap-2 px-2.5 py-1 bg-card border border-border rounded-xl text-xs text-foreground shadow-sm"
                     >
                       <span className="font-semibold">{a.department}</span>
-                      <span className="text-[10px] text-brand-primary capitalize bg-brand-primary/10 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] text-brand-primary capitalize bg-brand-primary/10 px-1.5 py-0.5 rounded font-medium">
                         {a.role === 'both' ? 'User + Approver' : a.role}
                       </span>
                       <button
                         type="button"
                         onClick={() => handleRemoveAssigned(a.department)}
-                        className="text-zinc-400 hover:text-rose-400 ml-1"
+                        className="text-muted-foreground hover:text-rose-500 ml-1 transition-colors"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -344,7 +344,7 @@ function CreateUserModal({
                   <select
                     value={selectedDeptToAdd}
                     onChange={e => setSelectedDeptToAdd(e.target.value)}
-                    className="bg-zinc-900 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white outline-none focus:border-brand-primary/50"
+                    className="bg-background border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-brand-primary/50"
                   >
                     <option value="">Select department...</option>
                     {unassignedDepts.map(d => (
@@ -355,7 +355,7 @@ function CreateUserModal({
                   <select
                     value={selectedRoleToAdd}
                     onChange={e => setSelectedRoleToAdd(e.target.value as any)}
-                    className="bg-zinc-900 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white outline-none focus:border-brand-primary/50"
+                    className="bg-background border border-border rounded-xl px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-brand-primary/50"
                   >
                     <option value="both">Both (User + Approver)</option>
                     <option value="user">User (Submit-only)</option>
@@ -366,7 +366,7 @@ function CreateUserModal({
                     type="button"
                     onClick={handleAddAssigned}
                     disabled={!selectedDeptToAdd}
-                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-all"
+                    className="px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border disabled:opacity-40 text-foreground rounded-xl text-xs font-semibold flex items-center justify-center gap-1 transition-all"
                   >
                     <Plus className="w-3.5 h-3.5" /> Add
                   </button>
@@ -376,7 +376,7 @@ function CreateUserModal({
 
             <input
               placeholder="Contact Number"
-              className="w-full bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
+              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-primary/50 transition-colors"
               value={formData.contact_number}
               onChange={e => setFormData({...formData, contact_number: e.target.value})}
             />
@@ -386,14 +386,14 @@ function CreateUserModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors border border-border"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={createMutation.isPending}
-              className="flex-1 px-4 py-2.5 bg-brand-primary rounded-xl text-sm font-bold text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 bg-brand-primary rounded-xl text-sm font-bold text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 shadow-sm"
             >
               {createMutation.isPending ? "Creating..." : "Create User"}
             </button>
@@ -503,22 +503,22 @@ function ManageDepartmentsModal({
   );
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-zinc-950 border border-white/10 rounded-3xl w-[95vw] md:max-w-2xl max-h-[90vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-300">
-        <div className="flex items-center justify-between pb-4 border-b border-white/5 shrink-0">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-card border border-border rounded-3xl w-[95vw] md:max-w-2xl max-h-[90vh] flex flex-col p-6 shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="flex items-center justify-between pb-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400">
+            <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-500">
               <Building2 className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-xl font-bold text-white font-serif">Department Alignment & Access</h2>
-              <p className="text-xs text-zinc-400">Manage primary, secondary roles (User/Approver/Both), and freeze state for <span className="text-white font-semibold">{user.username}</span>.</p>
+              <h2 className="text-xl font-bold text-foreground font-serif">Department Alignment & Access</h2>
+              <p className="text-xs text-muted-foreground">Manage primary, secondary roles (User/Approver/Both), and freeze state for <span className="text-foreground font-semibold">{user.username}</span>.</p>
             </div>
           </div>
           <button
             type="button"
             onClick={onOpenCreateDept}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-zinc-300 hover:text-white rounded-xl text-xs font-semibold transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-secondary hover:bg-secondary/80 border border-border text-foreground rounded-xl text-xs font-semibold transition-colors shrink-0"
           >
             <Plus className="w-3.5 h-3.5" />
             New Dept
@@ -527,9 +527,9 @@ function ManageDepartmentsModal({
 
         <div className="py-4 space-y-5 overflow-y-auto custom-scrollbar flex-1 pr-1">
           {/* Primary Department */}
-          <div className="bg-zinc-900/60 p-4 rounded-2xl border border-white/5">
+          <div className="bg-secondary/30 p-4 rounded-2xl border border-border">
             <div className="flex items-center justify-between mb-2">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">
                 Primary Department (Home Dept)
               </label>
               <span className="text-[10px] bg-brand-primary/10 text-brand-primary font-bold px-2 py-0.5 rounded-full border border-brand-primary/20">
@@ -543,7 +543,7 @@ function ManageDepartmentsModal({
                 setPrimaryDept(newPrimary);
                 setAssignments(prev => prev.filter(a => a.department.toLowerCase() !== newPrimary.toLowerCase()));
               }}
-              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50"
+              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-primary/50"
             >
               {departments.map(d => (
                 <option key={d.id} value={d.name}>{d.name} {d.isApprover ? "(Approver Dept)" : ""}</option>
@@ -554,16 +554,16 @@ function ManageDepartmentsModal({
           {/* Assigned Departments List */}
           <div>
             <div className="flex items-center justify-between mb-2.5">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
                 Assigned Additional Departments ({assignments.length})
               </label>
-              <span className="text-xs text-zinc-500">
+              <span className="text-xs text-muted-foreground">
                 Granular Roles & Freeze Controls
               </span>
             </div>
 
             {assignments.length === 0 ? (
-              <div className="p-5 text-center bg-zinc-900/40 border border-dashed border-white/10 rounded-2xl text-xs text-zinc-500">
+              <div className="p-5 text-center bg-secondary/20 border border-dashed border-border rounded-2xl text-xs text-muted-foreground">
                 No additional departments assigned yet. Add one below.
               </div>
             ) : (
@@ -575,29 +575,29 @@ function ManageDepartmentsModal({
                       key={assignment.department}
                       className={`p-3.5 rounded-2xl border transition-all flex flex-col md:flex-row md:items-center justify-between gap-3 ${
                         isFrozen 
-                          ? "bg-cyan-950/20 border-cyan-500/30 text-zinc-300"
-                          : "bg-zinc-900/80 border-white/5 text-white"
+                          ? "bg-cyan-500/10 border-cyan-500/30 text-foreground"
+                          : "bg-secondary/40 border-border text-foreground"
                       }`}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         <div className={`p-2 rounded-xl border shrink-0 ${
                           isFrozen 
-                            ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-400"
+                            ? "bg-cyan-500/10 border-cyan-500/20 text-cyan-500"
                             : "bg-brand-primary/10 border-brand-primary/20 text-brand-primary"
                         }`}>
                           {isFrozen ? <Snowflake className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
                         </div>
                         <div className="min-w-0">
-                          <p className={`text-sm font-bold truncate ${isFrozen ? "text-cyan-200 line-through decoration-cyan-400/50" : "text-white"}`}>
+                          <p className={`text-sm font-bold truncate ${isFrozen ? "text-cyan-600 dark:text-cyan-300 line-through decoration-cyan-500/50" : "text-foreground"}`}>
                             {assignment.department}
                           </p>
                           <div className="flex items-center gap-2 mt-0.5">
                             {isFrozen ? (
-                              <span className="text-[10px] font-bold text-cyan-400 flex items-center gap-1">
+                              <span className="text-[10px] font-bold text-cyan-600 dark:text-cyan-400 flex items-center gap-1">
                                 <Snowflake className="w-3 h-3" /> Access Frozen
                               </span>
                             ) : (
-                              <span className="text-[10px] font-semibold text-emerald-400 flex items-center gap-1">
+                              <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                                 <CheckCircle2 className="w-3 h-3" /> Active Access
                               </span>
                             )}
@@ -607,7 +607,7 @@ function ManageDepartmentsModal({
 
                       <div className="flex flex-wrap items-center gap-2">
                         {/* Role Selector */}
-                        <div className="flex items-center bg-zinc-950 border border-white/10 rounded-xl p-0.5 text-xs">
+                        <div className="flex items-center bg-background border border-border rounded-xl p-0.5 text-xs">
                           {(['user', 'approver', 'both'] as const).map(r => (
                             <button
                               key={r}
@@ -616,11 +616,11 @@ function ManageDepartmentsModal({
                               className={`px-2.5 py-1 rounded-lg font-semibold capitalize transition-all ${
                                 assignment.role === r
                                   ? r === 'approver'
-                                    ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
+                                    ? "bg-blue-500/20 text-blue-600 dark:text-blue-400 border border-blue-500/30"
                                     : r === 'both'
-                                    ? "bg-purple-500/20 text-purple-400 border border-purple-500/30"
-                                    : "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                  : "text-zinc-400 hover:text-white"
+                                    ? "bg-purple-500/20 text-purple-600 dark:text-purple-400 border border-purple-500/30"
+                                    : "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                                  : "text-muted-foreground hover:text-foreground"
                               }`}
                             >
                               {r === 'both' ? 'User + Approver' : r}
@@ -634,8 +634,8 @@ function ManageDepartmentsModal({
                           onClick={() => handleToggleFreeze(assignment.department)}
                           className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
                             isFrozen 
-                              ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                              : "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border-cyan-500/30"
+                              ? "bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                              : "bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 border-cyan-500/30"
                           }`}
                           title={isFrozen ? "Unfreeze department access" : "Freeze department access"}
                         >
@@ -654,7 +654,7 @@ function ManageDepartmentsModal({
                         <button
                           type="button"
                           onClick={() => handleRemoveAssignment(assignment.department)}
-                          className="p-1.5 text-zinc-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors border border-transparent hover:border-rose-500/20"
+                          className="p-1.5 text-muted-foreground hover:text-rose-500 hover:bg-rose-500/10 rounded-xl transition-colors border border-transparent hover:border-rose-500/20"
                           title="Take away / Remove department"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -669,15 +669,15 @@ function ManageDepartmentsModal({
 
           {/* Add Additional Department Section */}
           {unassignedDepts.length > 0 && (
-            <div className="bg-zinc-900/40 p-4 rounded-2xl border border-white/5 space-y-3">
-              <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block">
+            <div className="bg-secondary/30 p-4 rounded-2xl border border-border space-y-3">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">
                 Assign Another Department
               </label>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                 <select
                   value={newDeptName}
                   onChange={e => setNewDeptName(e.target.value)}
-                  className="bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-brand-primary/50"
+                  className="bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-brand-primary/50"
                 >
                   <option value="">Select department to assign...</option>
                   {unassignedDepts.map(d => (
@@ -688,7 +688,7 @@ function ManageDepartmentsModal({
                 <select
                   value={newDeptRole}
                   onChange={e => setNewDeptRole(e.target.value as any)}
-                  className="bg-zinc-900 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-brand-primary/50"
+                  className="bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground outline-none focus:border-brand-primary/50"
                 >
                   <option value="both">User + Approver (Both)</option>
                   <option value="user">User (Submit-only)</option>
@@ -699,7 +699,7 @@ function ManageDepartmentsModal({
                   type="button"
                   onClick={handleAddAssignment}
                   disabled={!newDeptName}
-                  className="px-4 py-2 bg-white/10 hover:bg-white/20 disabled:opacity-40 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                  className="px-4 py-2 bg-secondary hover:bg-secondary/80 border border-border disabled:opacity-40 text-foreground rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm"
                 >
                   <Plus className="w-3.5 h-3.5" /> Assign Department
                 </button>
@@ -708,11 +708,11 @@ function ManageDepartmentsModal({
           )}
         </div>
 
-        <div className="flex gap-3 pt-4 border-t border-white/5 shrink-0">
+        <div className="flex gap-3 pt-4 border-t border-border shrink-0">
           <button
             type="button"
             onClick={onClose}
-            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+            className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors border border-border"
           >
             Cancel
           </button>
@@ -720,7 +720,7 @@ function ManageDepartmentsModal({
             type="button"
             onClick={handleSave}
             disabled={updateMutation.isPending}
-            className="flex-1 px-4 py-2.5 bg-brand-primary rounded-xl text-sm font-bold text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+            className="flex-1 px-4 py-2.5 bg-brand-primary rounded-xl text-sm font-bold text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 shadow-sm"
           >
             {updateMutation.isPending ? "Saving..." : "Save All Changes"}
           </button>
@@ -754,10 +754,10 @@ function ResetPasswordModal({
   if (!isOpen || !user) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-zinc-950 border border-white/10 rounded-3xl w-[95vw] md:max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-300">
-        <h2 className="text-xl font-bold text-white font-serif">Reset User Password</h2>
-        <p className="text-xs text-zinc-400 mt-1 mb-4">Set a new password for user <span className="text-white font-bold">{user.username}</span> ({user.email}).</p>
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-card border border-border rounded-3xl w-[95vw] md:max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-300">
+        <h2 className="text-xl font-bold text-foreground font-serif">Reset User Password</h2>
+        <p className="text-xs text-muted-foreground mt-1 mb-4">Set a new password for user <span className="text-foreground font-bold">{user.username}</span> ({user.email}).</p>
 
         <form onSubmit={(e) => {
           e.preventDefault();
@@ -770,7 +770,7 @@ function ResetPasswordModal({
           <input
             type="password"
             placeholder="New Password (min 6 characters)"
-            className="w-full bg-zinc-900 border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
+            className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-primary/50 transition-colors"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required
@@ -780,14 +780,14 @@ function ResetPasswordModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors border border-border"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={resetPasswordMutation.isPending}
-              className="flex-1 px-4 py-2.5 bg-brand-primary rounded-xl text-sm font-bold text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 bg-brand-primary rounded-xl text-sm font-bold text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 shadow-sm"
             >
               {resetPasswordMutation.isPending ? "Updating..." : "Set Password"}
             </button>
@@ -834,15 +834,15 @@ function EditUserModal({
   if (!isOpen || !user) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-      <div className="bg-zinc-950 border border-white/10 rounded-3xl w-[95vw] md:max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-300">
-        <div className="flex items-center gap-3 pb-4 border-b border-white/5">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-card border border-border rounded-3xl w-[95vw] md:max-w-md p-6 shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="flex items-center gap-3 pb-4 border-b border-border">
           <div className="p-2.5 rounded-xl bg-brand-primary/10 border border-brand-primary/20 text-brand-primary">
             <UserCog className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-white font-serif">Edit User Details</h2>
-            <p className="text-xs text-zinc-400">Change username, email address, or contact details.</p>
+            <h2 className="text-xl font-bold text-foreground font-serif">Edit User Details</h2>
+            <p className="text-xs text-muted-foreground">Change username, email address, or contact details.</p>
           </div>
         </div>
 
@@ -859,11 +859,11 @@ function EditUserModal({
           });
         }} className="space-y-4 pt-4">
           <div>
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5 ml-1">Username</label>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5 ml-1">Username</label>
             <input
               type="text"
               placeholder="Username"
-              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
+              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-primary/50 transition-colors"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
@@ -872,11 +872,11 @@ function EditUserModal({
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5 ml-1">Email Address</label>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5 ml-1">Email Address</label>
             <input
               type="email"
               placeholder="Email Address"
-              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
+              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-primary/50 transition-colors"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -884,11 +884,11 @@ function EditUserModal({
           </div>
 
           <div>
-            <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1.5 ml-1">Contact Number</label>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block mb-1.5 ml-1">Contact Number</label>
             <input
               type="text"
               placeholder="Contact Number"
-              className="w-full bg-zinc-900 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white outline-none focus:border-brand-primary/50 transition-colors"
+              className="w-full bg-background border border-border rounded-xl px-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-primary/50 transition-colors"
               value={contactNumber}
               onChange={(e) => setContactNumber(e.target.value)}
             />
@@ -898,14 +898,14 @@ function EditUserModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
+              className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors border border-border"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={editUserMutation.isPending}
-              className="flex-1 px-4 py-2.5 bg-brand-primary rounded-xl text-sm font-bold text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50"
+              className="flex-1 px-4 py-2.5 bg-brand-primary rounded-xl text-sm font-bold text-white hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 shadow-sm"
             >
               {editUserMutation.isPending ? "Saving..." : "Save Changes"}
             </button>
@@ -1143,16 +1143,16 @@ export default function UserManagementPage() {
       {/* Mobile User Action Sheet */}
       {userActionMenu && (
         <div className="fixed inset-0 z-[150] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-zinc-950 border border-white/10 w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-3 animate-in slide-in-from-bottom-4 duration-300">
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="bg-card border border-border w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-3 animate-in slide-in-from-bottom-4 duration-300">
+            <div className="flex items-center justify-between border-b border-border pb-3">
               <div className="min-w-0">
-                <p className="text-sm font-bold text-white truncate">{userActionMenu.username}</p>
-                <p className="text-xs text-zinc-400 truncate">{userActionMenu.email}</p>
+                <p className="text-sm font-bold text-foreground truncate">{userActionMenu.username}</p>
+                <p className="text-xs text-muted-foreground truncate">{userActionMenu.email}</p>
               </div>
               <button
                 onClick={() => setUserActionMenu(null)}
                 aria-label="Close actions menu"
-                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-zinc-400 hover:text-white touch-target"
+                className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground touch-target"
               >
                 ✕
               </button>
@@ -1164,7 +1164,7 @@ export default function UserManagementPage() {
                   setConfirmResetUser(userActionMenu);
                   setUserActionMenu(null);
                 }}
-                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 text-xs font-bold transition-colors border border-amber-500/20 flex items-center justify-between touch-target"
+                className="w-full min-h-[44px] px-4 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold transition-colors border border-amber-500/20 flex items-center justify-between touch-target"
               >
                 <span>Reset User Password</span>
                 <Key className="w-4 h-4" />

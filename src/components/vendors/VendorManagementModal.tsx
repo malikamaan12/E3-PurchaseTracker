@@ -100,12 +100,12 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[100] transition-all" />
+        <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-all" />
         <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[95vw] md:max-w-2xl z-[101] focus:outline-none">
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            className="bg-background/80 backdrop-blur-3xl p-0 border border-border shadow-2xl relative overflow-hidden flex flex-col max-h-[90dvh] rounded-3xl md:rounded-[2.5rem]"
+            className="bg-card p-0 border border-border/80 shadow-2xl relative overflow-hidden flex flex-col max-h-[90dvh] rounded-3xl md:rounded-[2.5rem]"
           >
             {/* Header */}
             <div className="p-6 md:p-8 border-b border-border/20 flex items-center justify-between bg-transparent relative z-10 shrink-0">

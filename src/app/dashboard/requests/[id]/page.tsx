@@ -954,7 +954,7 @@ export default function RequestDetailPage() {
 
       {/* ── REVOKE APPROVAL MODAL (Super Admin Exclusive) ─────────────────── */}
       {revokeTarget && isSuperAdmin && (
-        <div className="fixed inset-0 z-[200] bg-background/80 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-rose-500/10 flex items-center justify-center shrink-0">
@@ -1013,7 +1013,7 @@ export default function RequestDetailPage() {
 
       {/* ── CLARIFICATION / MODIFICATION MODAL (Approver / Super Admin) ─────── */}
       {clarificationTarget && (
-        <div className="fixed inset-0 z-[200] bg-background/80 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           <div className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
@@ -1113,7 +1113,7 @@ export default function RequestDetailPage() {
 
       {/* Expanded Document Preview Modal */}
       {isPreviewModalOpen && activeAttachment && (
-        <div className="fixed inset-0 z-[100] bg-background/90 backdrop-blur-xl flex flex-col p-4 md:p-6 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex flex-col p-4 md:p-6 animate-in fade-in duration-200">
           <div className="flex justify-between items-center bg-card border border-border/50 px-6 py-4 rounded-2xl mb-4 shadow-xl">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-indigo-500/10 rounded-xl text-indigo-600">
@@ -1279,7 +1279,7 @@ function ErrorState({ error }: { error?: any }) {
 function AuditTrailModal({ isOpen, onClose, auditLogs }: { isOpen: boolean, onClose: () => void, auditLogs: any[] }) {
   if (!isOpen) return null;
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-card border border-border/50 w-full max-w-2xl rounded-2xl shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
         <div className="p-5 border-b border-border/50 flex justify-between items-center bg-gradient-to-r from-muted/50 to-transparent rounded-t-2xl">
           <div className="flex items-center gap-2">

@@ -29,9 +29,9 @@ const CommandDialog = ({ children, ...props }: CommandDialogProps) => {
   return (
     <DialogPrimitive.Root {...props}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" />
-        <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-[101] grid w-[95vw] max-w-xl translate-x-[-50%] translate-y-[-50%] gap-4 border border-white/10 bg-zinc-950 p-0 shadow-2xl rounded-3xl animate-in zoom-in-95 duration-300 overflow-hidden">
-          <Command className="[&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-widest [&_[cmdk-group-heading]]:text-zinc-500 [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-14 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-2.5 [&_[cmdk-item]]:rounded-xl [&_[cmdk-item]]:cursor-pointer [&_[cmdk-item][data-selected=true]]:bg-white/10 [&_[cmdk-item][data-selected=true]]:text-white">
+        <DialogPrimitive.Overlay className="fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" />
+        <DialogPrimitive.Content className="fixed left-[50%] top-[50%] z-[151] grid w-[95vw] max-w-xl translate-x-[-50%] translate-y-[-50%] gap-4 border border-border bg-card p-0 shadow-2xl rounded-3xl animate-in zoom-in-95 duration-300 overflow-hidden">
+          <Command className="bg-card text-foreground [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-2 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-bold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-widest [&_[cmdk-group-heading]]:text-muted-foreground [&_[cmdk-group]]:px-2 [&_[cmdk-input-wrapper]_svg]:h-5 [&_[cmdk-input-wrapper]_svg]:w-5 [&_[cmdk-input]]:h-14 [&_[cmdk-item]]:px-3 [&_[cmdk-item]]:py-2.5 [&_[cmdk-item]]:rounded-xl [&_[cmdk-item]]:cursor-pointer [&_[cmdk-item][data-selected=true]]:bg-secondary [&_[cmdk-item][data-selected=true]]:text-foreground">
             {children}
           </Command>
         </DialogPrimitive.Content>

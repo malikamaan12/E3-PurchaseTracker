@@ -465,14 +465,14 @@ export default function ProjectManagementPage() {
 
       {/* Advanced Project Creation Modal */}
       {isAdding && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xl flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
-           <div className="bg-background border border-white/10 w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 h-full max-h-[90vh] flex flex-col">
-              <div className="p-8 border-b border-white/5 bg-secondary/20 flex justify-between items-center">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[150] p-4 animate-in fade-in duration-300">
+           <div className="bg-card border border-border w-full max-w-2xl rounded-[3rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 h-full max-h-[90vh] flex flex-col">
+              <div className="p-8 border-b border-border bg-secondary/20 flex justify-between items-center">
                   <div>
-                    <h2 className="text-2xl font-serif font-bold tracking-tight">Launch Procurement Project</h2>
+                    <h2 className="text-2xl font-serif font-bold tracking-tight text-foreground">Launch Procurement Project</h2>
                     <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest mt-1">Financial Commissioning & Budgeting</p>
                   </div>
-                  <button onClick={() => setIsAdding(false)} className="bg-white/5 hover:bg-white/10 p-2.5 rounded-2xl border border-white/5 transition-colors">
+                  <button onClick={() => setIsAdding(false)} className="bg-secondary hover:bg-secondary/80 text-muted-foreground hover:text-foreground p-2.5 rounded-2xl border border-border transition-colors">
                     <X className="w-6 h-6" />
                   </button>
               </div>
@@ -714,7 +714,7 @@ function DeleteSubPurposeModal({
       className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-in fade-in duration-200"
       onKeyDown={handleKeyDown}
     >
-      <div className="bg-background border border-white/10 w-full max-w-lg rounded-[2.5rem] shadow-2xl p-8 overflow-hidden relative animate-in zoom-in-95 duration-200">
+      <div className="bg-card border border-border w-full max-w-lg rounded-[2.5rem] shadow-2xl p-8 overflow-hidden relative animate-in zoom-in-95 duration-200">
         <div className="flex items-center gap-4 mb-6">
           <div className={`p-4 rounded-2xl ${hasUsedAmount ? "bg-cyan-500/10 text-cyan-500 border border-cyan-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"}`}>
             {hasUsedAmount ? <Snowflake className="w-7 h-7 animate-pulse" /> : <Trash2 className="w-7 h-7" />}

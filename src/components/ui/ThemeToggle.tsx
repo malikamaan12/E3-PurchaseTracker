@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
-  const { theme, setTheme } = useTheme();
+  const { setTheme, resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -14,17 +14,20 @@ export function ThemeToggle() {
   }, []);
 
   if (!mounted) {
-    return <div className="w-10 h-10" />;
+    return <div className="w-10 h-10 rounded-xl bg-secondary/40 border border-border" />;
   }
+
+  const isDark = resolvedTheme === "dark";
 
   return (
     <button
-      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-      className="p-2 rounded-xl bg-secondary hover:bg-secondary/80 transition-all border border-border flex items-center justify-center w-10 h-10 overflow-hidden relative group"
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+      className="p-2 rounded-xl bg-secondary/50 hover:bg-secondary transition-all border border-border flex items-center justify-center w-10 h-10 overflow-hidden relative group shadow-sm text-foreground"
       aria-label="Toggle Theme"
+      title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
     >
       <AnimatePresence mode="wait" initial={false}>
-        {theme === "dark" ? (
+        {isDark ? (
           <motion.div
             key="moon"
             initial={{ y: 20, rotate: 45, opacity: 0 }}

@@ -418,14 +418,14 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleCloseWithDraft}
-            className="absolute inset-0 bg-background/90 backdrop-blur-md cursor-pointer"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
           />
 
           <motion.div
             initial={{ opacity: 0, scale: 0.98, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 10 }}
-            className={`relative w-full h-full sm:w-[95vw] md:w-[85vw] lg:w-[1000px] bg-background/95 sm:bg-background/70 backdrop-blur-3xl border sm:rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.3)] overflow-hidden flex flex-col max-h-[100dvh] sm:max-h-[95dvh] md:max-h-[85vh] z-[101] transition-all duration-300 ${isOverBudget ? "border-rose-500/50" : "border-border/30"}`}
+            className={`relative w-full h-full sm:w-[95vw] md:w-[85vw] lg:w-[1000px] bg-card border sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[100dvh] sm:max-h-[95dvh] md:max-h-[85vh] z-[101] transition-all duration-300 ${isOverBudget ? "border-rose-500/50" : "border-border/60"}`}
           >
             {/* Header */}
             <div className={`p-4 sm:p-6 border-b border-border/20 flex items-center justify-between transition-colors shrink-0 ${isOverBudget ? "bg-rose-500/5" : "bg-transparent"}`}>
