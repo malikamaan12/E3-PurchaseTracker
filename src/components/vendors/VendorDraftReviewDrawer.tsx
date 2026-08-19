@@ -21,6 +21,7 @@ import {
   Globe,
   Hash,
 } from "lucide-react";
+import { toast } from "sonner";
 import { VendorOnboardingBadge } from "./VendorOnboardingBadge";
 
 interface VendorDraftReviewDrawerProps {
@@ -190,7 +191,7 @@ export function VendorDraftReviewDrawer({
       a.click();
       document.body.removeChild(a);
     } catch (err: any) {
-      alert(err.message || "Could not download document");
+      toast.error(err.message || "Could not download document");
     }
   };
 
@@ -203,9 +204,9 @@ export function VendorDraftReviewDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
-      <div className="w-full max-w-2xl bg-slate-900 border-l border-slate-800 h-full flex flex-col shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300">
+      <div className="w-full max-w-2xl bg-slate-950 border-l border-slate-800 h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
         {/* Header */}
-        <div className="p-5 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold">
               <Building2 className="w-5 h-5" />
@@ -244,15 +245,6 @@ export function VendorDraftReviewDrawer({
                   <span>{errorMessage}</span>
                 </div>
               )}
-
-              {successMessage && (
-                <div className="p-3.5 bg-emerald-950/40 border border-emerald-900/80 rounded-xl text-xs text-emerald-300 flex items-center gap-2">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>{successMessage}</span>
-                </div>
-              )}
-
-              {/* Newly Generated Link Modal Alert */}
               {newLinkResult && (
                 <div className="p-4 bg-slate-950 border border-primary/40 rounded-2xl space-y-3">
                   <div className="flex items-center justify-between">
@@ -277,7 +269,7 @@ export function VendorDraftReviewDrawer({
                       type="button"
                       onClick={() => {
                         navigator.clipboard.writeText(newLinkResult.invitationUrl);
-                        alert("Invitation link copied to clipboard!");
+                        toast.success("Invitation link copied to clipboard!");
                       }}
                       className="px-3 py-1.5 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-semibold"
                     >

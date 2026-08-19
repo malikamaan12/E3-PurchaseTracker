@@ -64,7 +64,7 @@ export function NotificationToastWatcher() {
         const actionHandler = targetUrl
           ? {
               label: notif.type === "purchase_request_changes_requested" ? "Revise" : 
-                     notif.type === "approval_required" ? "Review" : "View PR",
+                     notif.type === "approval_required" ? "Review" : "View",
               onClick: () => {
                 // Mark notification as read when clicking action
                 apiClient.notifications.markAsRead(notif.id).catch(() => {});
@@ -75,45 +75,51 @@ export function NotificationToastWatcher() {
             }
           : undefined;
 
+        // Clean and format message content
+        const cleanTitle = (notif.title || "")
+          .replace(/_/g, " ")
+          .replace(/\b\w/g, (c: string) => c.toUpperCase()) || "System Notification";
+        const cleanMessage = notif.message || "";
+
         switch (notif.type) {
           case "purchase_request_approved":
-            toast.success(notif.title || "Request Approved", {
-              description: notif.message,
+            toast.success(cleanTitle || "Request Approved", {
+              description: cleanMessage,
               action: actionHandler,
-              duration: 7000,
+              duration: 4000,
             });
             break;
 
           case "purchase_request_rejected":
-            toast.error(notif.title || "Request Rejected", {
-              description: notif.message,
+            toast.error(cleanTitle || "Request Rejected", {
+              description: cleanMessage,
               action: actionHandler,
-              duration: 9000,
+              duration: 5000,
             });
             break;
 
           case "purchase_request_changes_requested":
-            toast.warning(notif.title || "Changes Requested", {
-              description: notif.message,
+            toast.warning(cleanTitle || "Changes Requested", {
+              description: cleanMessage,
               action: actionHandler,
-              duration: 9000,
+              duration: 5000,
             });
             break;
 
           case "approval_required":
           case "purchase_request_submitted":
-            toast.info(notif.title || "Approval Required", {
-              description: notif.message,
+            toast.info(cleanTitle || "Approval Required", {
+              description: cleanMessage,
               action: actionHandler,
-              duration: 8000,
+              duration: 4000,
             });
             break;
 
           default:
-            toast(notif.title || "Notification", {
-              description: notif.message,
+            toast(cleanTitle, {
+              description: cleanMessage,
               action: actionHandler,
-              duration: 6000,
+              duration: 4000,
             });
             break;
         }

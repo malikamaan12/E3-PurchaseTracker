@@ -28,11 +28,24 @@ function ThemeAwareToaster() {
   
   return (
     <Toaster 
-      position="top-right" 
+      position="bottom-right" 
       richColors 
       closeButton
       expand={false}
       theme={(currentTheme as "light" | "dark") || "dark"}
+      offset="24px"
+      gap={10}
+      toastOptions={{
+        duration: 4000,
+        classNames: {
+          toast: "bg-card/95 backdrop-blur-xl border border-border/80 shadow-2xl rounded-2xl p-4 font-sans text-xs ring-1 ring-border/50",
+          title: "font-bold text-foreground text-sm tracking-tight",
+          description: "text-muted-foreground text-xs leading-relaxed mt-0.5",
+          actionButton: "!bg-primary !text-primary-foreground font-semibold !text-xs !rounded-xl !px-3.5 !py-2 hover:!opacity-90 transition-all shadow-md shadow-primary/20",
+          cancelButton: "!bg-secondary !text-secondary-foreground font-semibold !text-xs !rounded-xl !px-3.5 !py-2 hover:!bg-secondary/80 transition-colors",
+          closeButton: "!bg-background !border !border-border !text-muted-foreground hover:!text-foreground !rounded-lg",
+        },
+      }}
     />
   );
 }

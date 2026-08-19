@@ -13,6 +13,7 @@ import {
   Calendar,
   Eye,
 } from "lucide-react";
+import { toast } from "sonner";
 
 interface RequiredDocConfig {
   type: string;
@@ -190,7 +191,7 @@ export function VendorPortalDocumentGateway({
       a.click();
       document.body.removeChild(a);
     } catch (err: any) {
-      alert(err.message || "Could not download document.");
+      toast.error(err.message || "Could not download document.");
     }
   };
 
