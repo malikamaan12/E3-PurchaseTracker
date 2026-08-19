@@ -3,6 +3,10 @@ import { getVendorSession, attachVendorSecurityHeaders } from "@/lib/vendor-auth
 import { db } from "@db";
 import { vendorDocuments } from "@db/schema";
 import { eq, or, desc } from "drizzle-orm";
+import crypto from "crypto";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
@@ -55,6 +59,18 @@ export async function GET(req: NextRequest) {
     return attachVendorSecurityHeaders(response);
   } catch (error: any) {
     const status = error.statusCode || 401;
+    if (status >= 500) {
+      const correlationId = crypto.randomUUID();
+      console.error(`[VENDOR_SESSION_ERROR:${correlationId}]`, error);
+      const res = NextResponse.json(
+        {
+          error: `Unable to retrieve onboarding session. Please try again or contact the administrator. Reference: ${correlationId}`,
+          correlationId,
+        },
+        { status: 500 }
+      );
+      return attachVendorSecurityHeaders(res);
+    }
     const response = NextResponse.json(
       { error: error.message || "Failed to retrieve onboarding session." },
       { status }

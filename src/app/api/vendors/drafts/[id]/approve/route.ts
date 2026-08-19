@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { vendorOnboardingService } from "@/lib/services/VendorOnboardingService";
+import crypto from "crypto";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
@@ -35,6 +37,17 @@ export async function POST(
     });
   } catch (error: any) {
     const status = error.statusCode || 500;
+    if (status >= 500) {
+      const correlationId = crypto.randomUUID();
+      console.error(`[VENDOR_APPROVE_ERROR:${correlationId}]`, error);
+      return NextResponse.json(
+        {
+          error: `Unable to approve vendor draft. Please try again or contact the administrator. Reference: ${correlationId}`,
+          correlationId,
+        },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ error: error.message || "Failed to approve vendor" }, { status });
   }
 }

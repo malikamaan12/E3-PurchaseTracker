@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { vendorOnboardingService } from "@/lib/services/VendorOnboardingService";
+import crypto from "crypto";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
@@ -37,6 +39,17 @@ export async function POST(
     });
   } catch (error: any) {
     const status = error.statusCode || 500;
+    if (status >= 500) {
+      const correlationId = crypto.randomUUID();
+      console.error(`[VENDOR_REGEN_INVITATION_ERROR:${correlationId}]`, error);
+      return NextResponse.json(
+        {
+          error: `Unable to regenerate the vendor invitation. Please try again or contact the administrator. Reference: ${correlationId}`,
+          correlationId,
+        },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ error: error.message || "Failed to regenerate invitation" }, { status });
   }
 }
@@ -60,21 +73,28 @@ export async function DELETE(
     const draftId = parseInt(id, 10);
     if (isNaN(draftId)) return NextResponse.json({ error: "Invalid draft ID" }, { status: 400 });
 
-    const body = await req.json().catch(() => ({}));
-    const { reason } = body;
-
-    const result = await vendorOnboardingService.revokeInvitation({
+    await vendorOnboardingService.revokeInvitation({
       draftId,
       userId: user.id,
-      reason,
     });
 
     return NextResponse.json({
+      success: true,
       message: "Invitation link revoked successfully.",
-      ...result,
     });
   } catch (error: any) {
     const status = error.statusCode || 500;
+    if (status >= 500) {
+      const correlationId = crypto.randomUUID();
+      console.error(`[VENDOR_REVOKE_INVITATION_ERROR:${correlationId}]`, error);
+      return NextResponse.json(
+        {
+          error: `Unable to revoke invitation. Reference: ${correlationId}`,
+          correlationId,
+        },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ error: error.message || "Failed to revoke invitation" }, { status });
   }
 }

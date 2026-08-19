@@ -4,7 +4,9 @@ import { vendorOnboardingDrafts, vendorOnboardingTokens, vendorDocuments, users,
 import { eq, desc, inArray } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { vendorOnboardingService } from "@/lib/services/VendorOnboardingService";
+import crypto from "crypto";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
@@ -60,7 +62,12 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({ success: true, drafts: populated });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to fetch drafts" }, { status: 500 });
+    const correlationId = crypto.randomUUID();
+    console.error(`[VENDOR_DRAFTS_GET_ERROR:${correlationId}]`, error);
+    return NextResponse.json(
+      { error: `Unable to fetch drafts. Reference: ${correlationId}`, correlationId },
+      { status: 500 }
+    );
   }
 }
 
@@ -100,6 +107,17 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     const status = error.statusCode || 500;
+    if (status >= 500) {
+      const correlationId = crypto.randomUUID();
+      console.error(`[VENDOR_INVITATION_ERROR:${correlationId}]`, error);
+      return NextResponse.json(
+        {
+          error: `Unable to create the vendor invitation. Please try again or contact the administrator. Reference: ${correlationId}`,
+          correlationId,
+        },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ error: error.message || "Failed to create draft" }, { status });
   }
 }

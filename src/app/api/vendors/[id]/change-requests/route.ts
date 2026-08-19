@@ -4,7 +4,9 @@ import { vendorChangeRequests, vendors } from "@db/schema";
 import { eq, desc } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { vendorOnboardingService } from "@/lib/services/VendorOnboardingService";
+import crypto from "crypto";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
@@ -31,7 +33,12 @@ export async function GET(
 
     return NextResponse.json({ success: true, changeRequests: requests });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to fetch change requests" }, { status: 500 });
+    const correlationId = crypto.randomUUID();
+    console.error(`[VENDOR_CHANGE_REQUESTS_GET_ERROR:${correlationId}]`, error);
+    return NextResponse.json(
+      { error: `Unable to fetch change requests. Reference: ${correlationId}`, correlationId },
+      { status: 500 }
+    );
   }
 }
 
@@ -63,11 +70,22 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: "Update invitation link generated for approved vendor.",
+      message: "Vendor update invitation generated successfully.",
       ...result,
     });
   } catch (error: any) {
     const status = error.statusCode || 500;
+    if (status >= 500) {
+      const correlationId = crypto.randomUUID();
+      console.error(`[VENDOR_UPDATE_INVITATION_ERROR:${correlationId}]`, error);
+      return NextResponse.json(
+        {
+          error: `Unable to create update invitation. Reference: ${correlationId}`,
+          correlationId,
+        },
+        { status: 500 }
+      );
+    }
     return NextResponse.json({ error: error.message || "Failed to generate update link" }, { status });
   }
 }

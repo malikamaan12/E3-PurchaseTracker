@@ -4,6 +4,10 @@ import { vendorUploadService } from "@/lib/services/VendorUploadService";
 import { db } from "@db";
 import { vendorDocuments } from "@db/schema";
 import { eq, and } from "drizzle-orm";
+import crypto from "crypto";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET(
   req: NextRequest,
@@ -54,6 +58,18 @@ export async function GET(
     return attachVendorSecurityHeaders(res);
   } catch (error: any) {
     const status = error.statusCode || 400;
+    if (status >= 500) {
+      const correlationId = crypto.randomUUID();
+      console.error(`[VENDOR_DOC_PREVIEW_ERROR:${correlationId}]`, error);
+      const res = NextResponse.json(
+        {
+          error: `Unable to generate document preview. Please try again or contact the administrator. Reference: ${correlationId}`,
+          correlationId,
+        },
+        { status: 500 }
+      );
+      return attachVendorSecurityHeaders(res);
+    }
     const res = NextResponse.json(
       { error: error.message || "Failed to generate download link." },
       { status }

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getVendorSession, attachVendorSecurityHeaders } from "@/lib/vendor-auth";
 import { vendorUploadService } from "@/lib/services/VendorUploadService";
+import crypto from "crypto";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
@@ -38,6 +42,18 @@ export async function POST(req: NextRequest) {
     return attachVendorSecurityHeaders(res);
   } catch (error: any) {
     const status = error.statusCode || 400;
+    if (status >= 500) {
+      const correlationId = crypto.randomUUID();
+      console.error(`[VENDOR_UPLOAD_COMPLETE_ERROR:${correlationId}]`, error);
+      const res = NextResponse.json(
+        {
+          error: `Unable to complete document upload. Please try again or contact the administrator. Reference: ${correlationId}`,
+          correlationId,
+        },
+        { status: 500 }
+      );
+      return attachVendorSecurityHeaders(res);
+    }
     const res = NextResponse.json(
       { error: error.message || "Failed to finalize document upload." },
       { status }

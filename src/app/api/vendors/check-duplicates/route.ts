@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { vendorOnboardingService } from "@/lib/services/VendorOnboardingService";
+import crypto from "crypto";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
@@ -35,6 +37,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(result);
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to check duplicates" }, { status: 500 });
+    const correlationId = crypto.randomUUID();
+    console.error(`[VENDOR_CHECK_DUPLICATES_ERROR:${correlationId}]`, error);
+    return NextResponse.json(
+      { error: `Unable to check duplicate records. Reference: ${correlationId}`, correlationId },
+      { status: 500 }
+    );
   }
 }

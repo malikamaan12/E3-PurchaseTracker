@@ -1,6 +1,6 @@
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { db } from "@db";
+import { transactionDb as db } from "@db";
 import { vendorUploadIntents, vendorDocuments, vendorOnboardingDrafts, vendorOnboardingTokens } from "@db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import crypto from "crypto";

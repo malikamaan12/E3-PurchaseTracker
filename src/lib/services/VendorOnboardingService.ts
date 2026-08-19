@@ -1,4 +1,4 @@
-import { db } from "@db";
+import { transactionDb as db } from "@db";
 import {
   vendors,
   vendorOnboardingDrafts,

@@ -3,7 +3,9 @@ import { db } from "@db";
 import { vendorOnboardingDrafts, vendorOnboardingTokens, vendorDocuments, auditLogs } from "@db/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
+import crypto from "crypto";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(
@@ -61,7 +63,12 @@ export async function GET(
       auditLogs: logs,
     });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to fetch draft" }, { status: 500 });
+    const correlationId = crypto.randomUUID();
+    console.error(`[VENDOR_DRAFT_GET_ERROR:${correlationId}]`, error);
+    return NextResponse.json(
+      { error: `Unable to fetch draft details. Reference: ${correlationId}`, correlationId },
+      { status: 500 }
+    );
   }
 }
 
@@ -96,6 +103,11 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, draft: updated });
   } catch (error: any) {
-    return NextResponse.json({ error: error.message || "Failed to update draft" }, { status: 500 });
+    const correlationId = crypto.randomUUID();
+    console.error(`[VENDOR_DRAFT_PATCH_ERROR:${correlationId}]`, error);
+    return NextResponse.json(
+      { error: `Unable to update draft. Reference: ${correlationId}`, correlationId },
+      { status: 500 }
+    );
   }
 }

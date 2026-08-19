@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { vendorOnboardingService } from "@/lib/services/VendorOnboardingService";
 import { durableRateLimiter } from "@/lib/services/DurableRateLimitService";
 import { setVendorSessionCookie } from "@/lib/vendor-auth";
+import crypto from "crypto";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
@@ -42,6 +46,17 @@ export async function POST(req: NextRequest) {
     return response;
   } catch (error: any) {
     const status = error.statusCode || 401;
+    if (status >= 500) {
+      const correlationId = crypto.randomUUID();
+      console.error(`[VENDOR_EXCHANGE_TOKEN_ERROR:${correlationId}]`, error);
+      return NextResponse.json(
+        {
+          error: `Unable to exchange invitation token. Please try again or contact the administrator. Reference: ${correlationId}`,
+          correlationId,
+        },
+        { status: 500 }
+      );
+    }
     return NextResponse.json(
       { error: error.message || "Invalid or expired onboarding token." },
       { status }
