@@ -364,15 +364,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       // If advancing from Stage 1 (pending_dept_head) to Stage 2, unveil to Mandatory Approvers
       if (reqHeader.status === 'pending_dept_head' && status === 'approved') {
         try {
-          const mandatoryApprovers = await db.select({ id: users.id })
-            .from(users)
-            .where(
-              and(
-                inArray(users.department, ["Management", "Finance", "CEO Office", "Ceo Office"]),
-                inArray(users.role, ["admin", "approver", "super_admin"])
-              )
-            );
-          const mandatoryIds = mandatoryApprovers.map(a => a.id).filter(id => id !== user.id);
+          const mandatoryIds = await notificationService.getAuthorizedApproverUserIds({
+            targetDepartments: MANDATORY_SEQUENCE,
+            excludeUserId: user.id,
+          });
           if (mandatoryIds.length > 0) {
             await notificationService.createPendingApprovalNotification({
               requestId,
@@ -380,6 +375,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
               requesterName: `${user.username} (Dept Head Sign-off)`,
               requesterDepartment: user.department || "Procurement",
               approverIds: mandatoryIds,
+              targetDepartments: MANDATORY_SEQUENCE,
             });
           }
         } catch (unveilErr) {

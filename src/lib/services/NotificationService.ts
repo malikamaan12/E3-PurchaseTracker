@@ -7,7 +7,8 @@ import {
   NOTIFICATION_TYPES,
   type InsertNotification
 } from "@db/schema";
-import { eq, and, lt, desc, gte, or, SQL, sql } from "drizzle-orm";
+import { eq, and, lt, desc, gte, or, SQL, sql, inArray } from "drizzle-orm";
+import { normalizeDepartmentAssignments, type AuthenticatedUser } from "@/lib/auth-shared";
 
 /**
  * Notification Priority Levels
@@ -240,6 +241,7 @@ export class NotificationService {
     };
 
     try {
+      this.cache.delete(`notifications_${userId}`);
       const results = await db
         .insert(notifications)
         .values(notification)
@@ -300,6 +302,131 @@ export class NotificationService {
   }
 
   /**
+   * Resolves recipient user IDs of active users who have approval authority for the specified departments.
+   * - super_admin and admin are always included (global oversight).
+   * - approver role (or isApprover flag) is included if their primary department or an active assigned department matches.
+   * - user and supervisor roles are NEVER included in approval notifications.
+   * - Inactive users (isActive === false) are NEVER included.
+   * - excludeUserId is omitted (e.g. requester/actor).
+   */
+  public async getAuthorizedApproverUserIds({
+    targetDepartments,
+    excludeUserId,
+  }: {
+    targetDepartments: string[];
+    excludeUserId?: number;
+  }): Promise<number[]> {
+    const normalizedTargets = targetDepartments.map(d => d.toLowerCase().trim()).filter(Boolean);
+    if (normalizedTargets.length === 0) return [];
+
+    const activeUsers = await db
+      .select({
+        id: users.id,
+        role: users.role,
+        department: users.department,
+        assignedDepartments: users.assignedDepartments,
+        isActive: users.isActive,
+      })
+      .from(users)
+      .where(eq(users.isActive, true));
+
+    const eligibleIds = new Set<number>();
+
+    for (const u of activeUsers) {
+      if (excludeUserId && u.id === excludeUserId) continue;
+
+      // 1. Super Admins and Admins have global authority across all departments
+      if (u.role === 'super_admin' || u.role === 'admin') {
+        eligibleIds.add(u.id);
+        continue;
+      }
+
+      // 2. Regular users and supervisors NEVER receive approval notifications
+      if (u.role === 'user' || u.role === 'supervisor') {
+        continue;
+      }
+
+      // 3. Approvers: check primary department
+      const primary = (u.department || '').toLowerCase().trim();
+      if (normalizedTargets.includes(primary) && u.role === 'approver') {
+        eligibleIds.add(u.id);
+        continue;
+      }
+
+      // 4. Approvers: check assigned departments
+      const assignments = normalizeDepartmentAssignments(u.assignedDepartments, u.department);
+      const hasMatchingAssignment = assignments.some(
+        a => normalizedTargets.includes(a.department.toLowerCase().trim()) &&
+             a.status === 'active' &&
+             (a.role === 'approver' || a.role === 'both')
+      );
+
+      if (hasMatchingAssignment) {
+        eligibleIds.add(u.id);
+      }
+    }
+
+    return Array.from(eligibleIds);
+  }
+
+  /**
+   * Evaluates if a notification is permitted to be viewed by a given user based on
+   * Role-Based Access Control (RBAC) and Department Restrictions.
+   */
+  public isUserEligibleForNotification(notification: any, user: AuthenticatedUser): boolean {
+    if (!user) return false;
+
+    // Super Admins have unrestricted system-wide visibility
+    if (user.role === 'super_admin') return true;
+
+    const actionData = notification.actionData || {};
+
+    // 1. Role Restrictions Enforcement
+    if (actionData.roleRestrictions) {
+      const allowedRoles = Array.isArray(actionData.roleRestrictions)
+        ? actionData.roleRestrictions
+        : [actionData.roleRestrictions];
+      if (!allowedRoles.includes(user.role)) {
+        return false;
+      }
+    }
+
+    // 2. Department Restrictions Enforcement (Admins have global access across departments)
+    if (actionData.departmentRestrictions && user.role !== 'admin') {
+      const allowedDepts = (Array.isArray(actionData.departmentRestrictions)
+        ? actionData.departmentRestrictions
+        : [actionData.departmentRestrictions]
+      ).map((d: string) => d.toLowerCase().trim()).filter(Boolean);
+
+      if (allowedDepts.length > 0) {
+        const userPrimaryDept = (user.department || '').toLowerCase().trim();
+        const primaryMatches = allowedDepts.includes(userPrimaryDept);
+
+        const assignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);
+        const assignmentMatches = assignments.some(
+          a => allowedDepts.includes(a.department.toLowerCase().trim()) &&
+               a.status === 'active' &&
+               (a.role === 'approver' || a.role === 'both')
+        );
+
+        // For approval / actionable notifications, user must have authority in that department
+        if (notification.type === 'approval_required' || notification.type === 'purchase_request_submitted') {
+          if (!primaryMatches && !assignmentMatches) {
+            return false;
+          }
+          if (primaryMatches && user.role !== 'approver' && !user.isApprover) {
+            if (!assignmentMatches) {
+              return false;
+            }
+          }
+        }
+      }
+    }
+
+    return true;
+  }
+
+  /**
    * Create an approval notification
    */
   public async createApprovalNotification({
@@ -331,7 +458,7 @@ export class NotificationService {
           requestId
         },
         // For approval notifications, restrict to approver roles and specific department
-        roleRestrictions: ['approver', 'manager', 'admin', 'super_admin'],
+        roleRestrictions: ['approver', 'admin', 'super_admin'],
         departmentRestrictions: department,
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // Expires in 7 days
       });
@@ -350,33 +477,37 @@ export class NotificationService {
     requestTitle,
     requesterName,
     requesterDepartment,
-    approverIds
+    approverIds,
+    targetDepartments,
   }: {
     requestId: number;
     requestTitle: string;
     requesterName: string;
     requesterDepartment: string;
     approverIds: number[];
+    targetDepartments?: string[];
   }) {
     const results = [];
+    const depts = targetDepartments && targetDepartments.length > 0 ? targetDepartments : [requesterDepartment];
 
     for (const approverId of approverIds) {
       const notification = await this.createNotification({
         userId: approverId,
         title: 'Pending Approval',
-        message: `${requesterName} from ${requesterDepartment} submitted a new request "${requestTitle}" that requires your approval.`,
+        message: `${requesterName} from ${requesterDepartment} submitted a request "${requestTitle}" that requires your approval.`,
         type: 'approval_required',
         requestId,
         priority: 'high',
         actionType: 'review',
         actionData: {
           requestId,
-          requesterDepartment
+          requesterDepartment,
+          targetDepartments: depts,
         },
         // Only approver roles should see these notifications
-        roleRestrictions: ['approver', 'manager', 'admin', 'super_admin'],
-        // Approvers from the same department as the requester or managers/admins
-        departmentRestrictions: [requesterDepartment, 'Management', 'Finance']
+        roleRestrictions: ['approver', 'admin', 'super_admin'],
+        departmentRestrictions: depts,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
       });
 
       results.push(notification);
@@ -392,12 +523,14 @@ export class NotificationService {
     requestId,
     requestTitle,
     requesterName,
-    adminIds
+    adminIds,
+    departmentRestrictions,
   }: {
     requestId: number;
     requestTitle: string;
     requesterName: string;
     adminIds: number[];
+    departmentRestrictions?: string | string[];
   }) {
     const results = [];
 
@@ -414,7 +547,8 @@ export class NotificationService {
           requestId
         },
         // Admins, approvers, and super admins should see these notifications
-        roleRestrictions: ['admin', 'manager', 'approver', 'super_admin']
+        roleRestrictions: ['admin', 'approver', 'super_admin'],
+        departmentRestrictions
       });
 
       results.push(notification);
@@ -424,7 +558,7 @@ export class NotificationService {
   }
 
   /**
-   * Get notifications for a user - Ultra-optimized version
+   * Get notifications for a user - Ultra-optimized version with RBAC defense-in-depth
    */
   public async getNotifications(userId: number, options?: {
     lastFetchTime?: Date;
@@ -433,14 +567,15 @@ export class NotificationService {
     priority?: NotificationPriority;
     userRole?: string;
     userDepartment?: string;
+    user?: AuthenticatedUser;
   }) {
-    // Aggressive caching - return cached results immediately
+    // Cache key incorporates user ID
     const cacheKey = `notifications_${userId}`;
     const cached = this.cache.get(cacheKey);
     const now = Date.now();
 
     // 30-second cache for ultra-fast responses
-    if (cached && (now - cached.timestamp) < 30000) {
+    if (cached && (now - cached.timestamp) < 30000 && !options?.lastFetchTime) {
       return cached.data;
     }
 
@@ -463,7 +598,7 @@ export class NotificationService {
           .from(notifications)
           .where(and(...filters))
           .orderBy(desc(notifications.createdAt))
-          .limit(20);
+          .limit(50);
       } catch (e: any) {
         if (e?.code === '42703') {
           result = await db
@@ -487,17 +622,24 @@ export class NotificationService {
             .from(notifications)
             .where(and(...filters))
             .orderBy(desc(notifications.createdAt))
-            .limit(20);
+            .limit(50);
         } else {
           throw e;
         }
       }
 
-      // Minimal filtering - just expired notifications
+      // Minimal filtering - expired notifications
       const currentTime = new Date();
-      const validNotifications = result.filter((notification: any) =>
+      let validNotifications = result.filter((notification: any) =>
         !notification.expiresAt || new Date(notification.expiresAt) >= currentTime
       );
+
+      // Defense-in-depth RBAC check
+      if (options?.user) {
+        validNotifications = validNotifications.filter((notification: any) =>
+          this.isUserEligibleForNotification(notification, options.user!)
+        );
+      }
 
       // Deduplicate historical notifications in memory
       const deduplicated = NotificationService.deduplicateNotifications(validNotifications);
@@ -519,9 +661,9 @@ export class NotificationService {
   }
 
   /**
-   * Get accurate unread count after deduplicating notifications
+   * Get accurate unread count after deduplicating notifications and enforcing RBAC
    */
-  public async getUnreadCount(userId: number): Promise<number> {
+  public async getUnreadCount(userId: number, options?: { user?: AuthenticatedUser }): Promise<number> {
     try {
       let unreadList: any[];
       try {
@@ -564,6 +706,13 @@ export class NotificationService {
         }
       }
 
+      // Defense-in-depth RBAC check
+      if (options?.user) {
+        unreadList = unreadList.filter((notification: any) =>
+          this.isUserEligibleForNotification(notification, options.user!)
+        );
+      }
+
       const deduplicated = NotificationService.deduplicateNotifications(unreadList);
       return deduplicated.length;
     } catch (error) {
@@ -600,6 +749,7 @@ export class NotificationService {
       .where(eq(notifications.id, notificationId))
       .returning();
 
+    this.cache.delete(`notifications_${userId}`);
     return updated;
   }
 
@@ -632,6 +782,7 @@ export class NotificationService {
       .where(eq(notifications.id, notificationId))
       .returning();
 
+    this.cache.delete(`notifications_${userId}`);
     return updated;
   }
 

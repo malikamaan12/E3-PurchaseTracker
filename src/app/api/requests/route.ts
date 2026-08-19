@@ -435,56 +435,42 @@ export async function POST(req: NextRequest) {
     if (requestedStatus === "pending") {
       await seedInitialApprovals(newRequest.id, user.id, user.department, user.role, additionalApprovers, effectiveDept, user.departments);
       
-      // 5. Dispatch Notifications
+      // 5. Dispatch Notifications strictly to authorized approvers
       try {
         const { notificationService } = await import("@/lib/services/NotificationService");
-        if (isSupervisor) {
-          // Notify approvers of the submitting department
-          const allApprovers = await db.select({ 
-            id: users.id, 
-            department: users.department, 
-            assignedDepartments: users.assignedDepartments 
-          })
-            .from(users)
-            .where(
-              and(
-                inArray(users.role, ['admin', 'approver', 'super_admin']),
-                eq(users.isActive, true)
-              )
-            );
+        
+        // Query the pending approval rows seeded for this request
+        const pendingApprovalRows = await db
+          .select({ department: approvals.department })
+          .from(approvals)
+          .where(and(eq(approvals.requestId, newRequest.id), eq(approvals.status, 'pending')));
 
-          const deptApproverIds = allApprovers
-            .filter(u => {
-              if (u.id === user.id) return false;
-              const target = effectiveDept.toLowerCase().trim();
-              if ((u.department || '').toLowerCase().trim() === target) return true;
-              const normalized = normalizeDepartmentAssignments(u.assignedDepartments, u.department);
-              const match = normalized.find(a => a.department.toLowerCase().trim() === target);
-              return !!match && match.status === 'active' && (match.role === 'approver' || match.role === 'both');
-            })
-            .map(a => a.id);
+        const pendingDepts = Array.from(new Set(pendingApprovalRows.map(a => a.department))).filter(Boolean);
+        const targetDepts = isSupervisor
+          ? [effectiveDept]
+          : (pendingDepts.length > 0 ? pendingDepts : [effectiveDept]);
 
-          if (deptApproverIds.length > 0) {
-            await notificationService.createNewSubmissionNotification({
-              requestId: newRequest.id,
-              requestTitle: `[Dept Review: ${effectiveDept}] ${newRequest.title}`,
-              requesterName: `${user.username} (Supervisor - ${effectiveDept})`,
-              adminIds: deptApproverIds,
-            });
-          }
-        } else {
-          // Standard submission: notify admins and approvers
-          const admins = await db.select({ id: users.id }).from(users).where(inArray(users.role, ['admin', 'approver', 'super_admin']));
-          const adminIds = admins.map(a => a.id).filter(id => id !== user.id);
-          
-          if (adminIds.length > 0) {
-            await notificationService.createNewSubmissionNotification({
-              requestId: newRequest.id,
-              requestTitle: newRequest.title,
-              requesterName: user.username || 'System User',
-              adminIds
-            });
-          }
+        const approverIds = await notificationService.getAuthorizedApproverUserIds({
+          targetDepartments: targetDepts,
+          excludeUserId: user.id,
+        });
+
+        if (approverIds.length > 0) {
+          const reqTitle = isSupervisor
+            ? `[Dept Review: ${effectiveDept}] ${newRequest.title}`
+            : newRequest.title;
+          const reqName = isSupervisor
+            ? `${user.username} (Supervisor - ${effectiveDept})`
+            : (user.username || 'System User');
+
+          await notificationService.createPendingApprovalNotification({
+            requestId: newRequest.id,
+            requestTitle: reqTitle,
+            requesterName: reqName,
+            requesterDepartment: effectiveDept,
+            approverIds,
+            targetDepartments: targetDepts,
+          });
         }
       } catch (err) {
         console.error("[Notification] Failed to dispatch push notifications:", err);

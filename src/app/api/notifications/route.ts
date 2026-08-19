@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
 
     const results = await notificationService.getNotifications(user.id, {
       lastFetchTime,
-      includeRead
+      includeRead,
+      user,
     });
 
     return NextResponse.json(results);

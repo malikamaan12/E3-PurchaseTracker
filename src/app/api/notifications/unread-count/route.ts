@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const count = await notificationService.getUnreadCount(user.id);
+    const count = await notificationService.getUnreadCount(user.id, { user });
     return NextResponse.json({ count });
   } catch (error: any) {
     console.error("[Notifications API] Unread Count Error:", error);

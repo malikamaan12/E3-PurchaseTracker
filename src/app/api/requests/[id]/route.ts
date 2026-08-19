@@ -448,25 +448,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const filteredAdditional = additionalDepts.filter((d: string) => !mandatoryDepts.includes(d));
       const allRequiredDepts = [...mandatoryDepts, ...filteredAdditional];
 
-      const deptApprovers = await db.select().from(users).where(and(inArray(users.department, allRequiredDepts), eq(users.isActive, true)));
-      const adminUsers = await db.select().from(users).where(and(inArray(users.role, ['admin', 'super_admin', 'approver']), eq(users.isActive, true)));
+      // 4. Dispatch Notifications to authorized approvers of pending steps
+      const pendingApprovals = await db
+        .select({ department: approvals.department })
+        .from(approvals)
+        .where(and(eq(approvals.requestId, updated.id), eq(approvals.status, 'pending')));
 
-      const targetUserIds = new Set<number>();
-      deptApprovers.forEach((a: any) => targetUserIds.add(a.id));
-      adminUsers.forEach((a: any) => targetUserIds.add(a.id));
-      targetUserIds.delete(user.id);
+      const pendingDepts = Array.from(new Set(pendingApprovals.map(a => a.department))).filter(Boolean);
+      const targetDepts = pendingDepts.length > 0 ? pendingDepts : allRequiredDepts;
 
-      await Promise.all(Array.from(targetUserIds).map((userId: any) => 
-        notificationService.createNotification({
-          userId,
-          title: "New Purchase Request Pending",
-          message: `"${updated.title}" requires your approval`,
-          type: "approval_required",
+      const approverIds = await notificationService.getAuthorizedApproverUserIds({
+        targetDepartments: targetDepts,
+        excludeUserId: user.id,
+      });
+
+      if (approverIds.length > 0) {
+        await notificationService.createPendingApprovalNotification({
           requestId: updated.id,
-          priority: "high",
-          actionType: "approve",
-        })
-      ));
+          requestTitle: updated.title,
+          requesterName: user.username || 'Requester',
+          requesterDepartment: updated.department || user.department,
+          approverIds,
+          targetDepartments: targetDepts,
+        });
+      }
 
       await db.update(purchaseRequests).set({ isLocked: true, updatedAt: new Date() }).where(eq(purchaseRequests.id, requestId));
     }
