@@ -943,7 +943,7 @@ export class VendorOnboardingService {
     forceStaleRetry?: boolean;
   }) {
     // ── APPROVAL CLAIM TIMEOUT ─────────────────────────────────────────────────
-    const CLAIM_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+    const CLAIM_TIMEOUT_MS = 60 * 1000; // 60 seconds
 
     // Stage 1: Authoritative Atomic Lock, Compliance Claim & Vendor Staging
     // All reads and writes inside this transaction operate under SELECT ... FOR UPDATE.
@@ -956,7 +956,7 @@ export class VendorOnboardingService {
         .for("update");
 
       if (!lockedDraft) {
-        throw new NotFoundError("Draft not found.");
+        throw new NotFoundError("Vendor onboarding draft not found.");
       }
 
       // Idempotent retry: if draft is already approved and vendor is active, return immediately
@@ -973,9 +973,15 @@ export class VendorOnboardingService {
 
       // 2. Approval-state guard: only submitted drafts may be approved
       if (lockedDraft.onboardingStatus !== "submitted") {
-        throw new ValidationError(
-          `Cannot approve draft in status "${lockedDraft.onboardingStatus}". Only submitted drafts can be approved.`
-        );
+        let msg = `Cannot approve draft in status "${lockedDraft.onboardingStatus}". Only submitted drafts can be approved.`;
+        if (lockedDraft.onboardingStatus === "invited") {
+          msg = "This vendor has not submitted their profile yet. The vendor must complete the self-service onboarding form before approval.";
+        } else if (lockedDraft.onboardingStatus === "in_progress") {
+          msg = "The vendor is currently editing their profile. Please wait for the vendor to finalize and submit.";
+        } else if (lockedDraft.onboardingStatus === "changes_requested") {
+          msg = "Corrections have been requested from this vendor. Please wait for the vendor to resubmit.";
+        }
+        throw new ValidationError(msg);
       }
 
       // 3. Compliance-scan claim check (prevents duplicate concurrent scans)
@@ -988,8 +994,8 @@ export class VendorOnboardingService {
         const elapsed = existingStart ? now.getTime() - new Date(existingStart).getTime() : 0;
         const isStale = elapsed >= CLAIM_TIMEOUT_MS;
 
-        if (!forceStaleRetry) {
-          // Ordinary approvals NEVER silently overwrite an active or stale processing claim
+        if (!forceStaleRetry && !isStale) {
+          // Ordinary approvals NEVER silently overwrite an active processing claim
           const [existingVendor] = lockedDraft.promotedVendorId
             ? await tx.select().from(vendors).where(eq(vendors.id, lockedDraft.promotedVendorId)).limit(1)
             : [null];
@@ -997,19 +1003,12 @@ export class VendorOnboardingService {
             vendor: existingVendor ?? null,
             scanClaimed: false,
             attemptId: null,
-            reason: isStale ? "approval_processing_stale" : "approval_already_processing",
-            isStale,
+            reason: "approval_already_processing",
+            isStale: false,
           };
         }
 
-        // Explicit forceStaleRetry: enforce that the claim has genuinely exceeded the timeout
-        if (!isStale) {
-          throw new ValidationError(
-            `Approval attempt is currently actively processing (${Math.round((CLAIM_TIMEOUT_MS - elapsed) / 1000)}s remaining). Force retry is only permitted for stale attempts exceeding 10 minutes.`
-          );
-        }
-
-        // Audit log for the explicit authenticated stale retry
+        // Audit log for the explicit authenticated stale retry or auto-recovered claim
         await tx.insert(auditLogs).values({
           action: "VENDOR_ONBOARDING_STALE_APPROVAL_RETRIED",
           resourceType: "vendor_onboarding_draft",

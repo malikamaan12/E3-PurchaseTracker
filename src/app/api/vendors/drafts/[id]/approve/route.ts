@@ -26,23 +26,38 @@ export async function POST(
     const draftId = parseInt(id, 10);
     if (isNaN(draftId)) return NextResponse.json({ error: "Invalid draft ID" }, { status: 400 });
 
+    const isForce = req.nextUrl.searchParams.get("force") === "true";
     const result = await vendorOnboardingService.approveAndPromoteDraft({
       draftId,
       userId: user.id,
+      forceStaleRetry: isForce,
     });
+
+    if (!result.success || !result.vendor) {
+      return NextResponse.json(
+        {
+          error: (result as any).message || "An approval is already in progress for this vendor draft.",
+          reason: (result as any).reason,
+          isStale: (result as any).isStale,
+        },
+        { status: 409 }
+      );
+    }
 
     return NextResponse.json({
       message: `Vendor "${result.vendor.companyName}" successfully approved and activated.`,
       ...result,
     });
   } catch (error: any) {
-    const status = error.statusCode || 500;
+    const status = error.statusCode || (error.name === "ValidationError" ? 400 : error.name === "NotFoundError" ? 404 : error.name === "ConflictError" ? 409 : 500);
     if (status >= 500) {
       const correlationId = crypto.randomUUID();
       console.error(`[VENDOR_APPROVE_ERROR:${correlationId}]`, error);
       return NextResponse.json(
         {
-          error: `Unable to approve vendor draft. Please try again or contact the administrator. Reference: ${correlationId}`,
+          error: error.message && !error.message.includes("Cannot read properties")
+            ? error.message
+            : `Unable to approve vendor draft. Please try again or contact the administrator. Reference: ${correlationId}`,
           correlationId,
         },
         { status: 500 }

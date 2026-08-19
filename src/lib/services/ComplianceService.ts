@@ -83,7 +83,7 @@ export class ComplianceService {
 
       // 3. Categorize based on heuristics
       attachments.forEach(file => {
-        const name = file.fileName.toLowerCase();
+        const name = (file.fileName || "").toLowerCase();
         
         let status = "valid";
         if (file.expiryDate && new Date(file.expiryDate) < new Date()) {
@@ -92,7 +92,7 @@ export class ComplianceService {
 
         let matchedCat: string | null = null;
         if (file.documentType) {
-           const typeStr = file.documentType.toLowerCase();
+           const typeStr = (file.documentType || "").toLowerCase();
            if (typeStr.includes("registration")) matchedCat = "registration";
            else if (typeStr.includes("tax")) matchedCat = "tax";
            else if (typeStr.includes("nda") || typeStr.includes("contract")) matchedCat = "contract";
@@ -100,13 +100,13 @@ export class ComplianceService {
         }
 
         const assignDoc = (cat: string) => {
-          if (docs[cat].status !== "valid") {
+          if (docs[cat] && docs[cat].status !== "valid") {
             docs[cat] = {
               status: status,
               file: {
                 id: file.id,
-                name: file.fileName,
-                url: file.fileUrl,
+                name: file.fileName || "Document",
+                url: file.fileUrl || "",
                 date: file.uploadedAt
               }
             };
@@ -126,16 +126,20 @@ export class ComplianceService {
 
       // 4. Calculate health score
       const validCount = Object.values(docs).filter((d: any) => d.status === "valid").length;
-      const healthScore = Math.round((validCount / Object.keys(docs).length) * 100);
+      const healthScore = Math.round((validCount / Math.max(1, Object.keys(docs).length)) * 100);
 
       // 5. Persist to Vendor Record
-      await db.update(vendors)
-        .set({
-          complianceScore: healthScore,
-          complianceMetadata: docs,
-          updatedAt: new Date()
-        })
-        .where(eq(vendors.id, vendorId));
+      try {
+        await db.update(vendors)
+          .set({
+            complianceScore: healthScore,
+            complianceMetadata: docs,
+            updatedAt: new Date()
+          })
+          .where(eq(vendors.id, vendorId));
+      } catch (dbErr) {
+        console.warn(`[ComplianceService] Non-fatal metadata update error for vendor ${vendorId}:`, dbErr);
+      }
 
       console.log(`[ComplianceService] Scan complete. Vendor ${vendorId} Health Score: ${healthScore}%`);
       return { healthScore, docs };

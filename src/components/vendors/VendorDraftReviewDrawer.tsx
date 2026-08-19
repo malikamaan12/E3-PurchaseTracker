@@ -522,15 +522,30 @@ export function VendorDraftReviewDrawer({
             <button
               type="button"
               onClick={handleApprove}
-              disabled={actionLoading || (draft.onboardingStatus !== "submitted" && draft.onboardingStatus !== "in_progress")}
+              disabled={actionLoading || draft.onboardingStatus !== "submitted"}
               className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-900/30 transition-all min-h-[44px]"
+              title={
+                draft.onboardingStatus !== "submitted"
+                  ? "Vendor must submit their onboarding profile before it can be approved."
+                  : "Approve and activate this vendor in the operational system"
+              }
             >
               {actionLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <CheckCircle2 className="w-4 h-4" />
               )}
-              <span>Approve & Activate Vendor</span>
+              <span>
+                {draft.onboardingStatus === "submitted"
+                  ? "Approve & Activate Vendor"
+                  : draft.onboardingStatus === "invited"
+                  ? "Awaiting Vendor Submission"
+                  : draft.onboardingStatus === "in_progress"
+                  ? "Vendor Is Editing Profile"
+                  : draft.onboardingStatus === "changes_requested"
+                  ? "Awaiting Corrections"
+                  : "Approve & Activate Vendor"}
+              </span>
             </button>
           </div>
         )}
