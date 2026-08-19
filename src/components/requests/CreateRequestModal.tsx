@@ -615,19 +615,21 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                         Create New Vendor
                                       </div>
                                     </SelectItem>
-                                    {vendors.map((v) => (
-                                      <SelectItem key={v.id} value={v.id.toString()}>
-                                        <div className="flex items-center justify-between w-full gap-4">
-                                          <span>{v.companyName}</span>
-                                          <span className={cn(
-                                            "text-[9px] font-bold px-1.5 py-0.5 rounded",
-                                            v.complianceScore < 50 ? "bg-rose-500 text-white" : "bg-brand-secondary/20 text-brand-secondary"
-                                          )}>
-                                            {v.complianceScore}%
-                                          </span>
-                                        </div>
-                                      </SelectItem>
-                                    ))}
+                                    {vendors
+                                      .filter((v) => !v.status || v.status === "active")
+                                      .map((v) => (
+                                        <SelectItem key={v.id} value={v.id.toString()}>
+                                          <div className="flex items-center justify-between w-full gap-4">
+                                            <span>{v.companyName}</span>
+                                            <span className={cn(
+                                              "text-[9px] font-bold px-1.5 py-0.5 rounded",
+                                              v.complianceScore < 50 ? "bg-rose-500 text-white" : "bg-brand-secondary/20 text-brand-secondary"
+                                            )}>
+                                              {v.complianceScore}%
+                                            </span>
+                                          </div>
+                                        </SelectItem>
+                                      ))}
                                   </SelectContent>
                                 </Select>
                               )}

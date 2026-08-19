@@ -18,7 +18,8 @@ export async function evaluateCompliance(vendorId: number): Promise<{ isBlocked:
 
   const vendorRecord = await db.select({ 
     score: vendors.complianceScore,
-    name: vendors.companyName 
+    name: vendors.companyName,
+    status: vendors.status,
   })
   .from(vendors)
   .where(eq(vendors.id, vendorId))
@@ -26,6 +27,15 @@ export async function evaluateCompliance(vendorId: number): Promise<{ isBlocked:
 
   if (vendorRecord.length === 0) return { isBlocked: false };
   const v = vendorRecord[0];
+
+  // Hard stop: Pending, frozen, or blocked vendors are strictly blocked from institutional procurement
+  if (v.status !== "active") {
+    console.warn(`[PR_GATEKEEPER] BLOCKED: Vendor "${v.name}" (ID: ${vendorId}) is in non-active status: ${v.status}`);
+    return {
+      isBlocked: true,
+      message: `The selected vendor (${v.name}) is currently in "${v.status}" status and is not eligible for purchase requests until approved and active.`
+    };
+  }
 
   if (v.score < 50) {
     console.warn(`[PR_GATEKEEPER] BLOCKED: Vendor "${v.name}" (ID: ${vendorId}) has a critical compliance score of ${v.score}%`);

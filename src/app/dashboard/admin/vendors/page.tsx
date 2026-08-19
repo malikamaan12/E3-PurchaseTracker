@@ -6,6 +6,7 @@ import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { Building, ShieldCheck, Lock, XCircle, Search, Pencil, MoreHorizontal, AlertCircle } from "lucide-react";
 import { VendorManagementModal } from "@/components/vendors/VendorManagementModal";
+import { VendorInviteModal } from "@/components/vendors/VendorInviteModal";
 import { ActionConfirmDialog } from "@/components/ui/ActionConfirmDialog";
 
 import { useAuth } from "@/context/AuthContext";
@@ -17,6 +18,7 @@ export default function AdminVendorsPage() {
   const queryClient = useQueryClient();
   const [selectedVendor, setSelectedVendor] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [actionMenuVendor, setActionMenuVendor] = useState<any>(null);
   const [pendingStatusChange, setPendingStatusChange] = useState<{
     vendor: any;
@@ -64,9 +66,18 @@ export default function AdminVendorsPage() {
           <h1 className="text-3xl font-serif font-bold text-foreground tracking-tight">Vendor Enforcement</h1>
           <p className="text-sm text-muted-foreground mt-1 font-medium italic">High-level supplier compliance tracking and RBAC status overrides.</p>
         </div>
-        <div className="bg-secondary/50 px-4 py-2 rounded-xl flex items-center gap-2 border border-border transition-colors">
-          <Building className="w-5 h-5 text-indigo-500" />
-          <span className="text-foreground font-bold">{vendors.length} {vendors.length === 1 ? 'Vendor' : 'Vendors'}</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsInviteModalOpen(true)}
+            className="flex items-center gap-2 bg-primary text-primary-foreground font-semibold px-4 py-2.5 rounded-xl text-xs hover:bg-primary/90 shadow-md shadow-primary/20 transition-all min-h-[44px]"
+          >
+            <Building className="w-4 h-4" />
+            <span>Invite Vendor (Self-Service)</span>
+          </button>
+          <div className="bg-secondary/50 px-4 py-2 rounded-xl flex items-center gap-2 border border-border transition-colors min-h-[44px]">
+            <Building className="w-5 h-5 text-indigo-500" />
+            <span className="text-foreground font-bold">{vendors.length} {vendors.length === 1 ? 'Vendor' : 'Vendors'}</span>
+          </div>
         </div>
       </div>
 
@@ -329,6 +340,12 @@ export default function AdminVendorsPage() {
         open={isModalOpen}
         onOpenChange={setIsModalOpen}
         vendor={selectedVendor}
+      />
+
+      <VendorInviteModal
+        isOpen={isInviteModalOpen}
+        onClose={() => setIsInviteModalOpen(false)}
+        onSuccess={() => queryClient.invalidateQueries({ queryKey: ["admin_vendors"] })}
       />
     </div>
   );

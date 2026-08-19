@@ -17,10 +17,19 @@ export async function GET(req: NextRequest) {
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    const allVendors = await db
-      .select()
-      .from(vendors)
-      .orderBy(desc(vendors.createdAt));
+    const { searchParams } = new URL(req.url);
+    const statusParam = searchParams.get("status");
+    const selectable = searchParams.get("selectable") === "true";
+
+    let query = db.select().from(vendors);
+
+    if (selectable) {
+      query = query.where(eq(vendors.status, "active")) as any;
+    } else if (statusParam && statusParam !== "all") {
+      query = query.where(eq(vendors.status, statusParam as any)) as any;
+    }
+
+    const allVendors = await query.orderBy(desc(vendors.createdAt));
 
     // Fetch documents
     const { vendorDocuments } = await import("@db/schema");

@@ -89,7 +89,7 @@ export const subPurposes = pgTable("sub_purposes", {
   id: serial("id").primaryKey(),
   purposeCategoryId: integer("purpose_category_id").references(() => purposeCategories.id),
   name: text("name").notNull(),
-  purposeType: text("purpose_type").notNull(), 
+  purposeType: text("purpose_type").notNull(),
   status: text("status").notNull().default("active"), // 'active', 'frozen', 'closed'
   totalBudget: integer("total_budget").notNull().default(0),
   isFrozen: boolean("is_frozen").notNull().default(false),
@@ -132,8 +132,8 @@ export const purchaseRequests = pgTable("purchase_requests", {
   priorityRecommendations: text("priority_recommendations").$type<string[]>(),
   additionalApprovers: text("additional_approvers").$type<string[]>(), // Add additionalApprovers field
   currency: text("currency").notNull().default("QAR"),
-  exchangeRate: numeric("exchange_rate"), 
-  baseAmountQar: integer("base_amount_qar"), 
+  exchangeRate: numeric("exchange_rate"),
+  baseAmountQar: integer("base_amount_qar"),
   totalEstimatedCost: integer("total_estimated_cost"),
   freightAmount: integer("freight_amount").default(0),
   revisedTotalCost: integer("revised_total_cost"), // Tracks budget variations [FORCE_REFRESH]
@@ -216,10 +216,111 @@ export const vendors = pgTable("vendors", {
   complianceScore: integer("compliance_score").notNull().default(0),
   complianceMetadata: jsonb("compliance_metadata").$type<Record<string, any>>().default({}),
   status: text("status").notNull().default("active"),
+  onboardingStatus: text("onboarding_status").notNull().default("approved"),
+  version: integer("version").notNull().default(1),
   remarks: text("remarks"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
+
+export const vendorOnboardingDrafts = pgTable("vendor_onboarding_drafts", {
+  id: serial("id").primaryKey(),
+  companyName: text("company_name").notNull(),
+  contactPerson: text("contact_person").notNull(),
+  contactNumber: text("contact_number").notNull(),
+  email: text("email").notNull(),
+  address: text("address"),
+  taxNumber: text("tax_number"),
+  registrationNumber: text("registration_number"),
+  bankName: text("bank_name"),
+  accountNumber: text("account_number"),
+  ibanNumber: text("iban_number"),
+  branchName: text("branch_name"),
+  category: text("category").default("general"),
+  payment_currency: text("payment_currency").notNull().default("QAR"),
+  requiredDocumentTypes: jsonb("required_document_types").$type<Array<{
+    type: string;
+    mandatory: boolean;
+    description?: string;
+  }>>().default([]),
+  onboardingStatus: text("onboarding_status").notNull().default("link_active"),
+  onboardingNotes: text("onboarding_notes"),
+  submittedAt: timestamp("submitted_at"),
+  promotedVendorId: integer("promoted_vendor_id").references(() => vendors.id),
+  version: integer("version").notNull().default(1),
+  // Compliance-scan claim fields — prevent duplicate concurrent scans
+  approvalAttemptId: text("approval_attempt_id"),             // nullable UUID of the active claim
+  approvalProcessingStartedAt: timestamp("approval_processing_started_at"), // when claim was taken
+  approvalProcessingStatus: text("approval_processing_status"), // 'processing' | 'failed' | null
+  createdBy: integer("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const vendorOnboardingTokens = pgTable("vendor_onboarding_tokens", {
+  id: serial("id").primaryKey(),
+  draftId: integer("draft_id").references(() => vendorOnboardingDrafts.id, { onDelete: 'cascade' }),
+  vendorId: integer("vendor_id").references(() => vendors.id, { onDelete: 'cascade' }),
+  tokenHash: text("token_hash").notNull().unique(),
+  status: text("status").notNull().default("active"), // 'active', 'submitted', 'expired', 'revoked', 'used'
+  expiresAt: timestamp("expires_at").notNull(),
+  lastAccessedAt: timestamp("last_accessed_at"),
+  submittedAt: timestamp("submitted_at"),
+  revokedAt: timestamp("revoked_at"),
+  revokedBy: integer("revoked_by").references(() => users.id),
+  ipHash: text("ip_hash"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  tokenHashIdx: index("idx_vendor_onboarding_tokens_hash").on(table.tokenHash),
+  draftIdIdx: index("idx_vendor_onboarding_tokens_draft_id").on(table.draftId),
+  vendorIdIdx: index("idx_vendor_onboarding_tokens_vendor_id").on(table.vendorId),
+}));
+
+export const vendorUploadIntents = pgTable("vendor_upload_intents", {
+  id: serial("id").primaryKey(),
+  invitationId: integer("invitation_id").notNull().references(() => vendorOnboardingTokens.id, { onDelete: 'cascade' }),
+  draftId: integer("draft_id").references(() => vendorOnboardingDrafts.id, { onDelete: 'cascade' }),
+  vendorId: integer("vendor_id").references(() => vendors.id, { onDelete: 'cascade' }),
+  objectKey: text("object_key").notNull().unique(),
+  documentType: text("document_type").notNull(),
+  fileName: text("file_name").notNull(),
+  fileSize: integer("file_size").notNull(),
+  mimeType: text("mime_type").notNull(),
+  status: text("status").notNull().default("pending"), // 'pending', 'completed', 'cancelled', 'expired'
+  expiresAt: timestamp("expires_at").notNull(),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  objectKeyIdx: index("idx_vendor_upload_intents_key").on(table.objectKey),
+  invitationIdIdx: index("idx_vendor_upload_intents_invitation").on(table.invitationId),
+}));
+
+export const vendorChangeRequests = pgTable("vendor_change_requests", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: 'cascade' }),
+  invitationId: integer("invitation_id").references(() => vendorOnboardingTokens.id),
+  proposedData: jsonb("proposed_data").$type<Record<string, any>>().notNull(),
+  currentDataSnapshot: jsonb("current_data_snapshot").$type<Record<string, any>>().notNull(),
+  status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected'
+  reviewedBy: integer("reviewed_by").references(() => users.id),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  vendorIdIdx: index("idx_vendor_change_requests_vendor_id").on(table.vendorId),
+  statusIdx: index("idx_vendor_change_requests_status").on(table.status),
+}));
+
+export const rateLimitBuckets = pgTable("rate_limit_buckets", {
+  key: text("key").primaryKey(),
+  tokens: integer("tokens").notNull(),
+  lastRefill: text("last_refill").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+}, (table) => ({
+  expiresAtIdx: index("idx_rate_limit_buckets_expires").on(table.expiresAt),
+}));
 
 export const vendorCategories = pgTable("vendor_categories", {
   id: serial("id").primaryKey(),
@@ -238,14 +339,24 @@ export const vendorToCategories = pgTable("vendor_to_categories", {
 
 export const vendorDocuments = pgTable("vendor_documents", {
   id: serial("id").primaryKey(),
-  vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: 'cascade' }),
+  vendorId: integer("vendor_id").references(() => vendors.id, { onDelete: 'cascade' }),
+  draftId: integer("draft_id").references(() => vendorOnboardingDrafts.id, { onDelete: 'cascade' }),
+  invitationId: integer("invitation_id").references(() => vendorOnboardingTokens.id),
   documentType: text("document_type").notNull(),
   documentName: text("document_name").notNull(),
   fileUrl: text("file_url").notNull(),
-  status: text("status").notNull().default("valid"),
+  status: text("status").notNull().default("valid"), // 'valid', 'expired', 'superseded'
+  reviewStatus: text("review_status").notNull().default("approved"), // 'pending_review', 'approved', 'rejected', 'superseded'
+  reviewNotes: text("review_notes"),
+  uploadedBySource: text("uploaded_by_source").notNull().default("admin"), // 'admin', 'vendor_onboarding', 'system'
+  supersededById: integer("superseded_by_id").references((): any => vendorDocuments.id),
+  originalDocId: integer("original_doc_id").references((): any => vendorDocuments.id),
   expiryDate: timestamp("expiry_date"),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
-});
+}, (table) => ({
+  draftIdIdx: index("idx_vendor_documents_draft_id").on(table.draftId),
+  reviewStatusIdx: index("idx_vendor_documents_review_status").on(table.reviewStatus),
+}));
 
 export const vendorPerformance = pgTable("vendor_performance", {
   id: serial("id").primaryKey(),
@@ -444,6 +555,17 @@ export type InsertSubPurpose = InferModel<typeof subPurposes, "insert">;
 export type Vendor = InferModel<typeof vendors>;
 export type InsertVendor = InferModel<typeof vendors, "insert">;
 export type VendorCategory = InferModel<typeof vendorCategories>;
+export type VendorOnboardingDraft = InferModel<typeof vendorOnboardingDrafts>;
+export type InsertVendorOnboardingDraft = InferModel<typeof vendorOnboardingDrafts, "insert">;
+export type VendorOnboardingToken = InferModel<typeof vendorOnboardingTokens>;
+export type InsertVendorOnboardingToken = InferModel<typeof vendorOnboardingTokens, "insert">;
+export type VendorUploadIntent = InferModel<typeof vendorUploadIntents>;
+export type InsertVendorUploadIntent = InferModel<typeof vendorUploadIntents, "insert">;
+export type VendorChangeRequest = InferModel<typeof vendorChangeRequests>;
+export type InsertVendorChangeRequest = InferModel<typeof vendorChangeRequests, "insert">;
+export type RateLimitBucket = InferModel<typeof rateLimitBuckets>;
+export type VendorDocument = InferModel<typeof vendorDocuments>;
+export type InsertVendorDocument = InferModel<typeof vendorDocuments, "insert">;
 export type PaymentInstallment = InferModel<typeof paymentInstallments>;
 export type PaymentVariation = InferModel<typeof paymentVariations>;
 export type Department = typeof departments.$inferSelect;
@@ -619,6 +741,70 @@ export const insertVendorSchema = createInsertSchema(vendors, {
   status: z.enum(["active", "blocked", "frozen", "pending"]).default("active"),
 });
 
+// Admin minimal draft creation schema
+export const vendorDraftCreationSchema = z.object({
+  companyName: z.string().min(2, "Company name must be at least 2 characters"),
+  contactPerson: z.string().min(2, "Contact person name must be at least 2 characters"),
+  email: z.string().email("Invalid email format"),
+  contactNumber: z.string()
+    .min(8, "Contact number must be at least 8 digits")
+    .max(15, "Contact number cannot exceed 15 digits")
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
+  category: z.string().default("general"),
+  payment_currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).default("QAR"),
+  requiredDocumentTypes: z.array(z.object({
+    type: z.string().min(1),
+    mandatory: z.boolean(),
+    description: z.string().optional()
+  })).default([
+    { type: "Commercial Registration", mandatory: true, description: "Official CR document with valid expiry date" },
+    { type: "Tax Certificate", mandatory: true, description: "Tax / VAT identification certificate" },
+    { type: "Establishment Card", mandatory: false, description: "Computer card / Municipality license" }
+  ]),
+  notes: z.string().optional()
+});
+
+// Vendor partial save schema (all non-identity fields optional)
+export const vendorSelfServiceSaveSchema = z.object({
+  companyName: z.string().min(2).optional(),
+  contactPerson: z.string().min(2).optional(),
+  contactNumber: z.string().optional(),
+  email: z.string().email().optional(),
+  address: z.string().optional().nullable(),
+  taxNumber: z.string().optional().nullable(),
+  registrationNumber: z.string().optional().nullable(),
+  bankName: z.string().optional().nullable(),
+  branchName: z.string().optional().nullable(),
+  accountNumber: z.string().optional().nullable(),
+  ibanNumber: z.string().optional().nullable(),
+  payment_currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).optional(),
+  version: z.number().int().positive()
+});
+
+// Vendor final submission schema (strict validation on all mandatory items)
+export const vendorSelfServiceSubmitSchema = z.object({
+  companyName: z.string().min(2, "Company name must be at least 2 characters"),
+  contactPerson: z.string().min(2, "Contact person name must be at least 2 characters"),
+  contactNumber: z.string()
+    .min(8, "Contact number must be at least 8 digits")
+    .max(15, "Contact number cannot exceed 15 digits")
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
+  email: z.string().email("Invalid email format"),
+  address: z.string().min(5, "Headquarters address must be at least 5 characters"),
+  taxNumber: z.string().optional().nullable(),
+  registrationNumber: z.string().optional().nullable(),
+  bankName: z.string().min(2, "Bank name must be at least 2 characters"),
+  branchName: z.string().min(2, "Branch name must be at least 2 characters"),
+  accountNumber: z.string()
+    .min(5, "Account number must be at least 5 characters")
+    .regex(/^[\w\s\-\.\/]+$/, "Account number can only contain letters, numbers, spaces, hyphens, dots, and slashes"),
+  ibanNumber: z.string()
+    .min(10, "IBAN must be at least 10 characters")
+    .regex(/^[A-Z0-9\s\-\.]+$/, "IBAN must contain only uppercase letters, numbers, spaces, dots, and slashes"),
+  payment_currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).default("QAR"),
+  version: z.number().int().positive()
+});
+
 // Use the same schema for form validation
 export const vendorFormSchema = insertVendorSchema;
 
@@ -667,6 +853,10 @@ export const selectErrorLogSchema = createSelectSchema(errorLogs);
 
 export const selectSubPurposeSchema = createSelectSchema(subPurposes);
 export const selectVendorSchema = createSelectSchema(vendors);
+export const selectVendorOnboardingDraftSchema = createSelectSchema(vendorOnboardingDrafts);
+export const selectVendorOnboardingTokenSchema = createSelectSchema(vendorOnboardingTokens);
+export const selectVendorUploadIntentSchema = createSelectSchema(vendorUploadIntents);
+export const selectVendorChangeRequestSchema = createSelectSchema(vendorChangeRequests);
 export const selectVendorCategorySchema = createSelectSchema(vendorCategories);
 export const selectVendorPerformanceSchema = createSelectSchema(vendorPerformance);
 export const selectPaymentInstallmentSchema = createSelectSchema(paymentInstallments);
@@ -675,10 +865,10 @@ export const selectDepartmentSchema = createSelectSchema(departments);
 export const insertDepartmentSchema = createInsertSchema(departments, {
   name: z.string().min(2, "Department name must be at least 2 characters"),
   isApprover: z.boolean().default(false),
-}).omit({ 
-  id: true, 
-  createdAt: true, 
-  updatedAt: true 
+}).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true
 });
 
 // ============= Error log schemas =============
@@ -819,7 +1009,7 @@ export const vendorPerformanceRelations = relations(vendorPerformance, ({one, ma
 }))
 
 // Update AuditAction type to include PDF operations
-export type AuditAction = 'pdf_generated' | 'pdf_downloaded' | 'pdf_viewed' | 
+export type AuditAction = 'pdf_generated' | 'pdf_downloaded' | 'pdf_viewed' |
   'csv_downloaded' | 'excel_downloaded' | 'zip_downloaded' | 'pdf_analyzed';
 
 export const auditLogs = pgTable("audit_logs", {
