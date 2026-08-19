@@ -1,15 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@db";
-import { vendors } from "@db/schema";
+import { vendors, auditLogs } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
+import { ComplianceService } from "@/lib/services/ComplianceService";
 
 export const dynamic = 'force-dynamic';
 
 /**
- * PATCH /api/vendors/[id]/status
- * Update vendor status (active, blocked, frozen).
- * Access: Admin or users with canManageVendors permission.
+ * PATCH /api/admin/vendors/[id]/status
+ * Admin-level endpoint for updating vendor operational and compliance status.
+ * Access: Admin or Super Admin or users with canManageVendors permission.
  */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -22,7 +23,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       return NextResponse.json({ error: "Access denied. Admin or Vendor Management rights required." }, { status: 403 });
     }
 
-    const vendorId = parseInt(paramId);
+    const vendorId = parseInt(paramId, 10);
     if (isNaN(vendorId)) return NextResponse.json({ error: "Invalid vendor ID" }, { status: 400 });
 
     const body = await req.json().catch(() => ({}));
@@ -54,9 +55,31 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       .where(eq(vendors.id, vendorId))
       .returning();
 
+    // Trigger compliance evaluation if approved/activated
+    if (status === "active") {
+      try {
+        await ComplianceService.getInstance().scanVendorDocuments(vendorId);
+      } catch (err) {
+        console.warn(`[Admin Vendor Status] Heuristic scan warning for vendor ${vendorId}:`, err);
+      }
+    }
+
+    // Record audit log
+    await db.insert(auditLogs).values({
+      action: "VENDOR_STATUS_UPDATED",
+      resourceType: "vendor",
+      resourceId: vendorId,
+      userId: user.id,
+      details: {
+        previousStatus: existingVendor.status,
+        newStatus: status,
+        vendorName: existingVendor.companyName,
+      },
+    });
+
     return NextResponse.json(updatedVendor);
   } catch (error: any) {
-    console.error("[Native API] Vendor Status PATCH Error:", error);
+    console.error("[Admin API] Vendor Status PATCH Error:", error);
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
