@@ -49,12 +49,37 @@ export function ErrorFallbackView({
   const [stressClicks, setStressClicks] = useState(0);
   const [randomMessage, setRandomMessage] = useState(FUNNY_MESSAGES[0]);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
+  const [incidentId, setIncidentId] = useState<number | null>(null);
+  const [isReported, setIsReported] = useState(false);
 
   useEffect(() => {
     // Pick a random funny message on mount
     const idx = Math.floor(Math.random() * FUNNY_MESSAGES.length);
     setRandomMessage(FUNNY_MESSAGES[idx]);
     console.error("[PurchaseTracker Error Boundary Caught]:", error);
+
+    // Automatically report crash to Super Admins & telemetry
+    try {
+      fetch("/api/admin/diagnostics/report-crash", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: error?.message || "Unknown client render error",
+          stack: error?.stack || "",
+          digest: error?.digest || null,
+          url: typeof window !== "undefined" ? window.location.href : "/",
+          userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "Unknown",
+        }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data?.incidentId) {
+            setIncidentId(data.incidentId);
+            setIsReported(true);
+          }
+        })
+        .catch(() => {});
+    } catch {}
   }, [error]);
 
   const handleCopyDiagnostics = () => {
@@ -122,10 +147,27 @@ export function ErrorFallbackView({
             </p>
           </div>
 
-          {/* Safety Reassurance Badge */}
-          <div className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3.5 mb-6 flex items-center justify-center gap-2.5 text-xs text-emerald-400 font-bold">
-            <HeartHandshake className="w-4 h-4 shrink-0" />
-            <span>Peace of mind: All your requests, budgets & files are safely preserved.</span>
+          {/* Safety Reassurance & SuperAdmin Alert Badge */}
+          <div className="w-full space-y-2 mb-6">
+            <div className="w-full bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-3.5 flex items-center justify-center gap-2.5 text-xs text-emerald-400 font-bold">
+              <HeartHandshake className="w-4 h-4 shrink-0" />
+              <span>Peace of mind: All your requests, budgets & files are safely preserved.</span>
+            </div>
+
+            {isReported && (
+              <div className="w-full bg-indigo-500/10 border border-indigo-500/20 rounded-xl p-2.5 flex items-center justify-between text-xs text-indigo-400 font-bold px-4">
+                <span className="flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                  </span>
+                  Super Admin notified automatically
+                </span>
+                <span className="font-mono text-[11px] bg-indigo-500/20 px-2 py-0.5 rounded">
+                  Incident Ref #{incidentId || "LIVE"}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Humorous Quote Box */}

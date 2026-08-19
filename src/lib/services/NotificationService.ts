@@ -159,7 +159,8 @@ export class NotificationService {
     departmentRestrictions,
     stage,
     causalEventId,
-    customIdempotencyKey
+    customIdempotencyKey,
+    link: customLink
   }: {
     userId: number;
     title: string;
@@ -175,6 +176,7 @@ export class NotificationService {
     stage?: string;
     causalEventId?: string | number;
     customIdempotencyKey?: string;
+    link?: string;
   }) {
     // 1. Generate Deterministic Idempotency Key
     const idempotencyKey = customIdempotencyKey || NotificationService.generateIdempotencyKey({
@@ -208,8 +210,8 @@ export class NotificationService {
       return exactMatch;
     }
 
-    // Generate link based on type
-    const link = this.generateLink(type, { requestId });
+    // Generate link based on type or use custom link
+    const link = customLink || this.generateLink(type, { requestId });
 
     // Add role and department restrictions and idempotency key to action data
     const enhancedActionData: Record<string, any> = { ...actionData, idempotencyKey };
