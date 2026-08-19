@@ -108,9 +108,12 @@ export async function GET(req: NextRequest) {
       whereConditions.push(or(
         ilike(purchaseRequests.title, `%${search}%`),
         ilike(purchaseRequests.requestNumber, `%${search}%`),
+        ilike(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, `%${search}%`),
         ilike(users.username, `%${search}%`),
         ilike(users.department, `%${search}%`),
-        ilike(subPurposes.name, `%${search}%`)
+        ilike(subPurposes.name, `%${search}%`),
+        ilike(vendors.companyName, `%${search}%`),
+        ilike(purchaseRequests.purposeType, `%${search}%`)
       ));
     }
 
@@ -185,12 +188,33 @@ export async function GET(req: NextRequest) {
           id: subPurposes.id,
           name: subPurposes.name,
         },
+        vendor: {
+          id: vendors.id,
+          name: vendors.companyName,
+        },
         requester: {
           id: users.id,
           username: users.username,
           department: users.department,
           role: users.role,
         },
+        paidAmount: sql<number>`COALESCE((
+          SELECT sum(COALESCE(${paymentInstallments.paidAmount}, ${paymentInstallments.calculatedAmountQar}, 0))
+          FROM ${paymentInstallments}
+          WHERE ${paymentInstallments.requestId} = ${purchaseRequests.id}
+          AND ${paymentInstallments.status} = 'paid'
+        ), 0)`.mapWith(Number),
+        paidInstallmentsCount: sql<number>`COALESCE((
+          SELECT count(*)
+          FROM ${paymentInstallments}
+          WHERE ${paymentInstallments.requestId} = ${purchaseRequests.id}
+          AND ${paymentInstallments.status} = 'paid'
+        ), 0)`.mapWith(Number),
+        totalInstallmentsCount: sql<number>`COALESCE((
+          SELECT count(*)
+          FROM ${paymentInstallments}
+          WHERE ${paymentInstallments.requestId} = ${purchaseRequests.id}
+        ), 0)`.mapWith(Number),
         approvedCount: sql<number>`(
           SELECT count(*) 
           FROM ${approvals} 
@@ -201,6 +225,7 @@ export async function GET(req: NextRequest) {
       .from(purchaseRequests)
       .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
       .leftJoin(subPurposes, eq(subPurposes.id, purchaseRequests.subPurposeId))
+      .leftJoin(vendors, eq(vendors.id, purchaseRequests.vendorId))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(purchaseRequests.createdAt))
       .limit(searchParams.has("limit") ? parseInt(searchParams.get("limit") as string, 10) : 50);

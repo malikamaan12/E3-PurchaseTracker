@@ -141,7 +141,7 @@ export function RequestFilters({ filters, setFilters, metadata }: RequestFilters
         <div className="flex-1 w-full max-w-xl relative group">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-brand-primary transition-colors z-10" />
           <Input 
-            placeholder="Search by title or request number..."
+            placeholder="Search by title, PR #, vendor, department, requester, purpose..."
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
             className="pl-11 h-11 min-h-[44px] rounded-xl text-sm"

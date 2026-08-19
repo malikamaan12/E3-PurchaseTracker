@@ -21,6 +21,7 @@ import {
   FileSpreadsheet,
   PlusCircle,
   Lock,
+  Clock,
   Inbox
 } from "lucide-react";
 import { format } from "date-fns";
@@ -28,9 +29,16 @@ import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useEffect, useRef, Suspense } from "react";
-import { initMagnetic, initGlow, pageLoad } from "@/lib/animations";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/DropdownMenu";
 import { RequestFilters } from "@/components/requests/RequestFilters";
 import { DeleteRequestDialog } from "@/components/requests/DeleteRequestDialog";
+import { pageLoad } from "@/lib/animations";
 import { Edit2, Trash2, Zap } from "lucide-react";
 import { usePerformance } from "@/context/PerformanceContext";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
@@ -504,7 +512,7 @@ export default function RequestsDashboard() {
 
 function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) {
   const { highPerformanceMode } = usePerformance();
-  if (isLoading) return <div className="h-32 bg-card border border-border animate-pulse rounded-lg" />;
+  if (isLoading) return <div className="h-28 bg-card border border-border animate-pulse rounded-2xl" />;
 
   // Prefer canonical overview from FinancialMetricsService if provided
   const overview = data?.overview;
@@ -519,12 +527,12 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
       }), { count: 0, totalValue: 0 });
   };
 
-  const approved = overview ? overview.fullyApprovedAmount : getStatusSum('approved').totalValue;
+  const approvedAmount = overview ? overview.fullyApprovedAmount : getStatusSum('approved').totalValue;
   const approvedCount = overview ? overview.fullyApprovedCount : getStatusSum('approved').count;
 
   // In-flight / pending volume = pending + partially_approved requests
   const pendingStat = getStatusSum('pending', 'partially_approved', 'PARTIALLY_APPROVED');
-  const pending = overview
+  const pendingAmount = overview
     ? (overview.partiallyApprovedAmount + (kpis.find((k: any) => k.status === 'pending')?.totalValue || 0))
     : pendingStat.totalValue;
   const pendingCount = overview
@@ -537,42 +545,44 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
     : getStatusSum('pending', 'partially_approved', 'PARTIALLY_APPROVED', 'approved', 'VARIATION_PENDING', 'variation_pending', 'changes_requested').count;
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-      <div className="col-span-1 sm:col-span-2 lg:col-span-1">
-        <AnalyticsCard
-          label="Total Approved"
-          value={approved}
-          suffix="QAR"
-          subValue={approvedCount}
-          subLabel="requests"
-          icon={<TrendingUp className="text-emerald-500 w-5 h-5" />}
-          glowClass="bg-emerald-500"
-        />
-      </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       <AnalyticsCard
-        label="Pending Volume"
-        value={pending}
+        label="Total Approved Amount"
+        value={approvedAmount}
+        suffix="QAR"
+        subValue={approvedCount}
+        subLabel="approved requests"
+        icon={<TrendingUp className="text-emerald-500 w-5 h-5" />}
+      />
+      <AnalyticsCard
+        label="Pending Amount"
+        value={pendingAmount}
         suffix="QAR"
         subValue={pendingCount}
-        subLabel="requests"
-        icon={<BarChart3 className="text-brand-secondary w-5 h-5" />}
-        glowClass="bg-brand-secondary"
+        subLabel="pending requests"
+        icon={<BarChart3 className="text-amber-500 w-5 h-5" />}
       />
       <AnalyticsCard
         label="Active Requests"
         value={activeCount}
         suffix="REQ"
         subLabel="in workflow"
-        icon={<div className="text-brand-primary font-bold text-xs">QAR</div>}
-        glowClass="bg-brand-primary"
+        icon={<FileSpreadsheet className="text-primary w-5 h-5" />}
+      />
+      <AnalyticsCard
+        label="Pending Requests"
+        value={pendingCount}
+        suffix="REQ"
+        subLabel="awaiting decision"
+        icon={<Clock className="text-amber-500 w-5 h-5" />}
       />
     </div>
   );
 }
 
-function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon, glowClass = "" }: any) {
+function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon }: any) {
   return (
-    <div className="bg-card border border-border p-4 sm:p-5 rounded-2xl relative overflow-hidden shadow-sm flex flex-col justify-between">
+    <div className="bg-card border border-border p-4 sm:p-5 rounded-2xl relative overflow-hidden shadow-sm flex flex-col justify-between hover:border-primary/20 transition-all">
       <div className="flex justify-between items-start gap-2">
         <div className="space-y-1 min-w-0">
           <p className="text-xs font-semibold text-muted-foreground truncate">{label}</p>
@@ -588,6 +598,81 @@ function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon, gl
         </div>
         <div className="w-10 h-10 rounded-xl bg-secondary border border-border flex items-center justify-center shrink-0 shadow-sm">
           {icon}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AmountWithPaymentHover({
+  totalAmount,
+  paidAmount = 0,
+  currency = "QAR",
+}: {
+  totalAmount: number;
+  paidAmount?: number;
+  currency?: string;
+}) {
+  const total = Number(totalAmount || 0);
+  const paid = Number(paidAmount || 0);
+  const balance = Math.max(0, total - paid);
+  const percentage = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
+
+  const paymentStatus =
+    paid >= total && total > 0 ? "Fully Settled" :
+    paid > 0 ? "Partially Paid" : "Unpaid";
+
+  const statusStyle =
+    paymentStatus === "Fully Settled" ? "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30" :
+    paymentStatus === "Partially Paid" ? "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30" :
+    "text-muted-foreground bg-secondary/80 border-border";
+
+  return (
+    <div className="relative group/amt inline-block cursor-help py-1">
+      <div className="flex items-baseline gap-1 font-semibold text-foreground">
+        <span>{total.toLocaleString()}</span>
+        <span className="text-xs text-muted-foreground font-normal">{currency}</span>
+        {paid > 0 && (
+          <span className="ml-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" title="Payments recorded" />
+        )}
+      </div>
+
+      {/* Popover Breakdown on Hover */}
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover/amt:flex flex-col w-60 p-3.5 rounded-2xl bg-card/98 border border-border shadow-2xl z-[9999] pointer-events-none animate-in fade-in zoom-in-95 duration-150">
+        <div className="flex items-center justify-between pb-2 border-b border-border mb-2.5">
+          <span className="font-bold text-[11px] text-foreground uppercase tracking-wider">Payment Breakdown</span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusStyle}`}>
+            {paymentStatus}
+          </span>
+        </div>
+
+        <div className="space-y-2 text-xs">
+          <div className="flex justify-between text-muted-foreground">
+            <span>Total PR Cost:</span>
+            <span className="text-foreground font-semibold">{total.toLocaleString()} {currency}</span>
+          </div>
+          <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+            <span className="font-medium">Paid Amount:</span>
+            <span className="font-bold">{paid.toLocaleString()} {currency}</span>
+          </div>
+          <div className="flex justify-between text-amber-600 dark:text-amber-400">
+            <span className="font-medium">Balance Payment:</span>
+            <span className="font-bold">{balance.toLocaleString()} {currency}</span>
+          </div>
+        </div>
+
+        {/* Progress indicator */}
+        <div className="mt-3 pt-2 border-t border-border/80">
+          <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+            <span>Settlement Progress</span>
+            <span className="font-mono font-bold text-foreground">{percentage}%</span>
+          </div>
+          <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-emerald-500' : 'bg-primary'}`}
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -637,7 +722,6 @@ function BulkActionToolbar({ selectedCount, onApprove, onClear, isProcessing }: 
 function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, onEdit, onDelete }: any) {
   const router = useRouter();
   const { user, isSuperAdmin, isAdmin, isApprover, isSupervisor, canApproveInDepartment } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const isOwner = request.requesterId === user?.id;
   const approvedCount = (request.approvals?.filter((a: any) => a.status === 'approved').length) || Number(request.approvedCount || 0);
@@ -684,6 +768,7 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
             </span>
             <div className="text-xs text-muted-foreground mt-0.5 truncate">
               {request.requester?.username} • {request.requester?.department}
+              {request.vendor?.name && ` • ${request.vendor.name}`}
             </div>
           </div>
         </div>
@@ -707,9 +792,10 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
       <div className="flex items-center justify-between pt-3 border-t border-border mt-3 pl-8">
         <div>
           <span className="text-[11px] font-semibold text-muted-foreground block">Estimated</span>
-          <span className="text-base font-bold text-foreground">
-            {request.totalEstimatedCost?.toLocaleString()} <span className="text-xs font-normal text-muted-foreground">QAR</span>
-          </span>
+          <AmountWithPaymentHover
+            totalAmount={request.totalEstimatedCost}
+            paidAmount={request.paidAmount}
+          />
         </div>
 
         <div className="flex items-center gap-2">
@@ -721,64 +807,40 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
             <Eye className="w-4 h-4" /> View
           </button>
 
-          <div className="relative">
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label="More options for request"
-              className="w-11 h-11 rounded-xl flex items-center justify-center border border-border bg-secondary/60 hover:bg-secondary text-muted-foreground transition-colors touch-target"
-            >
-              <MoreHorizontal className="w-5 h-5" />
-            </button>
-
-            {isMenuOpen && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
-                <div className="absolute right-0 bottom-full mb-2 w-48 bg-card border border-border rounded-2xl shadow-2xl z-50 p-1.5 overflow-hidden animate-in fade-in zoom-in-95">
-                  {canQuickApprove && (
-                    <button
-                      onClick={() => { setIsMenuOpen(false); onRequestApprove(request); }}
-                      className="w-full text-left px-3 py-2.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 rounded-xl flex items-center gap-2.5 min-h-[44px] touch-target"
-                    >
-                      <CheckCircle className="w-4 h-4" /> Approve Request
-                    </button>
-                  )}
-                  {(canEdit || canDelete) && (
-                    <>
-                      {canEdit && (
-                        <button
-                          onClick={() => { setIsMenuOpen(false); onEdit(); }}
-                          className="w-full text-left px-3 py-2.5 text-xs font-semibold text-foreground hover:bg-secondary rounded-xl flex items-center gap-2.5 min-h-[44px] touch-target"
-                        >
-                          <Edit2 className="w-4 h-4" /> Edit Request
-                        </button>
-                      )}
-                      {canDelete && (
-                        <button
-                          onClick={() => { setIsMenuOpen(false); onDelete(); }}
-                          className="w-full text-left px-3 py-2.5 text-xs font-semibold text-destructive hover:bg-destructive/10 rounded-xl flex items-center gap-2.5 min-h-[44px] touch-target"
-                        >
-                          <Trash2 className="w-4 h-4" /> Delete Request
-                        </button>
-                      )}
-                      <div className="h-px bg-border my-1 mx-2" />
-                    </>
-                  )}
-                  <button
-                    onClick={() => { setIsMenuOpen(false); apiClient.documents.downloadPdf(request.id); }}
-                    className="w-full text-left px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary rounded-xl flex items-center gap-2.5 min-h-[44px] touch-target"
-                  >
-                    <FileText className="w-4 h-4" /> Download PDF
-                  </button>
-                  <button
-                    onClick={() => { setIsMenuOpen(false); apiClient.documents.downloadZip(request.id); }}
-                    className="w-full text-left px-3 py-2.5 text-xs font-medium text-foreground hover:bg-secondary rounded-xl flex items-center gap-2.5 min-h-[44px] touch-target"
-                  >
-                    <Archive className="w-4 h-4" /> Download ZIP
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                aria-label="More options for request"
+                className="w-11 h-11 rounded-xl flex items-center justify-center border border-border bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors touch-target"
+              >
+                <MoreHorizontal className="w-5 h-5" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {canQuickApprove && (
+                <DropdownMenuItem onClick={() => onRequestApprove(request)} className="text-emerald-600 dark:text-emerald-400 font-bold">
+                  <CheckCircle className="w-4 h-4 mr-2" /> Approve Request
+                </DropdownMenuItem>
+              )}
+              {canEdit && (
+                <DropdownMenuItem onClick={onEdit}>
+                  <Edit2 className="w-4 h-4 mr-2" /> Edit Request
+                </DropdownMenuItem>
+              )}
+              {canDelete && (
+                <DropdownMenuItem onClick={onDelete} className="text-destructive focus:text-destructive">
+                  <Trash2 className="w-4 h-4 mr-2" /> Delete Request
+                </DropdownMenuItem>
+              )}
+              {(canQuickApprove || canEdit || canDelete) && <DropdownMenuSeparator />}
+              <DropdownMenuItem onClick={() => apiClient.documents.downloadPdf(request.id)}>
+                <FileText className="w-4 h-4 mr-2" /> Download PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => apiClient.documents.downloadZip(request.id)}>
+                <Archive className="w-4 h-4 mr-2" /> Download ZIP
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </div>
@@ -818,7 +880,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
     )
   );
 
-  const rowClassName = `group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 hover:relative hover:z-50 ${isSelected ? 'bg-brand-primary/10' : ''}`;
+  const rowClassName = `group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 ${isSelected ? 'bg-brand-primary/10' : ''}`;
 
   const renderCells = () => (
     <>
@@ -837,6 +899,12 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
         <div className="font-medium text-foreground transition-colors">{request.title}</div>
         <div className="text-xs text-muted-foreground mt-1">
           {request.requester?.username} • {request.requester?.department}
+          {request.vendor?.name && (
+            <>
+              <span className="mx-1.5 opacity-30">|</span>
+              <span className="text-foreground/80 font-medium">{request.vendor.name}</span>
+            </>
+          )}
           {request.subPurpose?.name && (
             <>
               <span className="mx-1.5 opacity-30">|</span>
@@ -855,15 +923,18 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
           )}
         </div>
       </td>
-      <td className="px-6 py-5 font-semibold text-foreground">
-        {request.totalEstimatedCost?.toLocaleString()} <span className="text-xs text-muted-foreground font-normal">QAR</span>
+      <td className="px-6 py-5">
+        <AmountWithPaymentHover
+          totalAmount={request.totalEstimatedCost}
+          paidAmount={request.paidAmount}
+        />
       </td>
-      <td className="px-6 py-5 text-right overflow-visible">
+      <td className="px-6 py-5 text-right">
         <div className="flex justify-end gap-2 items-center">
           {canQuickApprove && (
             <button
               onClick={onApprove}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-500 transition-colors text-xs font-medium"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors text-xs font-semibold"
               title="Quick Approve"
             >
               <CheckCircle className="w-3.5 h-3.5" /> Approve
@@ -872,39 +943,45 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
 
           <button
             onClick={() => router.push(`/dashboard/requests/${request.id}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-secondary hover:bg-secondary/80 text-foreground transition-colors text-xs font-medium border border-border"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground transition-colors text-xs font-medium border border-border"
           >
             <Eye className="w-3.5 h-3.5" /> View
           </button>
 
-          <div className="relative group/menu z-10 hover:z-50">
-            <button className="flex items-center justify-center w-8 h-8 rounded-md hover:bg-secondary text-muted-foreground transition-colors">
-              <MoreHorizontal className="w-4 h-4" />
-            </button>
-            <div className="absolute right-0 top-full mt-1 w-40 bg-popover border border-border rounded-md shadow-md opacity-0 invisible group-hover/menu:opacity-100 group-hover/menu:visible transition-all z-50 py-1 overflow-hidden">
-              {(canEdit || canDelete) && (
-                <>
-                  {canEdit && (
-                    <button onClick={onEdit} className="w-full text-left px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2">
-                      <Edit2 className="w-3.5 h-3.5" /> Edit Request
-                    </button>
-                  )}
-                  {canDelete && (
-                    <button onClick={onDelete} className="w-full text-left px-3 py-1.5 text-xs font-medium text-destructive hover:bg-secondary flex items-center gap-2">
-                      <Trash2 className="w-3.5 h-3.5" /> Delete Request
-                    </button>
-                  )}
-                </>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                aria-label="More options"
+                className="flex items-center justify-center w-8 h-8 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors border border-transparent hover:border-border"
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              {canQuickApprove && (
+                <DropdownMenuItem onClick={onApprove} className="text-emerald-600 dark:text-emerald-400 font-bold">
+                  <CheckCircle className="w-3.5 h-3.5 mr-2" /> Approve Request
+                </DropdownMenuItem>
               )}
-              <div className="h-px bg-border my-1 mx-2" />
-              <button onClick={() => apiClient.documents.downloadPdf(request.id)} className="w-full text-left px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2">
-                <FileText className="w-3.5 h-3.5" /> Download PDF
-              </button>
-              <button onClick={() => apiClient.documents.downloadZip(request.id)} className="w-full text-left px-3 py-1.5 text-xs font-medium text-foreground hover:bg-secondary flex items-center gap-2">
-                <Archive className="w-3.5 h-3.5" /> Download ZIP
-              </button>
-            </div>
-          </div>
+              {canEdit && (
+                <DropdownMenuItem onClick={onEdit}>
+                  <Edit2 className="w-3.5 h-3.5 mr-2" /> Edit Request
+                </DropdownMenuItem>
+              )}
+              {canDelete && (
+                <DropdownMenuItem onClick={onDelete} className="text-rose-500 focus:text-rose-500">
+                  <Trash2 className="w-3.5 h-3.5 mr-2" /> Delete Request
+                </DropdownMenuItem>
+              )}
+              {(canQuickApprove || canEdit || canDelete) && <DropdownMenuSeparator />}
+              <DropdownMenuItem onClick={() => apiClient.documents.downloadPdf(request.id)}>
+                <FileText className="w-3.5 h-3.5 mr-2" /> Download PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => apiClient.documents.downloadZip(request.id)}>
+                <Archive className="w-3.5 h-3.5 mr-2" /> Download ZIP
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </td>
     </>
