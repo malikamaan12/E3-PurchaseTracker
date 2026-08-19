@@ -26,10 +26,8 @@ export function Sidebar({ className, onItemClick, ...props }: SidebarProps) {
   const navItems = [
     { name: "Purchases", path: "/dashboard/requests", icon: <FileText className="w-5 h-5" /> },
     { name: "Vendors", path: "/dashboard/vendors", icon: <Users className="w-5 h-5" /> },
-    ...(isAdmin || isApprover ? [
-      { name: "Analytics", path: "/dashboard/analytics", icon: <PieChart className="w-5 h-5" /> },
-      { name: "Compliance", path: "/dashboard/compliance", icon: <ShieldCheck className="w-5 h-5" /> }
-    ] : []),
+    { name: "Analytics", path: "/dashboard/analytics", icon: <PieChart className="w-5 h-5" /> },
+    { name: "Compliance", path: "/dashboard/compliance", icon: <ShieldCheck className="w-5 h-5" /> },
     ...(isAdmin ? [
       { name: "Admin", path: "/dashboard/admin", icon: <Settings className="w-5 h-5" /> }
     ] : []),
