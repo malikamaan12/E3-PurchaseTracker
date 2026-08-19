@@ -119,6 +119,20 @@ export async function GET(req: NextRequest) {
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
     const userDepts = (user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean);
 
+    // Calculate which departments this user is authorized to APPROVE for
+    const approverDepts: string[] = [];
+    if (user.role === 'approver' && user.department) {
+      approverDepts.push(user.department);
+    }
+    const normalizedAssignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);
+    for (const assignment of normalizedAssignments) {
+      if (assignment.status === 'active' && (assignment.role === 'approver' || assignment.role === 'both')) {
+        if (assignment.department && !approverDepts.includes(assignment.department)) {
+          approverDepts.push(assignment.department);
+        }
+      }
+    }
+
     // 1. Isolation for pending_dept_head requests:
     // Only super_admin, the supervisor (requester), or someone from the submitting department can see it.
     if (!isSuperAdmin) {
@@ -127,13 +141,22 @@ export async function GET(req: NextRequest) {
       );
     }
 
+    // 2. Department & Role Scoping for non-admins:
+    // - Users always see requests originating from their department or submitted by them.
+    // - ONLY users with active approver roles in an approval department see cross-department requests requiring their approval.
     if (!isAdmin) {
-      whereConditions.push(
-        or(
-          inArray(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, userDepts),
-          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.department} IN ${userDepts})`
-        )
-      );
+      const visibilityConditions = [
+        inArray(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, userDepts),
+        eq(purchaseRequests.requesterId, user.id)
+      ];
+
+      if (approverDepts.length > 0) {
+        visibilityConditions.push(
+          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.department} IN ${approverDepts})`
+        );
+      }
+
+      whereConditions.push(or(...visibilityConditions));
     }
 
     let timeoutHandle: ReturnType<typeof setTimeout>;

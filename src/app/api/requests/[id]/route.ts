@@ -114,20 +114,54 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // ── STAGE 1 VISIBILITY GUARD ──────────────────────────────────────────────
     // If request is pending_dept_head, only the requester, their submitting department members, or super_admin may access it.
-    if (request.status === 'pending_dept_head') {
-      const isSuperAdmin = authenticatedUser.role === 'super_admin';
-      const isRequester = request.requesterId === authenticatedUser.id;
-      const effectiveRequestDept = (request.department || requester?.department || '').toLowerCase().trim();
-      const userDepts = (authenticatedUser.departments || [authenticatedUser.department])
-        .filter(Boolean)
-        .map((d: any) => (typeof d === 'string' ? d : d.department || '').toLowerCase().trim());
-      const isDeptMember = userDepts.includes(effectiveRequestDept);
+    const isSuperAdmin = authenticatedUser.role === 'super_admin';
+    const isAdmin = authenticatedUser.role === 'admin' || isSuperAdmin;
+    const isRequester = request.requesterId === authenticatedUser.id;
+    const effectiveRequestDept = (request.department || requester?.department || '').toLowerCase().trim();
+    const userDepts = (authenticatedUser.departments || [authenticatedUser.department])
+      .filter(Boolean)
+      .map((d: any) => (typeof d === 'string' ? d : d.department || '').toLowerCase().trim());
+    const isDeptMember = userDepts.includes(effectiveRequestDept);
 
+    if (request.status === 'pending_dept_head') {
       if (!isSuperAdmin && !isRequester && !isDeptMember) {
         return NextResponse.json(
           { 
             error: "Access Denied", 
             message: "This request is pending Stage 1 Department Head sign-off and is not yet available for mandatory review." 
+          }, 
+          { status: 403 }
+        );
+      }
+    }
+
+    // ── GENERAL RBAC VISIBILITY GUARD ─────────────────────────────────────────
+    // Non-admins can only access requests if they are the requester, a member of the submitting department,
+    // or an authorized approver for one of the request's approval steps.
+    if (!isAdmin && !isRequester && !isDeptMember) {
+      const approverDepts: string[] = [];
+      if (authenticatedUser.role === 'approver' && authenticatedUser.department) {
+        approverDepts.push(authenticatedUser.department.toLowerCase().trim());
+      }
+      const normalizedAssignments = authenticatedUser.departmentAssignments || normalizeDepartmentAssignments(authenticatedUser.assignedDepartments, authenticatedUser.department);
+      for (const assignment of normalizedAssignments) {
+        if (assignment.status === 'active' && (assignment.role === 'approver' || assignment.role === 'both')) {
+          if (assignment.department) {
+            approverDepts.push(assignment.department.toLowerCase().trim());
+          }
+        }
+      }
+
+      const safeApprovalsList = Array.isArray(requestApprovals) ? requestApprovals : [];
+      const hasApproverAuthority = safeApprovalsList.some((app: any) => 
+        app.department && approverDepts.includes(app.department.toLowerCase().trim())
+      );
+
+      if (!hasApproverAuthority) {
+        return NextResponse.json(
+          { 
+            error: "Access Denied", 
+            message: "You do not have authorization to view this purchase request." 
           }, 
           { status: 403 }
         );
