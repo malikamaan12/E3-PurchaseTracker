@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import React, { useState } from "react";
 import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/utils";
 import { History, Search, Download, Filter, User, Tag, Clock, ChevronDown } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -120,8 +121,8 @@ export default function AuditTimelinePage() {
                   className="flex gap-6 relative group"
                 >
                   <div className="w-16 flex flex-col text-right pt-2 flex-shrink-0">
-                    <span className="text-xs font-bold text-white leading-tight">{format(new Date(log.timestamp), "HH:mm")}</span>
-                    <span className="text-[10px] text-zinc-500 font-mono mt-0.5">{format(new Date(log.timestamp), "MMM dd")}</span>
+                    <span className="text-xs font-bold text-white leading-tight">{safeFormatDate(log.timestamp, "HH:mm")}</span>
+                    <span className="text-[10px] text-zinc-500 font-mono mt-0.5">{safeFormatDate(log.timestamp, "MMM dd")}</span>
                   </div>
                   
                   <div className="relative z-10 w-8 h-8 rounded-full bg-zinc-900 border-2 border-brand-primary/50 flex items-center justify-center mt-1 flex-shrink-0 group-hover:bg-brand-primary/20 group-hover:border-brand-primary transition-all">

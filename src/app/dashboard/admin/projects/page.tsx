@@ -24,6 +24,7 @@ import {
   Loader2
 } from "lucide-react";
 import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/context/AuthContext";
@@ -238,7 +239,7 @@ export default function AdminProjectsPage() {
                        <div className="flex items-center gap-3">
                           <CircleDot className="w-4 h-4 text-emerald-500" />
                           <span className="text-xs font-black uppercase tracking-wider">
-                            {project.validFrom ? format(new Date(project.validFrom), 'MMM dd, yyyy') : "N/A"}
+                            {safeFormatDate(project.validFrom, 'MMM dd, yyyy')}
                           </span>
                        </div>
                        <div className="flex items-center gap-3">
@@ -247,7 +248,7 @@ export default function AdminProjectsPage() {
                        <div className="flex items-center gap-3">
                           <CircleDot className="w-4 h-4 text-rose-500" />
                           <span className="text-xs font-black uppercase tracking-wider">
-                            {project.validTo ? format(new Date(project.validTo), 'MMM dd, yyyy') : "N/A"}
+                            {safeFormatDate(project.validTo, 'MMM dd, yyyy')}
                           </span>
                        </div>
                     </div>

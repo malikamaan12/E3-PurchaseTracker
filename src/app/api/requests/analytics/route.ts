@@ -182,35 +182,57 @@ export async function GET(req: NextRequest) {
     const response = NextResponse.json({
       overview,
       kpis: {
-        byStatus: kpis.map(k => ({
+        byStatus: (kpis || []).map(k => ({
           status: k.status,
-          count: Number(k.count),
+          count: Number(k.count || 0),
           totalValue: Number(k.totalValue || 0)
         })),
         totalPaid: Number(totalPaidVal[0]?.total || 0)
       },
-      cashFlow: cashFlow.map(c => ({
-        month: new Date(c.date as string).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-        value: Number(c.total || 0)
-      })),
-      bottlenecks: bottlenecks.map(b => ({
-        subject: b.department,
+      cashFlow: (cashFlow || []).map(c => {
+        let monthLabel = "N/A";
+        try {
+          if (c.date) {
+            const parsed = new Date(c.date as string);
+            if (!isNaN(parsed.getTime())) {
+              monthLabel = parsed.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+            }
+          }
+        } catch {}
+        return {
+          month: monthLabel,
+          value: Number(c.total || 0)
+        };
+      }),
+      bottlenecks: (bottlenecks || []).map(b => ({
+        subject: b.department || "Unknown",
         A: Math.round(Number(b.avgTurnaround || 0) * 10) / 10
       })),
       compliance: [
         { name: "On-Time", value: Number(complianceData[0]?.onTimeCount || 0) },
         { name: "Late/Rescheduled", value: Number(complianceData[0]?.lateCount || 0) }
       ],
-      cycleTime: cycleTimeTrends.map(t => ({
-        month: new Date(t.month as string).toLocaleDateString('en-US', { month: 'short' }),
-        days: Math.round(Number(t.avgDays || 0) * 10) / 10
-      })),
-      projectSpend: projectSpend.map(p => ({
-        name: p.projectName,
+      cycleTime: (cycleTimeTrends || []).map(t => {
+        let monthLabel = "N/A";
+        try {
+          if (t.month) {
+            const parsed = new Date(t.month as string);
+            if (!isNaN(parsed.getTime())) {
+              monthLabel = parsed.toLocaleDateString('en-US', { month: 'short' });
+            }
+          }
+        } catch {}
+        return {
+          month: monthLabel,
+          days: Math.round(Number(t.avgDays || 0) * 10) / 10
+        };
+      }),
+      projectSpend: (projectSpend || []).map(p => ({
+        name: p.projectName || "Unassigned",
         spent: Number(p.totalPaid || 0),
         budget: Number(p.totalBudget || 0)
       })),
-      budgets: budgetsWithActuals
+      budgets: budgetsWithActuals || []
     });
 
     // Cache for 5 minutes privately (per user browser) to avoid heavy re-aggregation

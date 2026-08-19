@@ -7,7 +7,7 @@ import {
   Lock, TrendingDown, ShieldAlert, Landmark, Coins, Loader2, AlertCircle, Save, X, Edit3,
   Paperclip, FileText, UploadCloud, Trash2, ExternalLink, MessageSquare, Clock
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { cn, safeFormatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/Button";
 import { format } from "date-fns";
 
@@ -477,7 +477,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                            {wasModified && (
                              <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
                                <Clock className="w-3 h-3 text-muted-foreground/70" />
-                               <span>Modified on {format(new Date(p.updatedAt), "MMM dd, yyyy • hh:mm a")}</span>
+                               <span>Modified on {safeFormatDate(p.updatedAt, "MMM dd, yyyy • hh:mm a")}</span>
                              </div>
                            )}
                         </td>
@@ -487,7 +487,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                            </span>
                            {p.actualPaymentDate && (
                              <div className="text-[11px] text-muted-foreground mt-1.5 font-mono bg-muted/50 w-max px-2 py-0.5 rounded">
-                               Cleared: {new Date(p.actualPaymentDate).toLocaleDateString()}
+                               Cleared: {safeFormatDate(p.actualPaymentDate, "MM/dd/yyyy")}
                              </div>
                            )}
 

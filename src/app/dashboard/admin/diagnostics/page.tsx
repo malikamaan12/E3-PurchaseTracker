@@ -5,6 +5,7 @@ import { apiClient } from "@/lib/apiClient";
 import { useAuth } from "@/context/AuthContext";
 import { Activity, BugPlay, ShieldAlert, Cpu, DownloadCloud, ChevronRight, Zap } from "lucide-react";
 import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
@@ -145,10 +146,10 @@ export default function DiagnosticsPage() {
                    <div className="shrink-0 flex flex-col items-start md:items-end gap-1">
                       <div className="flex items-center gap-1.5 px-3 py-1 bg-secondary/50 rounded-lg border border-border/50">
                         <Activity className="w-3 h-3 text-muted-foreground" />
-                        <span className="text-[10px] font-mono font-bold text-foreground">{format(new Date(log.timestamp), 'HH:mm:ss')}</span>
+                        <span className="text-[10px] font-mono font-bold text-foreground">{safeFormatDate(log.timestamp, 'HH:mm:ss')}</span>
                       </div>
                       <span className="text-[9px] text-muted-foreground font-black uppercase tracking-widest pr-1">
-                        {format(new Date(log.timestamp), 'MMM dd, yyyy')}
+                        {safeFormatDate(log.timestamp, 'MMM dd, yyyy')}
                       </span>
                    </div>
                 </div>

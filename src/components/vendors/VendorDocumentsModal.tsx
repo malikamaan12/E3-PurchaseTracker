@@ -8,6 +8,7 @@ import { X, FileText, Upload, Calendar, AlertCircle, CheckCircle2, Trash2, Clock
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
 import { format, differenceInDays } from "date-fns";
+import { safeFormatDate } from "@/lib/utils";
 import DocumentUploadZone from "@/components/shared/DocumentUploadZone";
 
 export function VendorDocumentsModal({ open, onOpenChange, vendor }: any) {
@@ -180,7 +181,7 @@ export function VendorDocumentsModal({ open, onOpenChange, vendor }: any) {
                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{doc.documentType}</span>
                                {doc.expiryDate && (
                                  <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1">
-                                   <Calendar className="w-3 h-3" /> Exp: {format(new Date(doc.expiryDate), "MMM dd, yyyy")}
+                                   <Calendar className="w-3 h-3" /> Exp: {safeFormatDate(doc.expiryDate, "MMM dd, yyyy")}
                                  </span>
                                )}
                              </div>

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { CopyPlus, ShieldPlus, Check, X, Building2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { safeFormatDate } from "@/lib/utils";
 import { useAuth } from "@/context/AuthContext";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
 import { ActionConfirmDialog } from "@/components/ui/ActionConfirmDialog";
@@ -91,7 +92,7 @@ export default function AccountRequestsPage() {
               <div className="pt-4 border-t border-border">
                 <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest opacity-50">Requested Role</p>
                 <p className="text-sm font-bold text-foreground capitalize">{req.role}</p>
-                <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-tighter opacity-50 font-bold">Applied: {format(new Date(req.createdAt), 'MMM dd, yyyy')}</p>
+                <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-tighter opacity-50 font-bold">Applied: {safeFormatDate(req.createdAt, 'MMM dd, yyyy')}</p>
               </div>
             </div>
 

@@ -20,6 +20,7 @@ import {
   History
 } from "lucide-react";
 import { format } from "date-fns";
+import { safeFormatDate, safeFormatNumber } from "@/lib/utils";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { apiClient } from "@/lib/apiClient";
@@ -264,11 +265,11 @@ export default function AdminCatalogPage() {
                                   <div className="flex items-center gap-3 sm:gap-4 mt-1 flex-wrap">
                                      <div className="flex items-center gap-1.5 text-[9px] font-bold text-muted-foreground uppercase opacity-60">
                                         <Calendar className="w-3 h-3" />
-                                        {project.validFrom ? format(new Date(project.validFrom), 'MMM d') : "Start"} {"->"} {project.validTo ? format(new Date(project.validTo), 'MMM d') : "End"}
+                                        {safeFormatDate(project.validFrom, 'MMM d', 'Start')} {"->"} {safeFormatDate(project.validTo, 'MMM d', 'End')}
                                      </div>
                                      <div className="flex items-center gap-1.5 text-[9px] font-black text-primary uppercase">
                                         <DollarSign className="w-3 h-3" />
-                                        QAR {project.totalBudget.toLocaleString()}
+                                        QAR {safeFormatNumber(project.totalBudget)}
                                      </div>
                                   </div>
                                </div>

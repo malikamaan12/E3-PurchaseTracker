@@ -21,7 +21,7 @@ import { LoadingState } from "@/components/shared/LoadingState";
 import { ExportDropdown } from "@/components/requests/ExportDropdown";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { cn, safeFormatDate } from "@/lib/utils";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
 
 export default function RequestDetailPage() {
@@ -436,7 +436,7 @@ export default function RequestDetailPage() {
                   <InfoItem label="Requester" value={request.requester?.username} icon={<User className="w-3.5 h-3.5" />} />
                   <InfoItem label="Department" value={request.requester?.department} icon={<Building2 className="w-3.5 h-3.5" />} />
                   <InfoItem label="Purpose" value={request.subPurpose?.name} />
-                  <InfoItem label="Date" value={format(new Date(request.createdAt), "MMM dd, yyyy")} icon={<Calendar className="w-3.5 h-3.5" />} />
+                  <InfoItem label="Date" value={safeFormatDate(request.createdAt, "MMM dd, yyyy")} icon={<Calendar className="w-3.5 h-3.5" />} />
                 </div>
                 <div className="border-t border-border/50 pt-5">
                   <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3">Vendor Information</h3>
@@ -815,7 +815,7 @@ export default function RequestDetailPage() {
                 <TimelineItem 
                   title="Request Initiated"
                   desc={`By ${request.requester?.username}`}
-                  time={format(new Date(request.createdAt), "MMM dd, yyyy")}
+                  time={safeFormatDate(request.createdAt, "MMM dd, yyyy")}
                   status="completed"
                 />
                 
@@ -851,7 +851,7 @@ export default function RequestDetailPage() {
                               )}
                             </div>
                           }
-                          time={approval.processedAt ? format(new Date(approval.processedAt), "MMM dd, yyyy") : undefined}
+                          time={approval.processedAt ? safeFormatDate(approval.processedAt, "MMM dd, yyyy") : undefined}
                           status={isApproved ? 'completed' : isRejected ? 'error' : isPending ? 'current' : 'pending'}
                         />
 
@@ -1230,7 +1230,7 @@ function AuditTrailModal({ isOpen, onClose, auditLogs }: { isOpen: boolean, onCl
               <div key={i} className="bg-background border border-border/50 shadow-sm rounded-xl p-4 text-sm hover:border-primary/30 transition-colors">
                 <div className="flex justify-between font-bold tracking-tight mb-2">
                   <span className="capitalize">{log.action.replace(/_/g, ' ')}</span>
-                  <span className="text-xs text-muted-foreground font-mono font-medium bg-muted px-2 py-0.5 rounded">{format(new Date(log.timestamp), "MMM dd, yyyy HH:mm")}</span>
+                  <span className="text-xs text-muted-foreground font-mono font-medium bg-muted px-2 py-0.5 rounded">{safeFormatDate(log.timestamp, "MMM dd, yyyy HH:mm")}</span>
                 </div>
                 <div className="text-xs text-muted-foreground flex items-center gap-1.5">
                   <User className="w-3 h-3" /> Initiated by <span className="font-medium text-foreground">{log.details?.processedBy || "System"}</span>
