@@ -102,6 +102,13 @@ async function runCrashManagementTests() {
   );
   assert(isSuperAdminEligible, "Super Admin is eligible and authorized to receive crash alerts");
 
+  // 6. Clean up test records
+  if (inserted?.id) {
+    await db.delete(errorLogs).where(eq(errorLogs.id, inserted.id));
+    await db.delete(notifications).where(eq(notifications.title, alertTitle));
+    console.log("  [CRASH-MGNT] ✓ Cleaned up synthetic test records from database");
+  }
+
   console.log("\n================================================================================");
   console.log(`TEST SUITE RESULTS: ${passedCount} PASSED, ${totalCount - passedCount} FAILED`);
   console.log("================================================================================\n");
