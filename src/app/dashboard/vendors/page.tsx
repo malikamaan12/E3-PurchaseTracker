@@ -65,7 +65,7 @@ export default function VendorsDashboard() {
     enabled: !!isAdmin,
   });
 
-  const { data: vendors, isLoading } = useQuery({
+  const { data: vendors, isLoading, isError, error, refetch: refetchVendors } = useQuery({
     queryKey: ["vendors"],
     queryFn: () => apiClient.vendors.list(),
   });
@@ -274,30 +274,55 @@ export default function VendorsDashboard() {
 
           <VendorManagementModal open={isOnboarding} onOpenChange={setIsOnboarding} />
 
-          {viewMode === "grid" ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 3xl:grid-cols-3 gap-6">
-                {filteredVendors.map((vendor: any, idx: number) => (
-                  <VendorCard
-                    key={vendor.id}
-                    vendor={vendor}
-                    index={idx}
-                    isAdmin={isAdmin}
-                    isSuperAdmin={isSuperAdmin}
-                    onStatusChange={(status) => statusMutation.mutate({ id: vendor.id, status })}
-                    onRate={(r) => rateMutation.mutate({ id: vendor.id, rating: r })}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div>
-            <VendorListView
-              vendors={filteredVendors}
-              isAdmin={isAdmin}
-              onStatusChange={(id, status) => statusMutation.mutate({ id, status: status as any })}
-              onRate={(id, r) => rateMutation.mutate({ id, rating: r })}
-            />
-          </div>
-        )}
+          {isError ? (
+            <div className="py-16 border-2 border-dashed border-destructive/30 bg-destructive/5 rounded-3xl flex flex-col items-center justify-center text-center p-6 text-destructive">
+              <ShieldAlert className="w-10 h-10 mb-3 opacity-80" />
+              <p className="text-sm font-bold text-foreground">Failed to Load Vendor Matrix</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                {(error as any)?.message || "A network or server error occurred while retrieving vendor records."}
+              </p>
+              <button
+                type="button"
+                onClick={() => refetchVendors()}
+                className="mt-4 px-4 py-2 bg-primary text-primary-foreground text-xs font-bold rounded-xl hover:bg-primary/90 transition-colors"
+              >
+                Retry Matrix Sync
+              </button>
+            </div>
+          ) : filteredVendors.length === 0 ? (
+            <div className="py-16 border-2 border-dashed border-border/50 rounded-3xl flex flex-col items-center justify-center text-center p-6 text-muted-foreground">
+              <Building2 className="w-10 h-10 opacity-30 mb-3" />
+              <p className="text-sm font-bold text-foreground">No matching vendors found</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                {searchQuery || statusFilter !== "All"
+                  ? "Try resetting your search query or filter to 'All' to view all registered suppliers."
+                  : "No vendors are currently registered in the system."}
+              </p>
+            </div>
+          ) : viewMode === "grid" ? (
+            <div className="grid grid-cols-1 lg:grid-cols-2 3xl:grid-cols-3 gap-6">
+              {filteredVendors.map((vendor: any, idx: number) => (
+                <VendorCard
+                  key={vendor.id}
+                  vendor={vendor}
+                  index={idx}
+                  isAdmin={isAdmin}
+                  isSuperAdmin={isSuperAdmin}
+                  onStatusChange={(status) => statusMutation.mutate({ id: vendor.id, status })}
+                  onRate={(r) => rateMutation.mutate({ id: vendor.id, rating: r })}
+                />
+              ))}
+            </div>
+          ) : (
+            <div>
+              <VendorListView
+                vendors={filteredVendors}
+                isAdmin={isAdmin}
+                onStatusChange={(id, status) => statusMutation.mutate({ id, status: status as any })}
+                onRate={(id, r) => rateMutation.mutate({ id, rating: r })}
+              />
+            </div>
+          )}
         </>
       )}
 

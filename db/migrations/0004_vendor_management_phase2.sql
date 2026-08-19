@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS "vendor_compliance_cases" (
   "closed_at" timestamp with time zone,
   "closed_by" integer REFERENCES "users"("id") ON DELETE SET NULL,
   "resolution_notes" text,
+  "audit_reference" text,
   "reminder_count" integer NOT NULL DEFAULT 0,
   "last_reminder_sent_at" timestamp with time zone,
   "created_at" timestamp with time zone DEFAULT NOW(),
@@ -126,7 +127,12 @@ ON CONFLICT ("id") DO NOTHING;
 
 -- 5. Additive Columns to Existing Support Tables
 ALTER TABLE "vendor_onboarding_drafts"
-  ADD COLUMN IF NOT EXISTS "vendor_type" text NOT NULL DEFAULT 'company';
+  ADD COLUMN IF NOT EXISTS "vendor_type" text NOT NULL DEFAULT 'company',
+  ADD COLUMN IF NOT EXISTS "qid_number" text,
+  ADD COLUMN IF NOT EXISTS "passport_number" text;
+
+ALTER TABLE "vendor_documents"
+  ADD COLUMN IF NOT EXISTS "case_id" integer REFERENCES "vendor_compliance_cases"("id") ON DELETE SET NULL;
 
 ALTER TABLE "vendor_onboarding_tokens"
   ADD COLUMN IF NOT EXISTS "case_id" integer REFERENCES "vendor_compliance_cases"("id") ON DELETE SET NULL,

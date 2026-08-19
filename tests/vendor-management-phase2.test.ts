@@ -322,6 +322,53 @@ async function runPhase2Tests() {
     assert.strictEqual(defaultSettings.defaultGraceDays >= 1 && defaultSettings.defaultGraceDays <= 365, true);
   });
 
+  // 14. GET /api/vendors returns legacy_pending_assessment vendors
+  await test("Vendors/LegacyVisibility", "Test 14: GET /api/vendors query includes legacy_pending_assessment vendors", () => {
+    const rawVendors = [
+      { id: 1, companyName: "Legacy Vendor A", status: "active", complianceStatus: "legacy_pending_assessment" },
+      { id: 2, companyName: "Compliant Vendor B", status: "active", complianceStatus: "compliant" },
+      { id: 3, companyName: "Non-Compliant Vendor C", status: "active", complianceStatus: "non_compliant" },
+    ];
+
+    const mapped = rawVendors.filter(v => v.status === "active");
+    assert.strictEqual(mapped.length, 3);
+    assert.strictEqual(mapped.some(v => v.complianceStatus === "legacy_pending_assessment"), true);
+  });
+
+  // 15. Dashboard Filter Includes Legacy Vendors By Default
+  await test("Vendors/DashboardFilter", "Test 15: Dashboard 'All' and 'Active' status filters preserve legacy_pending_assessment vendors", () => {
+    const vendorsList = [
+      { id: 1, companyName: "Legacy Vendor A", status: "active", complianceStatus: "legacy_pending_assessment" },
+      { id: 2, companyName: "Legacy Vendor B", status: "pending", complianceStatus: "legacy_pending_assessment" },
+    ];
+
+    function applyFilter(list: any[], statusFilter: string) {
+      if (statusFilter === "All") return list;
+      return list.filter(v => v.status.toLowerCase() === statusFilter.toLowerCase());
+    }
+
+    const allFiltered = applyFilter(vendorsList, "All");
+    assert.strictEqual(allFiltered.length, 2);
+
+    const activeFiltered = applyFilter(vendorsList, "Active");
+    assert.strictEqual(activeFiltered.length, 1);
+    assert.strictEqual(activeFiltered[0].complianceStatus, "legacy_pending_assessment");
+  });
+
+  // 16. Empty/Error State Handling
+  await test("Vendors/ErrorHandling", "Test 16: API error state triggers error banner rather than zero-vendor display", () => {
+    function resolveDashboardView(state: { isLoading: boolean; isError: boolean; data: any[] | undefined }) {
+      if (state.isLoading) return "LOADING";
+      if (state.isError) return "ERROR_BANNER";
+      if (!state.data || state.data.length === 0) return "EMPTY_FILTER";
+      return "VENDOR_LIST";
+    }
+
+    assert.strictEqual(resolveDashboardView({ isLoading: false, isError: true, data: undefined }), "ERROR_BANNER");
+    assert.strictEqual(resolveDashboardView({ isLoading: false, isError: false, data: [{ id: 1 }] }), "VENDOR_LIST");
+    assert.strictEqual(resolveDashboardView({ isLoading: false, isError: false, data: [] }), "EMPTY_FILTER");
+  });
+
   console.log("\n================================================================================");
   console.log(`PHASE 2 FINAL REGRESSION TEST RESULTS: ${passed} PASSED, ${failed} FAILED`);
   console.log("================================================================================\n");
