@@ -227,19 +227,19 @@ export function RequestFilters({ filters, setFilters, metadata, counts }: Reques
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <div className="glass-card p-4 mt-2 relative overflow-visible flex flex-col gap-4">
+            <div className="bg-card border border-border rounded-2xl p-5 mt-2 shadow-lg relative overflow-visible flex flex-col gap-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 
                 {/* Priority */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                    <AlertCircle className="w-2.5 h-2.5" /> Priority
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-primary" /> Priority
                   </label>
                   <Select 
                     value={pendingAdvanced.priority}
                     onValueChange={(val) => updatePending("priority", val)}
                   >
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 rounded-xl">
                       <SelectValue placeholder="Priority" />
                     </SelectTrigger>
                     <SelectContent>
@@ -252,14 +252,14 @@ export function RequestFilters({ filters, setFilters, metadata, counts }: Reques
 
                 {/* Department */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                    <Building2 className="w-2.5 h-2.5" /> Dept
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-primary" /> Department
                   </label>
                   <Select 
                     value={pendingAdvanced.department}
                     onValueChange={(val) => updatePending("department", val)}
                   >
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 rounded-xl">
                       <SelectValue placeholder="Department" />
                     </SelectTrigger>
                     <SelectContent>
@@ -273,14 +273,14 @@ export function RequestFilters({ filters, setFilters, metadata, counts }: Reques
 
                 {/* Vendor */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                    <User className="w-2.5 h-2.5" /> Vendor
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5 text-primary" /> Vendor
                   </label>
                   <Select 
                     value={pendingAdvanced.vendor.toString()}
                     onValueChange={(val) => updatePending("vendor", val)}
                   >
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 rounded-xl">
                       <SelectValue placeholder="Vendor" />
                     </SelectTrigger>
                     <SelectContent>
@@ -294,32 +294,36 @@ export function RequestFilters({ filters, setFilters, metadata, counts }: Reques
 
                 {/* Request Number */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                    <Tag className="w-2.5 h-2.5" /> Req No
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-primary" /> PR Number
                   </label>
                   <Input 
-                    placeholder="PR-..."
+                    placeholder="e.g. PR-202608..."
                     value={pendingAdvanced.requestNo}
                     onChange={(e) => updatePending("requestNo", e.target.value)}
-                    className="h-10"
+                    className="h-10 rounded-xl text-sm"
                   />
                 </div>
 
                 {/* Purpose Type */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                    <Tag className="w-2.5 h-2.5" /> Type
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-primary" /> Purpose Type
                   </label>
                   <Select 
                     value={pendingAdvanced.purpose}
-                    onValueChange={(val) => updatePending("purpose", val)}
+                    onValueChange={(val) => {
+                      updatePending("purpose", val);
+                      updatePending("purposeCategoryId", "all");
+                      updatePending("subPurposeId", "all");
+                    }}
                   >
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 rounded-xl">
                       <SelectValue placeholder="Type" />
                     </SelectTrigger>
                     <SelectContent>
                       {purposeTypes.map(pt => (
-                        <SelectItem key={pt} value={pt}>{pt === "all" ? "All" : pt}</SelectItem>
+                        <SelectItem key={pt} value={pt}>{pt === "all" ? "All Purpose Types" : pt}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -327,71 +331,78 @@ export function RequestFilters({ filters, setFilters, metadata, counts }: Reques
 
                 {/* Purpose Category */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                    <Archive className="w-2.5 h-2.5" /> Category
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-primary" /> Category
                   </label>
                   <Select 
                     value={pendingAdvanced.purposeCategoryId.toString()}
-                    onValueChange={(val) => updatePending("purposeCategoryId", val)}
+                    onValueChange={(val) => {
+                      updatePending("purposeCategoryId", val);
+                      updatePending("subPurposeId", "all");
+                    }}
                   >
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 rounded-xl">
                       <SelectValue placeholder="Category" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Categories</SelectItem>
-                      {(metadata?.purposes || []).map((p: any) => (
-                        <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
-                      ))}
+                      {(metadata.purposes || [])
+                        .filter(p => pendingAdvanced.purpose === "all" || p.type === pendingAdvanced.purpose)
+                        .map(p => (
+                          <SelectItem key={p.id} value={p.id.toString()}>{p.name}</SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
 
-                {/* Sub-Purpose */}
+                {/* Sub Purpose */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                    <TrendingUp className="w-2.5 h-2.5" /> Sub-Purpose
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Tag className="w-3.5 h-3.5 text-primary" /> Sub-Purpose
                   </label>
                   <Select 
                     value={pendingAdvanced.subPurposeId.toString()}
                     onValueChange={(val) => updatePending("subPurposeId", val)}
                   >
-                    <SelectTrigger className="h-10">
+                    <SelectTrigger className="h-10 rounded-xl">
                       <SelectValue placeholder="Sub-Purpose" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Sub-Purposes</SelectItem>
-                      {(metadata?.subPurposes || []).map((sp: any) => (
-                        <SelectItem key={sp.id} value={sp.id.toString()}>{sp.name}</SelectItem>
-                      ))}
+                      {(metadata.subPurposes || [])
+                        .filter(sp => pendingAdvanced.purposeCategoryId === "all" || sp.purposeId?.toString() === pendingAdvanced.purposeCategoryId)
+                        .map(sp => (
+                          <SelectItem key={sp.id} value={sp.id.toString()}>{sp.name}</SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 {/* Date Range */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                    <Calendar className="w-2.5 h-2.5" /> Date Range
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-primary" /> Date Range
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <Input 
                       type="date"
                       value={pendingAdvanced.dateFrom}
                       onChange={(e) => updatePending("dateFrom", e.target.value)}
-                      className="h-10 px-2"
+                      className="h-10 px-2 rounded-xl text-xs"
                     />
                     <Input 
                       type="date"
                       value={pendingAdvanced.dateTo}
                       onChange={(e) => updatePending("dateTo", e.target.value)}
-                      className="h-10 px-2"
+                      className="h-10 px-2 rounded-xl text-xs"
                     />
                   </div>
                 </div>
 
                 {/* Cost Range */}
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1.5">
-                    <DollarSign className="w-2.5 h-2.5" /> Cost (QAR)
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                    <DollarSign className="w-3.5 h-3.5 text-primary" /> Cost (QAR)
                   </label>
                   <div className="grid grid-cols-2 gap-2">
                     <Input 
@@ -399,34 +410,33 @@ export function RequestFilters({ filters, setFilters, metadata, counts }: Reques
                       placeholder="Min"
                       value={pendingAdvanced.costMin}
                       onChange={(e) => updatePending("costMin", e.target.value)}
-                      className="h-10"
+                      className="h-10 rounded-xl text-sm"
                     />
                     <Input 
                       type="number"
                       placeholder="Max"
                       value={pendingAdvanced.costMax}
                       onChange={(e) => updatePending("costMax", e.target.value)}
-                      className="h-10"
+                      className="h-10 rounded-xl text-sm"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end items-center gap-2 pt-4 border-t border-white/5">
+              <div className="flex justify-end items-center gap-2.5 pt-3 border-t border-border">
                 <Button 
                   variant="ghost" 
                   size="sm"
                   onClick={clearFilters}
-                  className="px-6"
+                  className="px-5 rounded-xl text-xs font-semibold"
                 >
                   Reset All
                 </Button>
                 <Button 
-                  variant="premium" 
                   size="sm"
                   onClick={applyAdvanced}
-                  className="px-10"
+                  className="px-6 rounded-xl bg-primary text-primary-foreground font-bold text-xs shadow-sm hover:bg-primary/90"
                 >
                   Apply Filters
                 </Button>

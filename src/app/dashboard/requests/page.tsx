@@ -218,49 +218,59 @@ function RequestsDashboardContent() {
   }, [requests, myQueueRequests]);
 
   return (
-    <div className="flex flex-col gap-4 sm:gap-6 md:gap-8 p-1 sm:p-4 md:p-8 w-full max-w-full overflow-hidden">
-      <header className="flex flex-col sm:flex-row justify-between items-stretch sm:items-end gap-3 sm:gap-4">
+    <div className="flex flex-col gap-5 sm:gap-6 md:gap-7 w-full max-w-full">
+      <header className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
         <div className="space-y-1">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">Purchase Requests</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground">Manage procurement lifecycle and approval workflows.</p>
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-foreground">Purchase Requests</h1>
+            {isApprover && myQueueRequests.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 animate-pulse">
+                <span>⏳</span> {myQueueRequests.length} Pending Your Review
+              </span>
+            )}
+          </div>
+          <p className="text-xs sm:text-sm text-muted-foreground">Manage procurement lifecycle, approval workflows, and expenditure records.</p>
         </div>
-        <ActionBar onNewRequest={() => setIsCreateModalOpen(true)} />
+
+        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+          {/* Approver My Queue Quick Toggle */}
+          {isApprover && (
+            <div className="flex p-1 bg-secondary/80 border border-border/80 rounded-xl shadow-xs shrink-0">
+              <button
+                onClick={() => setMyQueueMode(false)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  !myQueueMode
+                    ? "bg-primary text-primary-foreground shadow-xs"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                All PRs
+              </button>
+              <button
+                onClick={() => setMyQueueMode(true)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  myQueueMode
+                    ? "bg-amber-500 text-white shadow-xs"
+                    : "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
+                }`}
+              >
+                <span>⏳</span> My Queue
+                {myQueueRequests.length > 0 && (
+                  <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
+                    myQueueMode ? "bg-white/30 text-white" : "bg-amber-500 text-white"
+                  }`}>
+                    {myQueueRequests.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          )}
+
+          <ActionBar onNewRequest={() => setIsCreateModalOpen(true)} />
+        </div>
       </header>
 
       <SpendAnalytics data={analytics} isLoading={analyticsLoading} />
-
-      {/* My Queue Tab — only shown to users in approver-flagged departments */}
-      {isApprover && (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setMyQueueMode(false)}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-              !myQueueMode
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "bg-secondary/50 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            }`}
-          >
-            All Requests
-          </button>
-          <button
-            onClick={() => setMyQueueMode(true)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-              myQueueMode
-                ? "bg-amber-500 text-white shadow-sm"
-                : "bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border border-amber-500/20"
-            }`}
-          >
-            <span>⏳</span> My Queue
-            {myQueueRequests.length > 0 && (
-              <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full ${
-                myQueueMode ? "bg-white/30 text-white" : "bg-amber-500 text-white"
-              }`}>
-                {myQueueRequests.length}
-              </span>
-            )}
-          </button>
-        </div>
-      )}
 
       <RequestFilters
         filters={filters}
@@ -577,8 +587,15 @@ export default function RequestsDashboard() {
 }
 
 function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) {
-  const { highPerformanceMode } = usePerformance();
-  if (isLoading) return <div className="h-28 bg-card border border-border animate-pulse rounded-2xl" />;
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {[1, 2, 3, 4].map(i => (
+          <div key={i} className="h-28 bg-card border border-border animate-pulse rounded-2xl" />
+        ))}
+      </div>
+    );
+  }
 
   // Prefer canonical overview from FinancialMetricsService if provided
   const overview = data?.overview;
@@ -593,11 +610,11 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
       }), { count: 0, totalValue: 0 });
   };
 
-  const approvedAmount = overview ? overview.fullyApprovedAmount : getStatusSum('approved').totalValue;
-  const approvedCount = overview ? overview.fullyApprovedCount : getStatusSum('approved').count;
+  const approvedAmount = overview ? overview.fullyApprovedAmount : getStatusSum('approved', 'fully_paid').totalValue;
+  const approvedCount = overview ? overview.fullyApprovedCount : getStatusSum('approved', 'fully_paid').count;
 
   // In-flight / pending volume = pending + partially_approved requests
-  const pendingStat = getStatusSum('pending', 'partially_approved', 'PARTIALLY_APPROVED');
+  const pendingStat = getStatusSum('pending', 'partially_approved', 'pending_dept_head', 'variation_pending');
   const pendingAmount = overview
     ? (overview.partiallyApprovedAmount + (kpis.find((k: any) => k.status === 'pending')?.totalValue || 0))
     : pendingStat.totalValue;
@@ -608,61 +625,69 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
   // Active count = pending + partially_approved + approved + variation_pending + changes_requested
   const activeCount = overview
     ? overview.activeRequestsCount
-    : getStatusSum('pending', 'partially_approved', 'PARTIALLY_APPROVED', 'approved', 'VARIATION_PENDING', 'variation_pending', 'changes_requested').count;
+    : getStatusSum('pending', 'partially_approved', 'approved', 'fully_paid', 'variation_pending', 'changes_requested').count;
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
       <AnalyticsCard
-        label="Total Approved Amount"
+        label="Total Approved"
         value={approvedAmount}
         suffix="QAR"
         subValue={approvedCount}
         subLabel="approved requests"
         icon={<TrendingUp className="text-emerald-500 w-5 h-5" />}
+        gradient="from-emerald-500/10 via-emerald-500/5 to-transparent"
+        iconBg="bg-emerald-500/10 border-emerald-500/20"
       />
       <AnalyticsCard
-        label="Pending Amount"
+        label="Pending Decisions"
         value={pendingAmount}
         suffix="QAR"
         subValue={pendingCount}
         subLabel="pending requests"
         icon={<BarChart3 className="text-amber-500 w-5 h-5" />}
+        gradient="from-amber-500/10 via-amber-500/5 to-transparent"
+        iconBg="bg-amber-500/10 border-amber-500/20"
       />
       <AnalyticsCard
         label="Active Requests"
         value={activeCount}
         suffix="REQ"
-        subLabel="in workflow"
+        subLabel="in active workflow"
         icon={<FileSpreadsheet className="text-primary w-5 h-5" />}
+        gradient="from-primary/10 via-primary/5 to-transparent"
+        iconBg="bg-primary/10 border-primary/20"
       />
       <AnalyticsCard
-        label="Pending Requests"
+        label="Awaiting Sign-offs"
         value={pendingCount}
         suffix="REQ"
         subLabel="awaiting decision"
         icon={<Clock className="text-amber-500 w-5 h-5" />}
+        gradient="from-orange-500/10 via-orange-500/5 to-transparent"
+        iconBg="bg-orange-500/10 border-orange-500/20"
       />
     </div>
   );
 }
 
-function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon }: any) {
+function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon, gradient, iconBg }: any) {
   return (
-    <div className="bg-card border border-border p-4 sm:p-5 rounded-2xl relative overflow-hidden shadow-sm flex flex-col justify-between hover:border-primary/20 transition-all">
+    <div className={`bg-card border border-border p-4 sm:p-5 rounded-2xl relative overflow-hidden shadow-sm flex flex-col justify-between hover:border-primary/30 transition-all bg-gradient-to-br ${gradient || 'from-secondary/30 to-transparent'}`}>
       <div className="flex justify-between items-start gap-2">
         <div className="space-y-1 min-w-0">
           <p className="text-xs font-semibold text-muted-foreground truncate">{label}</p>
           <h3 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight flex items-baseline gap-1.5 mt-0.5">
-            {value.toLocaleString()}
-            {suffix && <span className="text-xs text-muted-foreground font-normal">{suffix}</span>}
+            {Number(value || 0).toLocaleString()}
+            {suffix && <span className="text-xs text-muted-foreground font-semibold">{suffix}</span>}
           </h3>
           {subValue !== undefined && (
-            <p className="text-xs text-muted-foreground">
-              {subValue.toLocaleString()} {subLabel}
+            <p className="text-xs text-muted-foreground font-medium">
+              <span className="font-bold text-foreground/80">{Number(subValue || 0).toLocaleString()}</span> {subLabel}
             </p>
           )}
         </div>
-        <div className="w-10 h-10 rounded-xl bg-secondary border border-border flex items-center justify-center shrink-0 shadow-sm">
+        <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 shadow-sm ${iconBg || 'bg-secondary border-border'}`}>
           {icon}
         </div>
       </div>
@@ -1096,26 +1121,69 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
 
 function StatusBadge({ status }: { status: string }) {
   const normalized = (status || "").toLowerCase().trim();
-  const configs: Record<string, string> = {
-    pending: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
-    pending_dept_head: "bg-cyan-500/10 text-cyan-800 dark:text-cyan-300 border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.15)]",
-    approved: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
-    rejected: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30",
-    draft: "bg-secondary text-muted-foreground border-border",
-    changes_requested: "bg-amber-600/10 text-amber-800 dark:text-amber-300 border-amber-600/30",
-    partially_approved: "bg-teal-500/10 text-teal-800 dark:text-teal-300 border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.15)]",
-    variation_pending: "bg-orange-500/10 text-orange-800 dark:text-orange-300 border-orange-500/30",
+  const configs: Record<string, { className: string; icon: React.ReactNode; label: string }> = {
+    pending: {
+      className: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
+      icon: <Clock className="w-3 h-3 text-amber-500" />,
+      label: "Pending"
+    },
+    pending_dept_head: {
+      className: "bg-cyan-500/10 text-cyan-800 dark:text-cyan-300 border-cyan-500/30",
+      icon: <Clock className="w-3 h-3 text-cyan-500" />,
+      label: "Pending Dept Head"
+    },
+    approved: {
+      className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+      icon: <CheckCircle className="w-3 h-3 text-emerald-500" />,
+      label: "Approved"
+    },
+    fully_paid: {
+      className: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30",
+      icon: <CheckCircle className="w-3 h-3 text-emerald-500" />,
+      label: "Fully Settled"
+    },
+    partially_paid: {
+      className: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30",
+      icon: <Clock className="w-3 h-3 text-indigo-500" />,
+      label: "Partially Paid"
+    },
+    rejected: {
+      className: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30",
+      icon: <XCircle className="w-3 h-3 text-rose-500" />,
+      label: "Rejected"
+    },
+    draft: {
+      className: "bg-secondary text-muted-foreground border-border",
+      icon: <Clock className="w-3 h-3 text-muted-foreground" />,
+      label: "Draft"
+    },
+    changes_requested: {
+      className: "bg-amber-600/10 text-amber-800 dark:text-amber-300 border-amber-600/30",
+      icon: <Clock className="w-3 h-3 text-amber-600" />,
+      label: "Changes Requested"
+    },
+    partially_approved: {
+      className: "bg-teal-500/10 text-teal-800 dark:text-teal-300 border-teal-500/30",
+      icon: <Clock className="w-3 h-3 text-teal-500" />,
+      label: "Partially Approved"
+    },
+    variation_pending: {
+      className: "bg-orange-500/10 text-orange-800 dark:text-orange-300 border-orange-500/30",
+      icon: <Clock className="w-3 h-3 text-orange-500" />,
+      label: "Variation Pending"
+    },
   };
 
-  const label = normalized === 'pending_dept_head' ? 'Pending Dept Head'
-    : normalized === 'partially_approved' ? 'Partially Approved'
-    : normalized === 'changes_requested' ? 'Changes Requested'
-    : normalized === 'variation_pending' ? 'Variation Pending'
-    : (status || "").replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const current = configs[normalized] || {
+    className: "bg-secondary text-muted-foreground border-border",
+    icon: <Clock className="w-3 h-3 text-muted-foreground" />,
+    label: (status || "").replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  };
 
   return (
-    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold border ${configs[normalized] || configs.draft}`}>
-      {label}
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border shadow-xs ${current.className}`}>
+      {current.icon}
+      <span>{current.label}</span>
     </span>
   );
 }

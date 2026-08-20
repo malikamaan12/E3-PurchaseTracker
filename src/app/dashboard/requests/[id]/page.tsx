@@ -1229,22 +1229,70 @@ function PriorityBadge({ priority }: { priority: string }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const configs: Record<string, string> = {
-    pending: "bg-orange-500/10 text-orange-600 border-orange-500/20 shadow-sm",
-    pending_dept_head: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20 shadow-sm",
-    approved: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20 shadow-sm",
-    rejected: "bg-destructive/10 text-destructive border-destructive/20 shadow-sm",
-    draft: "bg-muted text-muted-foreground border-border/50 shadow-sm",
-    changes_requested: "bg-amber-500/10 text-amber-600 border-amber-500/20 shadow-sm",
-    partially_approved: "bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20 shadow-sm",
-    variation_pending: "bg-orange-500/10 text-orange-600 border-orange-500/20 shadow-sm",
+  const normalized = (status || "").toLowerCase().trim();
+  const configs: Record<string, { className: string; icon: React.ReactNode; label: string }> = {
+    pending: {
+      className: "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30",
+      icon: <Clock className="w-3 h-3 text-amber-500" />,
+      label: "Pending"
+    },
+    pending_dept_head: {
+      className: "bg-cyan-500/10 text-cyan-800 dark:text-cyan-300 border-cyan-500/30",
+      icon: <Clock className="w-3 h-3 text-cyan-500" />,
+      label: "Pending Dept Head"
+    },
+    approved: {
+      className: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-500/30",
+      icon: <CheckCircle2 className="w-3 h-3 text-emerald-500" />,
+      label: "Approved"
+    },
+    fully_paid: {
+      className: "bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 border-emerald-500/30",
+      icon: <CheckCircle2 className="w-3 h-3 text-emerald-500" />,
+      label: "Fully Settled"
+    },
+    partially_paid: {
+      className: "bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30",
+      icon: <Clock className="w-3 h-3 text-indigo-500" />,
+      label: "Partially Paid"
+    },
+    rejected: {
+      className: "bg-rose-500/10 text-rose-700 dark:text-rose-400 border-rose-500/30",
+      icon: <XCircle className="w-3 h-3 text-rose-500" />,
+      label: "Rejected"
+    },
+    draft: {
+      className: "bg-secondary text-muted-foreground border-border",
+      icon: <Clock className="w-3 h-3 text-muted-foreground" />,
+      label: "Draft"
+    },
+    changes_requested: {
+      className: "bg-amber-600/10 text-amber-800 dark:text-amber-300 border-amber-600/30",
+      icon: <Clock className="w-3 h-3 text-amber-600" />,
+      label: "Changes Requested"
+    },
+    partially_approved: {
+      className: "bg-teal-500/10 text-teal-800 dark:text-teal-300 border-teal-500/30",
+      icon: <Clock className="w-3 h-3 text-teal-500" />,
+      label: "Partially Approved"
+    },
+    variation_pending: {
+      className: "bg-orange-500/10 text-orange-800 dark:text-orange-300 border-orange-500/30",
+      icon: <Clock className="w-3 h-3 text-orange-500" />,
+      label: "Variation Pending"
+    },
   };
-  const label = status === 'pending_dept_head' ? 'Pending Dept Head'
-    : typeof status === 'string' ? status.replace(/_/g, ' ') : 'N/A';
+
+  const current = configs[normalized] || {
+    className: "bg-secondary text-muted-foreground border-border",
+    icon: <Clock className="w-3 h-3 text-muted-foreground" />,
+    label: (status || "").replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+  };
 
   return (
-    <span className={`px-3 py-1 rounded-full text-xs font-bold border ${configs[status] || configs.draft} uppercase tracking-wider`}>
-      {label}
+    <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border shadow-xs ${current.className}`}>
+      {current.icon}
+      <span>{current.label}</span>
     </span>
   );
 }
