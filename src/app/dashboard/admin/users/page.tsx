@@ -1318,10 +1318,10 @@ export default function UserManagementPage() {
                           </button>
                         </DropdownMenu.Trigger>
                         <DropdownMenu.Portal>
-                          <DropdownMenu.Content className="glass bg-zinc-950 border border-white/10 p-2 rounded-2xl shadow-2xl min-w-[200px] z-50 animate-in fade-in-50 zoom-in-95">
+                          <DropdownMenu.Content className="bg-card border border-border p-2 rounded-2xl shadow-2xl min-w-[200px] z-[150] animate-in fade-in-50 zoom-in-95 text-foreground">
                             <DropdownMenu.Item
                               onSelect={() => setEditTargetUser(u)}
-                              className="px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 text-zinc-300 hover:text-white flex items-center gap-2"
+                              className="px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-secondary text-foreground flex items-center gap-2 text-xs font-medium"
                             >
                               <UserCog className="w-4 h-4 text-brand-primary" />
                               Edit User / Username
@@ -1329,29 +1329,29 @@ export default function UserManagementPage() {
 
                             <DropdownMenu.Item
                               onSelect={() => setDeptTargetUser(u)}
-                              className="px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 text-zinc-300 hover:text-white flex items-center gap-2"
+                              className="px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-secondary text-foreground flex items-center gap-2 text-xs font-medium"
                             >
-                              <Building2 className="w-4 h-4 text-blue-400" />
+                              <Building2 className="w-4 h-4 text-blue-500" />
                               Manage Departments
                             </DropdownMenu.Item>
 
                             <DropdownMenu.Item
                               onSelect={() => setResetTargetUser(u)}
-                              className="px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 text-zinc-300 hover:text-white flex items-center gap-2"
+                              className="px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-secondary text-foreground flex items-center gap-2 text-xs font-medium"
                             >
-                              <Key className="w-4 h-4 text-amber-400" />
+                              <Key className="w-4 h-4 text-amber-500" />
                               Reset Password
                             </DropdownMenu.Item>
 
                             {isSuperAdmin && (
                               <>
-                                <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
-                                <div className="px-2 py-1.5 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Change Role (Super Admin)</div>
+                                <DropdownMenu.Separator className="h-px bg-border my-2" />
+                                <div className="px-2 py-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Change Role (Super Admin)</div>
                                 {["user", "supervisor", "approver", "admin", "super_admin"].map(role => (
                                    <DropdownMenu.Item
                                      key={role}
                                      onSelect={() => updateMutation.mutate({ id: u.id, data: { role } })}
-                                     className={`px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 text-zinc-300 hover:text-white focus:bg-white/10 focus:text-white capitalize ${u.role === role ? 'font-bold text-brand-primary' : ''}`}
+                                     className={`px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-secondary text-foreground focus:bg-secondary focus:text-foreground capitalize text-xs ${u.role === role ? 'font-bold text-brand-primary' : ''}`}
                                    >
                                      Make {role.replace('_', ' ')}
                                    </DropdownMenu.Item>
@@ -1359,11 +1359,11 @@ export default function UserManagementPage() {
                               </>
                             )}
 
-                            <DropdownMenu.Separator className="h-px bg-white/10 my-2" />
+                            <DropdownMenu.Separator className="h-px bg-border my-2" />
 
                             <DropdownMenu.Item
                               onSelect={() => updateMutation.mutate({ id: u.id, data: { isActive: !u.isActive } })}
-                              className={`px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-white/10 ${u.isActive ? 'text-rose-500 hover:text-rose-400' : 'text-emerald-500 hover:text-emerald-400'}`}
+                              className={`px-3 py-2 outline-none rounded-lg cursor-pointer hover:bg-secondary text-xs font-medium ${u.isActive ? 'text-rose-500 hover:text-rose-600' : 'text-emerald-500 hover:text-emerald-600'}`}
                             >
                               <div className="flex items-center gap-2">
                                 <ShieldAlert className="w-4 h-4" />

@@ -709,66 +709,36 @@ function AmountWithPaymentHover({
 }) {
   const total = Number(totalAmount || 0);
   const paid = Number(paidAmount || 0);
-  const balance = Math.max(0, total - paid);
   const percentage = total > 0 ? Math.min(100, Math.round((paid / total) * 100)) : 0;
 
-  const paymentStatus =
-    paid >= total && total > 0 ? "Fully Settled" :
-    paid > 0 ? "Partially Paid" : "Unpaid";
+  if (paid <= 0) {
+    return (
+      <div className="flex items-baseline gap-1 font-semibold text-foreground whitespace-nowrap">
+        <span>{total.toLocaleString()}</span>
+        <span className="text-xs text-muted-foreground font-normal">{currency}</span>
+      </div>
+    );
+  }
 
-  const statusStyle =
-    paymentStatus === "Fully Settled" ? "text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/30" :
-    paymentStatus === "Partially Paid" ? "text-amber-700 dark:text-amber-400 bg-amber-500/10 border-amber-500/30" :
-    "text-muted-foreground bg-secondary/80 border-border";
+  const isFull = percentage >= 100;
 
   return (
-    <div className="relative group/amt inline-block cursor-help py-1">
+    <div className="inline-flex items-center gap-2 whitespace-nowrap">
       <div className="flex items-baseline gap-1 font-semibold text-foreground">
         <span>{total.toLocaleString()}</span>
         <span className="text-xs text-muted-foreground font-normal">{currency}</span>
-        {paid > 0 && (
-          <span className="ml-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse inline-block" title="Payments recorded" />
-        )}
       </div>
-
-      {/* Popover Breakdown on Hover */}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover/amt:flex flex-col w-60 p-3.5 rounded-2xl bg-card/98 border border-border shadow-2xl z-[9999] pointer-events-none animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-center justify-between pb-2 border-b border-border mb-2.5">
-          <span className="font-bold text-[11px] text-foreground uppercase tracking-wider">Payment Breakdown</span>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${statusStyle}`}>
-            {paymentStatus}
-          </span>
-        </div>
-
-        <div className="space-y-2 text-xs">
-          <div className="flex justify-between text-muted-foreground">
-            <span>Total PR Cost:</span>
-            <span className="text-foreground font-semibold">{total.toLocaleString()} {currency}</span>
-          </div>
-          <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
-            <span className="font-medium">Paid Amount:</span>
-            <span className="font-bold">{paid.toLocaleString()} {currency}</span>
-          </div>
-          <div className="flex justify-between text-amber-600 dark:text-amber-400">
-            <span className="font-medium">Balance Payment:</span>
-            <span className="font-bold">{balance.toLocaleString()} {currency}</span>
-          </div>
-        </div>
-
-        {/* Progress indicator */}
-        <div className="mt-3 pt-2 border-t border-border/80">
-          <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-            <span>Settlement Progress</span>
-            <span className="font-mono font-bold text-foreground">{percentage}%</span>
-          </div>
-          <div className="w-full h-1.5 bg-secondary rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${percentage === 100 ? 'bg-emerald-500' : 'bg-primary'}`}
-              style={{ width: `${percentage}%` }}
-            />
-          </div>
-        </div>
-      </div>
+      <span
+        title={`Settlement: ${paid.toLocaleString()} ${currency} paid (${percentage}%)`}
+        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold border transition-colors ${
+          isFull
+            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+        }`}
+      >
+        <span className={`w-1.5 h-1.5 rounded-full ${isFull ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+        <span>{percentage}%</span>
+      </span>
     </div>
   );
 }

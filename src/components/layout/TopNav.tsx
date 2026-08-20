@@ -145,7 +145,7 @@ export default function TopNav() {
   if (!isMounted) return null;
 
   return (
-    <header className="min-h-[3.5rem] py-2 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center justify-between px-3 sm:px-6 lg:px-8 sticky top-0 z-[100] transition-all pt-safe ease-spring">
+    <header className="min-h-[3.75rem] py-2.5 border-b border-border bg-background/98 backdrop-blur-md flex items-center justify-between px-3.5 sm:px-6 lg:px-8 sticky top-0 z-[100] transition-all pt-safe ease-spring shadow-xs">
       <div className="flex items-center gap-3 sm:gap-4 lg:gap-8 shrink-0 min-w-0">
         {/* MOBILE HAMBURGER TRIGGER */}
         <div className="lg:hidden shrink-0">
