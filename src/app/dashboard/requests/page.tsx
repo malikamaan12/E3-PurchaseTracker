@@ -2,11 +2,12 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
-import { useState, lazy } from "react";
+import { useState, lazy, useMemo, useEffect, useRef, Suspense } from "react";
 import {
   FileText,
   Download,
   CheckCircle,
+  Check,
   XCircle,
   Filter,
   MoreHorizontal,
@@ -28,7 +29,6 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { useEffect, useRef, Suspense } from "react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -196,6 +196,27 @@ function RequestsDashboardContent() {
     }
   };
 
+  // Status counts for dynamic filter tabs
+  const statusCounts = useMemo(() => {
+    const list = requests || [];
+    const pending = list.filter((r: any) =>
+      ['pending', 'partially_approved', 'pending_dept_head', 'variation_pending'].includes((r.status || '').toLowerCase())
+    ).length;
+    const approved = list.filter((r: any) =>
+      ['approved', 'fully_paid'].includes((r.status || '').toLowerCase())
+    ).length;
+    const rejected = list.filter((r: any) =>
+      (r.status || '').toLowerCase() === 'rejected'
+    ).length;
+    return {
+      all: list.length,
+      pending,
+      approved,
+      rejected,
+      myQueue: myQueueRequests.length
+    };
+  }, [requests, myQueueRequests]);
+
   return (
     <div className="flex flex-col gap-4 sm:gap-6 md:gap-8 p-1 sm:p-4 md:p-8 w-full max-w-full overflow-hidden">
       <header className="flex flex-col sm:flex-row justify-between items-stretch sm:items-end gap-3 sm:gap-4">
@@ -245,6 +266,7 @@ function RequestsDashboardContent() {
         filters={filters}
         setFilters={setFilters}
         metadata={{ departments, vendors, purposes, subPurposes }}
+        counts={statusCounts}
       />
 
       <main className="w-full">
@@ -445,59 +467,103 @@ function RequestsDashboardContent() {
       />
 
       {/* Explicit Approval Confirmation Dialog */}
-      {confirmApprovalRequest && (
-        <div className="fixed inset-0 z-[250] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
-          <div className="bg-card border border-border rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-                <CheckCircle className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <h3 className="text-base font-bold text-foreground">Confirm Request Approval</h3>
-                <p className="text-xs font-mono text-muted-foreground truncate">{confirmApprovalRequest.requestNumber}</p>
-              </div>
-            </div>
+      {confirmApprovalRequest && (() => {
+        const isAlreadyFullyApproved = ['approved', 'fully_paid'].includes(confirmApprovalRequest.status?.toLowerCase());
+        const allApprovalsApproved = Array.isArray(confirmApprovalRequest.approvals) && confirmApprovalRequest.approvals.length > 0 &&
+          confirmApprovalRequest.approvals.every((a: any) => a.status === 'approved');
+        const isApproved = isAlreadyFullyApproved || allApprovalsApproved;
 
-            <div className="p-3.5 rounded-xl bg-secondary/40 border border-border/80 space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Title:</span>
-                <span className="font-semibold text-foreground truncate max-w-[220px] text-right">{confirmApprovalRequest.title}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Amount:</span>
-                <span className="font-bold text-foreground">{confirmApprovalRequest.totalEstimatedCost?.toLocaleString()} QAR</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Requester:</span>
-                <span className="font-medium text-foreground">{confirmApprovalRequest.requester?.username} ({confirmApprovalRequest.requester?.department})</span>
-              </div>
-            </div>
+        const myDeptApproval = Array.isArray(confirmApprovalRequest.approvals) 
+          ? confirmApprovalRequest.approvals.find((a: any) => canApproveInDepartment(a.department))
+          : null;
+        const isMyDeptAlreadyApproved = !isSuperAdmin && myDeptApproval && myDeptApproval.status === 'approved';
 
-            <p className="text-xs text-muted-foreground">
-              Are you sure you want to approve this purchase request? This action will transition the request to the next workflow stage.
-            </p>
+        return (
+          <div className="fixed inset-0 z-[250] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
+            <div className="bg-card border border-border rounded-2xl max-w-md w-full p-5 sm:p-6 shadow-2xl space-y-4 animate-in zoom-in-95 duration-200">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  isApproved 
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" 
+                    : isMyDeptAlreadyApproved
+                    ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                    : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                }`}>
+                  <CheckCircle className="w-5 h-5" />
+                </div>
+                <div className="min-w-0">
+                  <h3 className="text-base font-bold text-foreground">
+                    {isApproved 
+                      ? "Request Fully Approved" 
+                      : isMyDeptAlreadyApproved
+                      ? "Already Approved by Your Department"
+                      : "Confirm Request Approval"}
+                  </h3>
+                  <p className="text-xs font-mono text-muted-foreground truncate">{confirmApprovalRequest.requestNumber}</p>
+                </div>
+              </div>
 
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <button
-                type="button"
-                onClick={() => setConfirmApprovalRequest(null)}
-                disabled={approveMutation.isPending}
-                className="px-4 py-2.5 rounded-xl bg-secondary text-foreground hover:bg-secondary/80 font-semibold text-xs min-h-[44px] touch-target"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => approveMutation.mutate(confirmApprovalRequest.id)}
-                disabled={approveMutation.isPending}
-                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm min-h-[44px] touch-target flex items-center gap-1.5"
-              >
-                {approveMutation.isPending ? "Approving..." : "Confirm Approval"}
-              </button>
+              <div className="p-3.5 rounded-xl bg-secondary/40 border border-border/80 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Title:</span>
+                  <span className="font-semibold text-foreground truncate max-w-[220px] text-right">{confirmApprovalRequest.title}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="font-bold text-foreground">{confirmApprovalRequest.totalEstimatedCost?.toLocaleString()} QAR</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Requester:</span>
+                  <span className="font-medium text-foreground">{confirmApprovalRequest.requester?.username} ({confirmApprovalRequest.requester?.department})</span>
+                </div>
+              </div>
+
+              {isApproved ? (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 text-xs text-emerald-700 dark:text-emerald-300 font-medium flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block text-foreground mb-0.5">All approval stages are complete.</span>
+                    This purchase request has already received all necessary management, departmental, and executive sign-offs. No further approvals are pending.
+                  </div>
+                </div>
+              ) : isMyDeptAlreadyApproved ? (
+                <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3.5 text-xs text-blue-700 dark:text-blue-300 font-medium flex items-start gap-2">
+                  <CheckCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block text-foreground mb-0.5">Your department has already approved.</span>
+                    Your approval slot is marked as approved. The request is currently awaiting remaining department approvers in the workflow chain.
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Are you sure you want to approve this purchase request? This action will record your departmental sign-off and advance the request in the procurement cycle.
+                </p>
+              )}
+
+              <div className="flex items-center justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmApprovalRequest(null)}
+                  disabled={approveMutation.isPending}
+                  className="px-4 py-2.5 rounded-xl bg-secondary text-foreground hover:bg-secondary/80 font-semibold text-xs min-h-[44px] touch-target"
+                >
+                  {isApproved || isMyDeptAlreadyApproved ? "Close" : "Cancel"}
+                </button>
+                {!(isApproved || isMyDeptAlreadyApproved) && (
+                  <button
+                    type="button"
+                    onClick={() => approveMutation.mutate(confirmApprovalRequest.id)}
+                    disabled={approveMutation.isPending}
+                    className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm min-h-[44px] touch-target flex items-center gap-1.5"
+                  >
+                    {approveMutation.isPending ? "Approving..." : "Confirm Approval"}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
@@ -727,6 +793,14 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
   const approvedCount = (request.approvals?.filter((a: any) => a.status === 'approved').length) || Number(request.approvedCount || 0);
   const isPaidOrDisbursed = ['fully_paid', 'partially_paid'].includes(request.status) || Number(request.paidAmount || 0) > 0;
 
+  const isFullyApproved = ['approved', 'fully_paid'].includes((request.status || '').toLowerCase()) ||
+    (Array.isArray(request.approvals) && request.approvals.length > 0 && request.approvals.every((a: any) => a.status === 'approved'));
+
+  const myDeptApproval = Array.isArray(request.approvals)
+    ? request.approvals.find((a: any) => canApproveInDepartment(a.department))
+    : null;
+  const isMyDeptSignedOff = !isSuperAdmin && myDeptApproval && myDeptApproval.status === 'approved';
+
   const canEdit =
     (isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
     (isOwner && (
@@ -741,7 +815,7 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
     (isOwner && approvedCount === 0 && !isPaidOrDisbursed);
 
   const isSupervisorGate = request.status === "pending_dept_head";
-  const canQuickApprove = !isSupervisor && (isSuperAdmin || isApprover) && (
+  const canQuickApprove = !isSupervisor && (isSuperAdmin || isApprover) && !isFullyApproved && (
     (
       (request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
       Array.isArray(request.approvals) &&
@@ -856,6 +930,14 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
   const approvedCount = (request.approvals?.filter((a: any) => a.status === 'approved').length) || Number(request.approvedCount || 0);
   const isPaidOrDisbursed = ['fully_paid', 'partially_paid'].includes(request.status) || Number(request.paidAmount || 0) > 0;
 
+  const isFullyApproved = ['approved', 'fully_paid'].includes((request.status || '').toLowerCase()) ||
+    (Array.isArray(request.approvals) && request.approvals.length > 0 && request.approvals.every((a: any) => a.status === 'approved'));
+
+  const myDeptApproval = Array.isArray(request.approvals)
+    ? request.approvals.find((a: any) => canApproveInDepartment(a.department))
+    : null;
+  const isMyDeptSignedOff = !isSuperAdmin && myDeptApproval && myDeptApproval.status === 'approved';
+
   const canEdit =
     (isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
     (isOwner && (
@@ -870,7 +952,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
     (isOwner && approvedCount === 0 && !isPaidOrDisbursed);
 
   const isSupervisorGate = request.status === "pending_dept_head";
-  const canQuickApprove = !isSupervisor && (isSuperAdmin || isApprover) && (
+  const canQuickApprove = !isSupervisor && (isSuperAdmin || isApprover) && !isFullyApproved && (
     (
       (request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
       Array.isArray(request.approvals) &&
@@ -916,7 +998,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
       <td className="px-6 py-5">
         <div className="flex flex-col gap-1.5">
           <StatusBadge status={request.status} />
-          {awaitingMyApproval && (
+          {awaitingMyApproval && !isFullyApproved && (
             <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full w-max flex items-center gap-1">
               <span>⏳</span> Action Required
             </span>
@@ -934,11 +1016,29 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
           {canQuickApprove && (
             <button
               onClick={onApprove}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors text-xs font-semibold"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors text-xs font-semibold shadow-sm"
               title="Quick Approve"
             >
               <CheckCircle className="w-3.5 h-3.5" /> Approve
             </button>
+          )}
+
+          {!canQuickApprove && isFullyApproved && (
+            <span
+              className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold border border-emerald-500/20 shadow-xs"
+              title="All approval stages are complete for this request."
+            >
+              <CheckCircle className="w-3.5 h-3.5" /> Fully Approved
+            </span>
+          )}
+
+          {!canQuickApprove && !isFullyApproved && isMyDeptSignedOff && (
+            <span
+              className="hidden lg:inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-medium border border-blue-500/20"
+              title="Your department has already approved this stage."
+            >
+              <Check className="w-3.5 h-3.5" /> Signed Off
+            </span>
           )}
 
           <button

@@ -387,6 +387,34 @@ export default function RequestDetailPage() {
         )}
       </header>
 
+      {['approved', 'fully_paid'].includes((request.status || '').toLowerCase()) && (
+        <div className="bg-emerald-500/10 border-b border-emerald-500/20 px-6 py-3.5">
+          <div className="max-w-[1400px] mx-auto flex items-center justify-between text-emerald-800 dark:text-emerald-300 text-sm">
+            <div className="flex items-center gap-2.5 font-medium">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              <span>This purchase request is <strong>fully approved</strong>. All required departmental sign-offs are complete and locked for procurement.</span>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">
+              Procurement Ready
+            </span>
+          </div>
+        </div>
+      )}
+
+      {request.status === 'partially_approved' && myDeptApproval && myDeptApproval.status === 'approved' && !isSuperAdmin && (
+        <div className="bg-blue-500/10 border-b border-blue-500/20 px-6 py-3.5">
+          <div className="max-w-[1400px] mx-auto flex items-center justify-between text-blue-800 dark:text-blue-300 text-sm">
+            <div className="flex items-center gap-2.5 font-medium">
+              <CheckCircle2 className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span>Your department (<strong>{user?.department}</strong>) has already approved this request. Awaiting other required sign-offs.</span>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300 border border-blue-500/30">
+              Signed Off
+            </span>
+          </div>
+        </div>
+      )}
+
       {(request.status === "changes_requested" || request.status === "draft") && (request.requesterId === user?.id || isAdmin) && (
         <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-3">
           <div className="max-w-[1400px] mx-auto flex items-center justify-between text-amber-700 dark:text-amber-500 text-sm">

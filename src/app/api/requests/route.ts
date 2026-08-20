@@ -46,7 +46,16 @@ export async function GET(req: NextRequest) {
 
     // Filter Logic
     if (status && status !== "all") {
-      whereConditions.push(inArray(purchaseRequests.status, status.split(",")));
+      const statusArr = status.split(",");
+      if (statusArr.includes("pending")) {
+        const expanded = Array.from(new Set([...statusArr, "partially_approved", "pending_dept_head", "variation_pending"]));
+        whereConditions.push(inArray(purchaseRequests.status, expanded));
+      } else if (statusArr.includes("approved")) {
+        const expanded = Array.from(new Set([...statusArr, "fully_paid"]));
+        whereConditions.push(inArray(purchaseRequests.status, expanded));
+      } else {
+        whereConditions.push(inArray(purchaseRequests.status, statusArr));
+      }
     }
 
     if (deptFilter && deptFilter !== "all") {

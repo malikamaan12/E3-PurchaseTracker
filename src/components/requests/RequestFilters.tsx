@@ -35,9 +35,16 @@ interface RequestFiltersProps {
     purposes: any[];
     subPurposes?: any[];
   };
+  counts?: {
+    all?: number;
+    pending?: number;
+    approved?: number;
+    rejected?: number;
+    myQueue?: number;
+  };
 }
 
-export function RequestFilters({ filters, setFilters, metadata }: RequestFiltersProps) {
+export function RequestFilters({ filters, setFilters, metadata, counts }: RequestFiltersProps) {
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
   
   // 1. Basic Search: Still automatic with debounce
@@ -150,19 +157,36 @@ export function RequestFilters({ filters, setFilters, metadata }: RequestFilters
 
         <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 no-scrollbar">
           <div className="flex p-1 bg-secondary/60 border border-border rounded-xl shrink-0">
-            {statusOptions.slice(0, 4).map(status => (
-              <button
-                key={status}
-                onClick={() => {
-                  if (filters.status !== status) {
-                    setFilters({ ...filters, status });
-                  }
-                }}
-                className={`px-3 py-2 rounded-lg text-xs font-semibold capitalize transition-all whitespace-nowrap min-h-[38px] ${filters.status === status ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                {status}
-              </button>
-            ))}
+            {statusOptions.slice(0, 4).map(status => {
+              const count = counts ? (counts as any)[status] : undefined;
+              const isActive = filters.status === status;
+              return (
+                <button
+                  key={status}
+                  onClick={() => {
+                    if (filters.status !== status) {
+                      setFilters({ ...filters, status });
+                    }
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold capitalize transition-all whitespace-nowrap min-h-[38px] ${
+                    isActive 
+                      ? "bg-primary text-primary-foreground shadow-sm" 
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <span>{status}</span>
+                  {typeof count === 'number' && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
+                      isActive 
+                        ? "bg-white/20 text-white" 
+                        : "bg-secondary text-muted-foreground"
+                    }`}>
+                      {count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           <Button 
