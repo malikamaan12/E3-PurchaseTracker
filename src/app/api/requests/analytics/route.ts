@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 
     // Approver department resolution
     const approverDepts: string[] = [];
-    if ((user.role === 'approver' || user.isApprover) && user.department) {
+    if (user.role === 'approver' && user.department) {
       approverDepts.push(user.department);
     }
     const normalizedAssignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);
@@ -55,7 +55,6 @@ export async function GET(req: NextRequest) {
         }
       }
     }
-    const approverDeptsLower = approverDepts.map((d: string) => d.toLowerCase().trim());
 
     // 2. Build Dynamic Filters
     const prFilters: any[] = [];
@@ -67,14 +66,14 @@ export async function GET(req: NextRequest) {
     // RBAC: Force department and approver scoping for non-admin users
     if (!isAdmin) {
       const visibilityConditions: any[] = [];
-      if (userDeptsLower.length > 0) {
-        visibilityConditions.push(sql`LOWER(COALESCE(${purchaseRequests.department}, ${users.department})) = ANY(${userDeptsLower}) OR COALESCE(${purchaseRequests.department}, ${users.department}) = ANY(${userDepts})`);
+      if (userDepts.length > 0) {
+        visibilityConditions.push(inArray(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, userDepts));
       }
       visibilityConditions.push(eq(purchaseRequests.requesterId, user.id));
 
-      if (approverDeptsLower.length > 0) {
+      if (approverDepts.length > 0) {
         visibilityConditions.push(
-          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND (LOWER(${approvals.department}) = ANY(${approverDeptsLower}) OR ${approvals.department} = ANY(${approverDepts})))`
+          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.department} IN ${approverDepts})`
         );
       }
 

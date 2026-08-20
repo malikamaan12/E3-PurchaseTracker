@@ -120,8 +120,6 @@ class ApiClient {
       this.request<{ success: boolean; cases: any[] }>(`/vendors/${vendorId}/compliance-cases`),
     createComplianceCase: (vendorId: number, data: any) =>
       this.request<any>(`/vendors/${vendorId}/compliance-cases`, { method: "POST", body: JSON.stringify(data) }),
-    revokeComplianceCase: (vendorId: number) =>
-      this.request<any>(`/vendors/${vendorId}/compliance-cases`, { method: "DELETE" }),
     extendGracePeriod: (vendorId: number, data: { days: number; reason: string }) =>
       this.request<any>(`/vendors/${vendorId}/grace-period`, { method: "POST", body: JSON.stringify(data) }),
     documents: {

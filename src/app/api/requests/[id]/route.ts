@@ -141,7 +141,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     // or an authorized approver for one of the request's approval steps.
     if (!isAdmin && !isRequester && !isDeptMember) {
       const approverDepts: string[] = [];
-      if ((authenticatedUser.role === 'approver' || authenticatedUser.isApprover) && authenticatedUser.department) {
+      if (authenticatedUser.role === 'approver' && authenticatedUser.department) {
         approverDepts.push(authenticatedUser.department.toLowerCase().trim());
       }
       const normalizedAssignments = authenticatedUser.departmentAssignments || normalizeDepartmentAssignments(authenticatedUser.assignedDepartments, authenticatedUser.department);

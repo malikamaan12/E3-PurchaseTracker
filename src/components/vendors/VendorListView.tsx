@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Mail, Phone, MapPin, ShieldCheck, Wallet, Globe, FileText, RotateCcw } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, ShieldCheck, Wallet, Globe, FileText } from "lucide-react";
 import { StarRating } from "@/components/shared/StarRating";
 import { VendorDocumentsModal } from "@/components/vendors/VendorDocumentsModal";
 
@@ -11,16 +11,9 @@ interface VendorListViewProps {
   onStatusChange: (id: number, status: string) => void;
   onRate: (id: number, rating: number) => void;
   isAdmin: boolean;
-  onRequestUpdate?: (vendor: any) => void;
 }
 
-export function VendorListView({
-  vendors,
-  onStatusChange,
-  onRate,
-  isAdmin,
-  onRequestUpdate,
-}: VendorListViewProps) {
+export function VendorListView({ vendors, onStatusChange, onRate, isAdmin }: VendorListViewProps) {
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -155,18 +148,7 @@ export function VendorListView({
                 </td>
 
                 <td className="px-8 py-5 text-right">
-                  <div className="flex items-center justify-end gap-3 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => onRequestUpdate?.(vendor)}
-                      title={isAdmin ? "Generate a secure 24-hour scoped link for vendor updates" : "Admin privileges required to request updates"}
-                      disabled={!isAdmin}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-secondary hover:bg-secondary/80 border border-border text-foreground transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed shrink-0 min-h-[36px]"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 text-primary" />
-                      <span>Request Update</span>
-                    </button>
-
+                  <div className="flex items-center justify-end gap-4">
                     <div className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border shadow-sm ${
                       vendor.status === 'active' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 
                       vendor.status === 'blocked' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'

@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { useState } from "react";
 import {
   X,
   CheckCircle2,
@@ -30,17 +29,12 @@ export function VendorChangeRequestDiffModal({
   onClose,
   onRefresh,
 }: VendorChangeRequestDiffModalProps) {
-  const [mounted, setMounted] = useState(false);
   const [showSensitiveBanking, setShowSensitiveBanking] = useState(false);
   const [reviewNotes, setReviewNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!isOpen || !changeRequest || !mounted) return null;
+  if (!isOpen || !changeRequest) return null;
 
   const current = changeRequest.currentDataSnapshot || {};
   const proposed = changeRequest.proposedData || {};
@@ -88,8 +82,8 @@ export function VendorChangeRequestDiffModal({
     }
   };
 
-  return createPortal(
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-card border border-border/80 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl relative custom-scrollbar">
         {/* Header */}
         <div className="sticky top-0 bg-card/95 backdrop-blur border-b border-border p-5 flex items-center justify-between z-10">
@@ -207,20 +201,18 @@ export function VendorChangeRequestDiffModal({
           </div>
 
           {/* Admin Review Notes */}
-          {changeRequest.status === "pending" && (
-            <div>
-              <label className="block text-xs font-medium text-foreground mb-1.5">
-                Review Decision Notes (Optional)
-              </label>
-              <textarea
-                value={reviewNotes}
-                onChange={(e) => setReviewNotes(e.target.value)}
-                rows={2}
-                placeholder="Provide reason for approval or rejection..."
-                className="w-full bg-background border border-border rounded-xl p-3 text-xs text-foreground focus:outline-none focus:border-primary resize-none"
-              />
-            </div>
-          )}
+          <div>
+            <label className="block text-xs font-medium text-foreground mb-1.5">
+              Review Decision Notes (Optional)
+            </label>
+            <textarea
+              value={reviewNotes}
+              onChange={(e) => setReviewNotes(e.target.value)}
+              rows={2}
+              placeholder="Provide reason for approval or rejection..."
+              className="w-full bg-background border border-border rounded-xl p-3 text-xs text-foreground focus:outline-none focus:border-primary resize-none"
+            />
+          </div>
 
           {/* Actions */}
           <div className="flex items-center justify-between pt-3 border-t border-border">
@@ -262,7 +254,6 @@ export function VendorChangeRequestDiffModal({
           </div>
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
 }
