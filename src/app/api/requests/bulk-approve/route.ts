@@ -64,8 +64,52 @@ export async function POST(req: NextRequest) {
           comments: comments || "Bulk approved",
           approverId: user.id,
           processedAt: new Date(),
+          updatedAt: new Date(),
         })
         .where(eq(approvals.id, targetApproval.id));
+
+      // Recalculate overall purchase request status
+      const updatedApprovals = await db
+        .select()
+        .from(approvals)
+        .where(eq(approvals.requestId, id));
+
+      const mandatoryApprovals = updatedApprovals.filter(a => a.isMandatory);
+      const additionalApprovals = updatedApprovals.filter(a => !a.isMandatory);
+
+      const allMandatoryApproved = mandatoryApprovals.every(a => a.status === 'approved');
+      const allAdditionalApproved = additionalApprovals.every(a => a.status === 'approved');
+
+      let nextRequestStatus = "partially_approved";
+      if (allMandatoryApproved && allAdditionalApproved) {
+        nextRequestStatus = "approved";
+      } else if (request.status === 'pending_dept_head') {
+        nextRequestStatus = "pending";
+      }
+
+      let finalizedProposedCost = undefined;
+      if (nextRequestStatus === "approved" && request.proposedRevisedCost) {
+        finalizedProposedCost = request.proposedRevisedCost;
+      }
+
+      const exchangeRate = request.exchangeRate;
+      let baseAmountQar = request.baseAmountQar;
+      if (nextRequestStatus === "approved") {
+        const activeCost = finalizedProposedCost ?? request.revisedTotalCost ?? request.totalEstimatedCost ?? 0;
+        baseAmountQar = Math.round(activeCost * Number(exchangeRate || 1.0));
+      }
+
+      await db
+        .update(purchaseRequests)
+        .set({
+          status: nextRequestStatus as any,
+          isLocked: true,
+          totalEstimatedCost: finalizedProposedCost ?? request.totalEstimatedCost,
+          baseAmountQar,
+          proposedRevisedCost: nextRequestStatus === "approved" ? null : request.proposedRevisedCost,
+          updatedAt: new Date(),
+        })
+        .where(eq(purchaseRequests.id, id));
 
       // Audit log
       await db.insert(auditLogs).values({
@@ -77,6 +121,7 @@ export async function POST(req: NextRequest) {
           approvalId: targetApproval.id,
           department: targetApproval.department,
           processedBy: user.username,
+          finalStatus: nextRequestStatus,
           bulk: true,
         },
         timestamp: new Date(),
@@ -89,9 +134,11 @@ export async function POST(req: NextRequest) {
         // Notify requester
         await notificationService.createNotification({
           userId: request.requesterId,
-          title: "Request Approved",
-          message: `Your request "${request.title}" was approved by ${user.username} (${targetApproval.department || 'Management'}).`,
-          type: "purchase_request_approved",
+          title: nextRequestStatus === "approved" ? "Request Fully Approved" : "Request Approved",
+          message: nextRequestStatus === "approved"
+            ? `Your request "${request.title}" has been fully approved by all required departments.`
+            : `Your request "${request.title}" was approved by ${user.username} (${targetApproval.department || 'Management'}).`,
+          type: nextRequestStatus === "approved" ? "purchase_request_fully_approved" : "purchase_request_approved",
           requestId: id,
           priority: "normal",
         });
