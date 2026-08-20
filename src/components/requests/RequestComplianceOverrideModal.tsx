@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Textarea } from "@/components/ui/Textarea";
@@ -27,12 +28,17 @@ export function RequestComplianceOverrideModal({
   requestNumber,
   vendor,
 }: RequestComplianceOverrideModalProps) {
+  const [mounted, setMounted] = useState(false);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const isSuperAdmin = user?.role === "super_admin";
 
   const [justification, setJustification] = useState("");
   const [reviewNotes, setReviewNotes] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { data: overrideData, isLoading } = useQuery({
     queryKey: ["request-override", requestId],
@@ -96,10 +102,10 @@ export function RequestComplianceOverrideModal({
     },
   });
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+  return createPortal(
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-card border border-border/60 w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="p-6 border-b border-border/50 flex items-center justify-between bg-muted/20">
@@ -236,6 +242,7 @@ export function RequestComplianceOverrideModal({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

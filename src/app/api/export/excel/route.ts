@@ -16,10 +16,11 @@ export async function GET(req: NextRequest) {
     const isSuperAdmin = user.role === 'super_admin';
     const isAdmin = user.role === 'admin' || isSuperAdmin;
     const userDepts = (user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean);
+    const userDeptsLower = userDepts.map((d: string) => d.toLowerCase().trim());
 
     // Compute approver authority departments
     const approverDepts: string[] = [];
-    if (user.role === 'approver' && user.department) {
+    if ((user.role === 'approver' || user.isApprover) && user.department) {
       approverDepts.push(user.department);
     }
     const normalizedAssignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);
@@ -30,24 +31,32 @@ export async function GET(req: NextRequest) {
         }
       }
     }
+    const approverDeptsLower = approverDepts.map((d: string) => d.toLowerCase().trim());
 
     const whereConditions: any[] = [];
 
     if (!isSuperAdmin) {
-      whereConditions.push(
-        sql`(${purchaseRequests.status} != 'pending_dept_head' OR COALESCE(${purchaseRequests.department}, ${users.department}) IN ${userDepts} OR ${purchaseRequests.requesterId} = ${user.id})`
-      );
+      if (userDeptsLower.length > 0) {
+        whereConditions.push(
+          sql`(${purchaseRequests.status} != 'pending_dept_head' OR LOWER(COALESCE(${purchaseRequests.department}, ${users.department})) = ANY(${userDeptsLower}) OR COALESCE(${purchaseRequests.department}, ${users.department}) = ANY(${userDepts}) OR ${purchaseRequests.requesterId} = ${user.id})`
+        );
+      } else {
+        whereConditions.push(
+          sql`(${purchaseRequests.status} != 'pending_dept_head' OR ${purchaseRequests.requesterId} = ${user.id})`
+        );
+      }
     }
 
     if (!isAdmin) {
-      const visibilityConditions = [
-        inArray(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, userDepts),
-        eq(purchaseRequests.requesterId, user.id)
-      ];
+      const visibilityConditions = [];
+      if (userDeptsLower.length > 0) {
+        visibilityConditions.push(sql`LOWER(COALESCE(${purchaseRequests.department}, ${users.department})) = ANY(${userDeptsLower}) OR COALESCE(${purchaseRequests.department}, ${users.department}) = ANY(${userDepts})`);
+      }
+      visibilityConditions.push(eq(purchaseRequests.requesterId, user.id));
 
-      if (approverDepts.length > 0) {
+      if (approverDeptsLower.length > 0) {
         visibilityConditions.push(
-          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.department} IN ${approverDepts})`
+          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND (LOWER(${approvals.department}) = ANY(${approverDeptsLower}) OR ${approvals.department} = ANY(${approverDepts})))`
         );
       }
 

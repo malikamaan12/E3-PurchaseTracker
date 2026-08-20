@@ -121,10 +121,11 @@ export async function GET(req: NextRequest) {
     const isSuperAdmin = user.role === 'super_admin';
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
     const userDepts = (user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean);
+    const userDeptsLower = userDepts.map((d: string) => d.toLowerCase().trim());
 
     // Calculate which departments this user is authorized to APPROVE for
     const approverDepts: string[] = [];
-    if (user.role === 'approver' && user.department) {
+    if ((user.role === 'approver' || user.isApprover) && user.department) {
       approverDepts.push(user.department);
     }
     const normalizedAssignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);
@@ -135,27 +136,35 @@ export async function GET(req: NextRequest) {
         }
       }
     }
+    const approverDeptsLower = approverDepts.map((d: string) => d.toLowerCase().trim());
 
     // 1. Isolation for pending_dept_head requests:
     // Only super_admin, the supervisor (requester), or someone from the submitting department can see it.
     if (!isSuperAdmin) {
-      whereConditions.push(
-        sql`(${purchaseRequests.status} != 'pending_dept_head' OR COALESCE(${purchaseRequests.department}, ${users.department}) IN ${userDepts} OR ${purchaseRequests.requesterId} = ${user.id})`
-      );
+      if (userDeptsLower.length > 0) {
+        whereConditions.push(
+          sql`(${purchaseRequests.status} != 'pending_dept_head' OR LOWER(COALESCE(${purchaseRequests.department}, ${users.department})) = ANY(${userDeptsLower}) OR COALESCE(${purchaseRequests.department}, ${users.department}) = ANY(${userDepts}) OR ${purchaseRequests.requesterId} = ${user.id})`
+        );
+      } else {
+        whereConditions.push(
+          sql`(${purchaseRequests.status} != 'pending_dept_head' OR ${purchaseRequests.requesterId} = ${user.id})`
+        );
+      }
     }
 
     // 2. Department & Role Scoping for non-admins:
     // - Users always see requests originating from their department or submitted by them.
     // - ONLY users with active approver roles in an approval department see cross-department requests requiring their approval.
     if (!isAdmin) {
-      const visibilityConditions = [
-        inArray(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, userDepts),
-        eq(purchaseRequests.requesterId, user.id)
-      ];
+      const visibilityConditions: any[] = [];
+      if (userDeptsLower.length > 0) {
+        visibilityConditions.push(sql`LOWER(COALESCE(${purchaseRequests.department}, ${users.department})) = ANY(${userDeptsLower}) OR COALESCE(${purchaseRequests.department}, ${users.department}) = ANY(${userDepts})`);
+      }
+      visibilityConditions.push(eq(purchaseRequests.requesterId, user.id));
 
-      if (approverDepts.length > 0) {
+      if (approverDeptsLower.length > 0) {
         visibilityConditions.push(
-          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.department} IN ${approverDepts})`
+          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND (LOWER(${approvals.department}) = ANY(${approverDeptsLower}) OR ${approvals.department} = ANY(${approverDepts})))`
         );
       }
 
@@ -221,6 +230,16 @@ export async function GET(req: NextRequest) {
           WHERE ${approvals.requestId} = ${purchaseRequests.id} 
           AND ${approvals.status} = 'approved'
         )`.mapWith(Number),
+        approvals: sql<any>`COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', ${approvals.id},
+            'department', ${approvals.department},
+            'status', ${approvals.status},
+            'isMandatory', ${approvals.isMandatory}
+          ))
+          FROM ${approvals}
+          WHERE ${approvals.requestId} = ${purchaseRequests.id}
+        ), '[]'::json)`,
       })
       .from(purchaseRequests)
       .innerJoin(users, eq(users.id, purchaseRequests.requesterId))

@@ -19,13 +19,17 @@ import {
   Wallet,
   ChevronRight,
   Globe,
-  Clock
+  Clock,
+  User,
+  UserPlus,
+  RotateCcw
 } from "lucide-react";
 import { toast } from "sonner";
 import * as Tabs from "@radix-ui/react-tabs";
 import { VendorManagementModal } from "@/components/vendors/VendorManagementModal";
 import { VendorDocumentsModal } from "@/components/vendors/VendorDocumentsModal";
 import { VendorInviteModal } from "@/components/vendors/VendorInviteModal";
+import { VendorRequestUpdateModal } from "@/components/vendors/VendorRequestUpdateModal";
 import { VendorDraftReviewDrawer } from "@/components/vendors/VendorDraftReviewDrawer";
 import { VendorComplianceCasesModal } from "@/components/vendors/VendorComplianceCasesModal";
 import { VendorGracePeriodModal } from "@/components/vendors/VendorGracePeriodModal";
@@ -48,6 +52,11 @@ export default function VendorsDashboard() {
   const isSuperAdmin = user?.role === "super_admin";
   const [isOnboarding, setIsOnboarding] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+  const [inviteModalType, setInviteModalType] = useState<"company" | "freelancer">("company");
+  const [selectedVendorForUpdate, setSelectedVendorForUpdate] = useState<any>(null);
+  const [selectedVendorForGrace, setSelectedVendorForGrace] = useState<any>(null);
+  const [selectedVendorForCases, setSelectedVendorForCases] = useState<any>(null);
+  const [selectedVendorForDocs, setSelectedVendorForDocs] = useState<any>(null);
   const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<"approved" | "drafts">("approved");
   const [searchQuery, setSearchQuery] = useState("");
@@ -142,21 +151,39 @@ export default function VendorsDashboard() {
           </div>
 
           {isAdmin && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={() => setIsInviteModalOpen(true)}
-                className="flex items-center justify-center gap-2 bg-secondary text-foreground hover:bg-secondary/80 border border-border font-semibold px-4 py-2.5 rounded-xl transition-all shrink-0 min-h-[44px] touch-target text-sm"
+                type="button"
+                onClick={() => {
+                  setInviteModalType("company");
+                  setIsInviteModalOpen(true);
+                }}
+                className="flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-primary/20 shrink-0 min-h-[44px] touch-target text-xs sm:text-sm"
               >
-                <Mail className="w-4 h-4 text-primary" />
-                <span>Invite Vendor</span>
+                <Building2 className="w-4 h-4" />
+                <span>Invite Company Vendor</span>
               </button>
 
               <button
+                type="button"
+                onClick={() => {
+                  setInviteModalType("freelancer");
+                  setIsInviteModalOpen(true);
+                }}
+                className="flex items-center justify-center gap-2 bg-secondary text-foreground hover:bg-secondary/80 border border-border font-semibold px-4 py-2.5 rounded-xl transition-all shrink-0 min-h-[44px] touch-target text-xs sm:text-sm"
+              >
+                <User className="w-4 h-4 text-primary" />
+                <span>Add Freelancer / Individual</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setIsOnboarding(true)}
-                className="flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-primary/20 shrink-0 min-h-[44px] touch-target text-sm"
+                className="flex items-center justify-center gap-1.5 bg-secondary/50 text-muted-foreground hover:text-foreground hover:bg-secondary border border-border/60 font-medium px-3 py-2.5 rounded-xl transition-all shrink-0 min-h-[44px] touch-target text-xs"
+                title="Direct manual registration"
               >
                 <Plus className="w-4 h-4" />
-                <span>Add Supplier</span>
+                <span>Manual Add</span>
               </button>
             </div>
           )}
@@ -308,6 +335,9 @@ export default function VendorsDashboard() {
                   index={idx}
                   isAdmin={isAdmin}
                   isSuperAdmin={isSuperAdmin}
+                  onOpenDocs={(v) => setSelectedVendorForDocs(v)}
+                  onOpenCases={(v) => setSelectedVendorForCases(v)}
+                  onOpenGrace={(v) => setSelectedVendorForGrace(v)}
                   onStatusChange={(status) => statusMutation.mutate({ id: vendor.id, status })}
                   onRate={(r) => rateMutation.mutate({ id: vendor.id, rating: r })}
                 />
@@ -318,6 +348,7 @@ export default function VendorsDashboard() {
               <VendorListView
                 vendors={filteredVendors}
                 isAdmin={isAdmin}
+                onRequestUpdate={(v) => setSelectedVendorForUpdate(v)}
                 onStatusChange={(id, status) => statusMutation.mutate({ id, status: status as any })}
                 onRate={(id, r) => rateMutation.mutate({ id, rating: r })}
               />
@@ -328,11 +359,18 @@ export default function VendorsDashboard() {
 
       <VendorInviteModal
         isOpen={isInviteModalOpen}
+        initialVendorType={inviteModalType}
         onClose={() => setIsInviteModalOpen(false)}
         onSuccess={() => {
           refetchDrafts();
           queryClient.invalidateQueries({ queryKey: ["vendors"] });
         }}
+      />
+
+      <VendorRequestUpdateModal
+        isOpen={!!selectedVendorForUpdate}
+        onClose={() => setSelectedVendorForUpdate(null)}
+        vendor={selectedVendorForUpdate}
       />
 
       <VendorDraftReviewDrawer
@@ -344,6 +382,35 @@ export default function VendorsDashboard() {
           queryClient.invalidateQueries({ queryKey: ["vendors"] });
         }}
       />
+
+      {selectedVendorForDocs && (
+        <VendorDocumentsModal
+          open={!!selectedVendorForDocs}
+          onOpenChange={(open: boolean) => !open && setSelectedVendorForDocs(null)}
+          vendor={selectedVendorForDocs}
+        />
+      )}
+
+      {selectedVendorForCases && (
+        <VendorComplianceCasesModal
+          isOpen={!!selectedVendorForCases}
+          onClose={() => setSelectedVendorForCases(null)}
+          vendorId={selectedVendorForCases.id}
+          vendorName={selectedVendorForCases.companyName}
+          vendorType={selectedVendorForCases.vendorType || "company"}
+          isSuperAdmin={isSuperAdmin}
+        />
+      )}
+
+      {selectedVendorForGrace && (
+        <VendorGracePeriodModal
+          isOpen={!!selectedVendorForGrace}
+          onClose={() => setSelectedVendorForGrace(null)}
+          vendorId={selectedVendorForGrace.id}
+          vendorName={selectedVendorForGrace.companyName}
+          currentDeadline={selectedVendorForGrace.gracePeriodDeadline}
+        />
+      )}
 
       <section className="mt-8 space-y-6">
         <div className="flex items-center gap-3">
@@ -368,6 +435,9 @@ function VendorCard({
   vendor,
   isAdmin,
   isSuperAdmin,
+  onOpenDocs,
+  onOpenCases,
+  onOpenGrace,
   onStatusChange,
   onRate,
   index
@@ -375,14 +445,13 @@ function VendorCard({
   vendor: any;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  onOpenDocs: (v: any) => void;
+  onOpenCases: (v: any) => void;
+  onOpenGrace: (v: any) => void;
   onStatusChange: (s: any) => void;
   onRate: (r: number) => void;
   index: number;
 }) {
-  const [docModalOpen, setDocModalOpen] = useState(false);
-  const [casesModalOpen, setCasesModalOpen] = useState(false);
-  const [graceModalOpen, setGraceModalOpen] = useState(false);
-
   const statusColors: any = {
     active: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
     blocked: "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20",
@@ -412,23 +481,6 @@ function VendorCard({
       className="bg-background/80 backdrop-blur-xl flex flex-col gap-0 overflow-hidden group border border-border/50 hover:border-primary/40 rounded-3xl transition-all shadow-lg hover:shadow-xl relative hover:-translate-y-1 duration-300 animate-slide-up"
       style={{ animationDelay: `${Math.min(index * 0.05, 0.3)}s` }}
     >
-      <VendorDocumentsModal open={docModalOpen} onOpenChange={setDocModalOpen} vendor={vendor} />
-      <VendorComplianceCasesModal
-        isOpen={casesModalOpen}
-        onClose={() => setCasesModalOpen(false)}
-        vendorId={vendor.id}
-        vendorName={vendor.companyName}
-        vendorType={vendor.vendorType || "company"}
-        isSuperAdmin={isSuperAdmin}
-      />
-      <VendorGracePeriodModal
-        isOpen={graceModalOpen}
-        onClose={() => setGraceModalOpen(false)}
-        vendorId={vendor.id}
-        vendorName={vendor.companyName}
-        currentDeadline={vendor.gracePeriodDeadline}
-      />
-
       <div className="p-5 sm:p-6 relative">
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full -mr-16 -mt-16 group-hover:bg-primary/10 transition-colors pointer-events-none" />
 
@@ -485,7 +537,7 @@ function VendorCard({
       <div className="px-5 sm:px-6 py-3.5 bg-background flex flex-wrap justify-between items-center gap-2 min-h-[52px]">
         <div className="flex items-center gap-3 flex-wrap">
           <button
-            onClick={() => setDocModalOpen(true)}
+            onClick={() => onOpenDocs(vendor)}
             className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors underline decoration-dotted"
           >
             Manage Files
@@ -493,7 +545,7 @@ function VendorCard({
 
           {isAdmin && (
             <button
-              onClick={() => setCasesModalOpen(true)}
+              onClick={() => onOpenCases(vendor)}
               className="text-xs font-bold text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
             >
               <ShieldCheck className="w-3.5 h-3.5" />
@@ -503,7 +555,7 @@ function VendorCard({
 
           {isSuperAdmin && (
             <button
-              onClick={() => setGraceModalOpen(true)}
+              onClick={() => onOpenGrace(vendor)}
               className="text-xs font-bold text-amber-600 dark:text-amber-400 hover:opacity-80 transition-colors flex items-center gap-1"
             >
               <Clock className="w-3.5 h-3.5" />

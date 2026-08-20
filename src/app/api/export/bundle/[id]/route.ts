@@ -83,7 +83,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
     // Check if user is an authorized approver for any approval slot on this request
     const approverDepts: string[] = [];
-    if (user.role === 'approver' && user.department) {
+    if ((user.role === 'approver' || user.isApprover) && user.department) {
       approverDepts.push(user.department.toLowerCase().trim());
     }
     const normalizedAssignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);

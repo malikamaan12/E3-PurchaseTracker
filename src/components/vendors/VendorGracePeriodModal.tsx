@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { X, ShieldAlert, Clock, Loader2, Calendar } from "lucide-react";
@@ -22,9 +23,14 @@ export function VendorGracePeriodModal({
   vendorName,
   currentDeadline,
 }: VendorGracePeriodModalProps) {
+  const [mounted, setMounted] = useState(false);
   const queryClient = useQueryClient();
   const [days, setDays] = useState(15);
   const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const extendMutation = useMutation({
     mutationFn: (payload: { days: number; reason: string }) =>
@@ -40,7 +46,7 @@ export function VendorGracePeriodModal({
     },
   });
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const now = new Date();
   const baseDate = currentDeadline && new Date(currentDeadline).getTime() > now.getTime()
@@ -57,11 +63,11 @@ export function VendorGracePeriodModal({
     extendMutation.mutate({ days, reason: reason.trim() });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
+  return createPortal(
+    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
         {/* Header */}
-        <div className="p-6 border-b border-border/50 bg-gradient-to-r from-amber-500/10 to-transparent flex items-center justify-between">
+        <div className="p-6 border-b border-border/50 bg-gradient-to-r from-amber-500/10 to-transparent flex items-center justify-between sticky top-0 bg-card z-10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
               <Clock className="w-5 h-5" />
@@ -142,6 +148,7 @@ export function VendorGracePeriodModal({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
