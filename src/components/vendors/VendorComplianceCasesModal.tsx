@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import {
@@ -29,6 +30,7 @@ export function VendorComplianceCasesModal({
   isSuperAdmin,
 }: VendorComplianceCasesModalProps) {
   const queryClient = useQueryClient();
+  const [mounted, setMounted] = useState(false);
   const [isCreatingCase, setIsCreatingCase] = useState(false);
   const [reason, setReason] = useState("annual_review");
   const [deadlineDays, setDeadlineDays] = useState(15);
@@ -38,6 +40,10 @@ export function VendorComplianceCasesModal({
   );
   const [generatedPortalLink, setGeneratedPortalLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { data: casesData, isLoading } = useQuery({
     queryKey: ["vendor_compliance_cases", vendorId],
@@ -63,7 +69,7 @@ export function VendorComplianceCasesModal({
     },
   });
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const cases = casesData?.cases || [];
   const activeCase = cases.find((c: any) => c.status === "open" || c.status === "under_review");
@@ -96,8 +102,8 @@ export function VendorComplianceCasesModal({
     setTimeout(() => setCopied(false), 2500);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+  const modalContent = (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="p-6 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex items-center justify-between">
@@ -379,4 +385,6 @@ export function VendorComplianceCasesModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

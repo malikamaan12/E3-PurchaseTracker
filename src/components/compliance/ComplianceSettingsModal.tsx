@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -17,7 +18,12 @@ interface ComplianceSettingsModalProps {
 export function ComplianceSettingsModal({ isOpen, onClose }: ComplianceSettingsModalProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const [mounted, setMounted] = useState(false);
   const isSuperAdmin = user?.role === "super_admin";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const { data: settingsData, isLoading } = useQuery({
     queryKey: ["compliance-settings"],
@@ -99,10 +105,10 @@ export function ComplianceSettingsModal({ isOpen, onClose }: ComplianceSettingsM
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+  const modalContent = (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-card border border-border/60 w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="p-6 border-b border-border/50 flex items-center justify-between bg-muted/20">
@@ -289,4 +295,6 @@ export function ComplianceSettingsModal({ isOpen, onClose }: ComplianceSettingsM
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

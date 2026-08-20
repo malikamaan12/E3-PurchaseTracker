@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   CheckCircle2,
@@ -29,12 +30,17 @@ export function VendorChangeRequestDiffModal({
   onClose,
   onRefresh,
 }: VendorChangeRequestDiffModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [showSensitiveBanking, setShowSensitiveBanking] = useState(false);
   const [reviewNotes, setReviewNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  if (!isOpen || !changeRequest) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !isOpen || !changeRequest) return null;
 
   const current = changeRequest.currentDataSnapshot || {};
   const proposed = changeRequest.proposedData || {};
@@ -82,8 +88,8 @@ export function VendorChangeRequestDiffModal({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+  const modalContent = (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-card border border-border/80 rounded-3xl w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl relative custom-scrollbar">
         {/* Header */}
         <div className="sticky top-0 bg-card/95 backdrop-blur border-b border-border p-5 flex items-center justify-between z-10">
@@ -256,4 +262,6 @@ export function VendorChangeRequestDiffModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

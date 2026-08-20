@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Building2,
@@ -37,6 +38,7 @@ export function VendorDraftReviewDrawer({
   onClose,
   onRefresh,
 }: VendorDraftReviewDrawerProps) {
+  const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -195,15 +197,15 @@ export function VendorDraftReviewDrawer({
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const draft = data?.draft;
   const documents = data?.documents || [];
   const tokens = data?.tokens || [];
   const activeToken = tokens.find((t: any) => t.status === "active" && new Date(t.expiresAt) > new Date());
 
-  return (
-    <div className="fixed inset-0 z-[150] flex justify-end bg-black/60 backdrop-blur-sm">
+  const modalContent = (
+    <div className="fixed inset-0 z-[200] flex justify-end bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-2xl bg-card border-l border-border h-full flex flex-col shadow-2xl animate-in slide-in-from-right duration-300">
         {/* Header */}
         <div className="p-6 border-b border-border flex items-center justify-between bg-card shrink-0">
@@ -544,4 +546,6 @@ export function VendorDraftReviewDrawer({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

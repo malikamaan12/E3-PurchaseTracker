@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { X, ShieldAlert, Clock, Loader2, Calendar } from "lucide-react";
@@ -23,8 +24,13 @@ export function VendorGracePeriodModal({
   currentDeadline,
 }: VendorGracePeriodModalProps) {
   const queryClient = useQueryClient();
+  const [mounted, setMounted] = useState(false);
   const [days, setDays] = useState(15);
   const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const extendMutation = useMutation({
     mutationFn: (payload: { days: number; reason: string }) =>
@@ -40,7 +46,7 @@ export function VendorGracePeriodModal({
     },
   });
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
   const now = new Date();
   const baseDate = currentDeadline && new Date(currentDeadline).getTime() > now.getTime()
@@ -57,8 +63,8 @@ export function VendorGracePeriodModal({
     extendMutation.mutate({ days, reason: reason.trim() });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+  const modalContent = (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
         {/* Header */}
         <div className="p-6 border-b border-border/50 bg-gradient-to-r from-amber-500/10 to-transparent flex items-center justify-between">
@@ -144,4 +150,6 @@ export function VendorGracePeriodModal({
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

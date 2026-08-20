@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
   X,
   Send,
@@ -27,7 +28,12 @@ interface VendorInviteModalProps {
 }
 
 export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [vendorType, setVendorType] = useState<"company" | "freelancer">("company");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const [companyName, setCompanyName] = useState("");
   const [contactPerson, setContactPerson] = useState("");
   const [email, setEmail] = useState("");
@@ -176,10 +182,10 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
     onClose();
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !mounted) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+  const modalContent = (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="bg-card border border-border/80 rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl relative custom-scrollbar">
         {/* Header */}
         <div className="sticky top-0 bg-card/95 backdrop-blur border-b border-border p-5 flex items-center justify-between z-10">
@@ -540,4 +546,6 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

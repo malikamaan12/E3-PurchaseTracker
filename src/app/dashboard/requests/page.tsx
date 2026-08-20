@@ -653,6 +653,7 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
         label="Active Requests"
         value={activeCount}
         suffix="REQ"
+        subValue={activeCount}
         subLabel="in active workflow"
         icon={<FileSpreadsheet className="text-primary w-5 h-5" />}
         gradient="from-primary/10 via-primary/5 to-transparent"
@@ -662,6 +663,7 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
         label="Awaiting Sign-offs"
         value={pendingCount}
         suffix="REQ"
+        subValue={pendingCount}
         subLabel="awaiting decision"
         icon={<Clock className="text-amber-500 w-5 h-5" />}
         gradient="from-orange-500/10 via-orange-500/5 to-transparent"
@@ -673,21 +675,22 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
 
 function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon, gradient, iconBg }: any) {
   return (
-    <div className={`bg-card border border-border p-4 sm:p-5 rounded-2xl relative overflow-hidden shadow-sm flex flex-col justify-between hover:border-primary/30 transition-all bg-gradient-to-br ${gradient || 'from-secondary/30 to-transparent'}`}>
-      <div className="flex justify-between items-start gap-2">
-        <div className="space-y-1 min-w-0">
+    <div className={`bg-card border border-border p-4 sm:p-5 rounded-2xl relative overflow-hidden shadow-xs flex flex-col justify-between hover:border-primary/30 transition-all bg-gradient-to-br ${gradient || 'from-secondary/30 to-transparent'} min-h-[110px]`}>
+      <div className="flex justify-between items-start gap-3">
+        <div className="space-y-1 min-w-0 flex-1">
           <p className="text-xs font-semibold text-muted-foreground truncate">{label}</p>
           <h3 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight flex items-baseline gap-1.5 mt-0.5">
             {Number(value || 0).toLocaleString()}
             {suffix && <span className="text-xs text-muted-foreground font-semibold">{suffix}</span>}
           </h3>
-          {subValue !== undefined && (
-            <p className="text-xs text-muted-foreground font-medium">
-              <span className="font-bold text-foreground/80">{Number(subValue || 0).toLocaleString()}</span> {subLabel}
-            </p>
-          )}
+          <p className="text-xs text-muted-foreground font-medium flex items-center gap-1 mt-1 truncate">
+            {subValue !== undefined && (
+              <span className="font-bold text-foreground/90">{Number(subValue || 0).toLocaleString()}</span>
+            )}
+            <span>{subLabel}</span>
+          </p>
         </div>
-        <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 shadow-sm ${iconBg || 'bg-secondary border-border'}`}>
+        <div className={`w-10 h-10 rounded-xl border flex items-center justify-center shrink-0 shadow-xs ${iconBg || 'bg-secondary border-border'}`}>
           {icon}
         </div>
       </div>
@@ -862,10 +865,10 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
             onChange={(e) => onSelect(e.target.checked)}
           />
           <div className="min-w-0">
-            <span className="font-mono text-xs font-bold text-brand-secondary break-all">
+            <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-lg border border-primary/20 break-all inline-block">
               {request.requestNumber}
             </span>
-            <div className="text-xs text-muted-foreground mt-0.5 truncate">
+            <div className="text-xs text-muted-foreground mt-1 truncate">
               {request.requester?.username} • {request.requester?.department}
               {request.vendor?.name && ` • ${request.vendor.name}`}
             </div>
@@ -999,8 +1002,10 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
           onChange={(e) => onSelect(e.target.checked)}
         />
       </td>
-      <td className="px-6 py-5 font-mono text-xs text-brand-secondary">
-        {request.requestNumber}
+      <td className="px-6 py-5 whitespace-nowrap">
+        <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20">
+          {request.requestNumber}
+        </span>
       </td>
       <td className="px-6 py-5">
         <div className="font-medium text-foreground transition-colors">{request.title}</div>
@@ -1020,7 +1025,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
           )}
         </div>
       </td>
-      <td className="px-6 py-5">
+      <td className="px-6 py-5 whitespace-nowrap">
         <div className="flex flex-col gap-1.5">
           <StatusBadge status={request.status} />
           {awaitingMyApproval && !isFullyApproved && (
@@ -1030,18 +1035,18 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
           )}
         </div>
       </td>
-      <td className="px-6 py-5">
+      <td className="px-6 py-5 whitespace-nowrap">
         <AmountWithPaymentHover
           totalAmount={request.totalEstimatedCost}
           paidAmount={request.paidAmount}
         />
       </td>
-      <td className="px-6 py-5 text-right">
-        <div className="flex justify-end gap-2 items-center">
+      <td className="px-6 py-5 text-right whitespace-nowrap">
+        <div className="flex justify-end gap-2 items-center shrink-0">
           {canQuickApprove && (
             <button
               onClick={onApprove}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors text-xs font-semibold shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors text-xs font-semibold shadow-xs"
               title="Quick Approve"
             >
               <CheckCircle className="w-3.5 h-3.5" /> Approve
@@ -1068,7 +1073,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
 
           <button
             onClick={() => router.push(`/dashboard/requests/${request.id}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground transition-colors text-xs font-medium border border-border"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground transition-colors text-xs font-medium border border-border shadow-xs"
           >
             <Eye className="w-3.5 h-3.5" /> View
           </button>
