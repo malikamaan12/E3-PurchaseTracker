@@ -68,8 +68,8 @@ function SignupContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-500">
-      <div className="absolute top-8 right-8 z-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-black flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden transition-colors duration-500">
+      <div className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50">
         <ThemeToggle />
       </div>
 
@@ -96,18 +96,18 @@ function SignupContent() {
         </div>
 
         {/* Glassmorphism Hub Card */}
-        <div className="glass-card p-10 relative overflow-hidden group">
+        <div className="glass-card p-6 sm:p-10 relative overflow-hidden group">
           {/* Internal card sheen */}
           <div className="absolute -top-[150%] -left-[150%] w-[400%] h-[400%] bg-white/5 dark:bg-white/[0.02] transform rotate-12 pointer-events-none group-hover:duration-1000 transition-transform duration-500" />
           
           <div className="flex gap-4 mb-10 p-1 bg-white/5 dark:bg-white/[0.02] rounded-[var(--radius-md)] border border-white/10">
             <Link 
               href="/login"
-              className="flex-1 py-3 rounded-[var(--radius-sm)] text-[10px] font-bold tracking-[0.2em] flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-all"
+              className="flex-1 py-3 rounded-[var(--radius-sm)] text-xs font-bold tracking-[0.16em] flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-all"
             >
               LOGIN
             </Link>
-            <div className="flex-1 py-3 rounded-[var(--radius-sm)] text-[10px] font-bold tracking-[0.2em] flex items-center justify-center gap-2 bg-brand-gradient text-white shadow-lg">
+            <div className="flex-1 py-3 rounded-[var(--radius-sm)] text-xs font-bold tracking-[0.16em] flex items-center justify-center gap-2 bg-brand-gradient text-white shadow-lg">
               <UserPlus className="w-3.5 h-3.5" /> SIGN UP
             </div>
           </div>
@@ -121,6 +121,7 @@ function SignupContent() {
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
                   className="bg-rose-500/10 border border-rose-500/20 p-3 rounded-lg flex items-center gap-3 text-rose-500 text-xs font-semibold"
+                  role="alert"
                 >
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   {error}
@@ -137,6 +138,7 @@ function SignupContent() {
                 value={formData.username}
                 onChange={handleInputChange}
                 required
+                autoComplete="username"
               />
 
               <AuthInput 
@@ -147,6 +149,7 @@ function SignupContent() {
                 value={formData.email}
                 onChange={handleInputChange}
                 required
+                autoComplete="email"
               />
 
               <AuthInput 
@@ -157,14 +160,16 @@ function SignupContent() {
                 value={formData.contactNumber}
                 onChange={handleInputChange}
                 required
+                autoComplete="tel"
               />
 
               <div className="space-y-2">
-                <label className="text-[9px] uppercase font-bold text-muted-foreground tracking-[0.2em] flex items-center gap-2 opacity-60">
+                <label htmlFor="signup-department" className="text-xs uppercase font-bold text-muted-foreground tracking-[0.14em] flex items-center gap-2">
                    Department
                 </label>
                 <div className="relative group">
                   <select 
+                    id="signup-department"
                     name="department"
                     value={formData.department}
                     onChange={handleInputChange}
@@ -194,13 +199,14 @@ function SignupContent() {
                 value={formData.password}
                 onChange={handleInputChange}
                 required
+                autoComplete="new-password"
               />
             </div>
 
             <button 
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 bg-brand-gradient text-white hover:opacity-90 rounded-[var(--radius-md)] font-bold tracking-[0.2em] text-[10px] mt-6 flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-xl disabled:opacity-50"
+              className="w-full min-h-12 py-3.5 bg-brand-gradient text-white hover:opacity-90 rounded-[var(--radius-md)] font-bold tracking-[0.16em] text-xs mt-6 flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-xl disabled:opacity-50"
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -213,7 +219,7 @@ function SignupContent() {
             </button>
           </form>
 
-          <p className="mt-8 text-center text-zinc-400 dark:text-zinc-600 text-[10px] italic">
+          <p className="mt-8 text-center text-muted-foreground text-xs italic">
             Registration requires administrator verification.
           </p>
         </div>
@@ -235,13 +241,16 @@ export default function SignupPage() {
 }
 
 function AuthInput({ label, icon, ...props }: any) {
+  const inputId = props.id || `signup-${props.name}`;
+
   return (
     <div className="space-y-2">
-      <label className="text-[9px] uppercase font-bold text-muted-foreground tracking-[0.2em] flex items-center gap-2 opacity-60">
+      <label htmlFor={inputId} className="text-xs uppercase font-bold text-muted-foreground tracking-[0.14em] flex items-center gap-2">
         {label}
       </label>
       <input 
         {...props}
+        id={inputId}
         className="glass-input shadow-inner"
         placeholder={`Enter ${label.toLowerCase()}...`}
       />
