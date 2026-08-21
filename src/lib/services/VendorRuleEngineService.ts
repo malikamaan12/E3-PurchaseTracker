@@ -136,6 +136,14 @@ export class VendorRuleEngineService {
       .limit(1);
 
     const isLocked = existing.length > 0 && existing[0].isLocked;
+    const {
+      id: _id,
+      isLocked: _requestedLockState,
+      createdAt: _createdAt,
+      updatedAt: _updatedAt,
+      ...editableData
+    } = data as VendorRuleDefinition;
+    data = editableData as Partial<VendorRuleDefinition> & { ruleKey: string; name: string };
 
     // Enforce locked rule protections (CR and QID cannot be optional or disabled)
     if (isLocked) {
