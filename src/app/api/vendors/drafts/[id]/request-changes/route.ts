@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/vendors/drafts/[id]/request-changes
- * Requests corrections from the vendor and generates a fresh 24-hour invitation link.
+ * Requests corrections from the vendor and generates a fresh 7-day invitation link.
  */
 export async function POST(
   req: NextRequest,
@@ -44,7 +44,7 @@ export async function POST(
     });
 
     return NextResponse.json({
-      message: "Correction request registered. New 24-hour link created for the vendor.",
+      message: "Correction request registered. New 7-day link created for the vendor.",
       ...result,
     });
   } catch (error: any) {
