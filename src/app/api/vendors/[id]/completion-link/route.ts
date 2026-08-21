@@ -133,9 +133,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         })
         .returning();
 
-      const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost:3000";
-      const proto = req.headers.get("x-forwarded-proto") || "http";
-      const completionLink = `${proto}://${host}/vendor/onboard#token=${rawToken}`;
+      const completionUrl = new URL("/vendor/onboard", req.nextUrl.origin);
+      completionUrl.hash = `token=${rawToken}`;
+      const completionLink = completionUrl.toString();
 
       // Log link generated event
       await db.insert(vendorPortalEvents).values({
@@ -151,7 +151,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
         success: true,
         vendorId,
         completionLink,
-        rawToken,
         expiresAt: tokenExpiresAt,
       });
     }
