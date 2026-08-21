@@ -164,7 +164,7 @@ export default function VendorsDashboard() {
 
           {isAdmin && (
             <div className="flex items-center gap-2">
-              {featureFlags.FF_DYNAMIC_COMPLIANCE_ENGINE && (
+              {isSuperAdmin && featureFlags.FF_DYNAMIC_COMPLIANCE_ENGINE && (
                 <button
                   onClick={() => setIsRuleMatrixOpen(true)}
                   className="flex items-center justify-center gap-1.5 bg-secondary text-foreground hover:bg-secondary/80 border border-border font-semibold px-3.5 py-2.5 rounded-xl transition-all shrink-0 min-h-[44px] touch-target text-sm"
