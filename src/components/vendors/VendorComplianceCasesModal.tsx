@@ -33,10 +33,10 @@ export function VendorComplianceCasesModal({
   const [mounted, setMounted] = useState(false);
   const [isCreatingCase, setIsCreatingCase] = useState(false);
   const [reason, setReason] = useState("annual_review");
-  const [deadlineDays, setDeadlineDays] = useState(15);
+  const [deadlineDays, setDeadlineDays] = useState(14);
   const [instructions, setInstructions] = useState("");
   const [selectedDocs, setSelectedDocs] = useState<string[]>(
-    vendorType === "freelancer" ? [] : ["CR", "TAX_CARD", "ESTABLISHMENT_ID"]
+    vendorType === "freelancer" ? ["QID"] : ["CR"]
   );
   const [generatedPortalLink, setGeneratedPortalLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -104,7 +104,12 @@ export function VendorComplianceCasesModal({
 
   const modalContent = (
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="compliance-cases-title"
+        className="bg-card border border-border rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+      >
         {/* Header */}
         <div className="p-6 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -112,12 +117,14 @@ export function VendorComplianceCasesModal({
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-base text-foreground">Compliance Review Cases</h3>
+              <h3 id="compliance-cases-title" className="font-bold text-base text-foreground">Compliance Review Cases</h3>
               <p className="text-xs text-muted-foreground">{vendorName} ({vendorType === "freelancer" ? "Freelancer" : "Company"})</p>
             </div>
           </div>
           <button
+            type="button"
             onClick={onClose}
+            aria-label="Close compliance review cases"
             className="p-2 text-muted-foreground hover:text-foreground rounded-full hover:bg-muted transition-colors"
           >
             <X className="w-4 h-4" />
@@ -140,8 +147,10 @@ export function VendorComplianceCasesModal({
               </div>
 
               <div className="bg-background border border-border rounded-2xl p-4 text-left space-y-3">
-                <div className="flex items-center gap-2">
+                <label htmlFor="generated-compliance-link" className="sr-only">Generated vendor compliance link</label>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                   <input
+                    id="generated-compliance-link"
                     type="text"
                     readOnly
                     value={generatedPortalLink}
@@ -183,10 +192,11 @@ export function VendorComplianceCasesModal({
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  <label htmlFor="compliance-audit-reason" className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
                     Audit Reason*
                   </label>
                   <select
+                    id="compliance-audit-reason"
                     value={reason}
                     onChange={(e) => setReason(e.target.value)}
                     className="w-full bg-background border border-border rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:border-primary"
@@ -199,10 +209,11 @@ export function VendorComplianceCasesModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  <label htmlFor="compliance-deadline-days" className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
                     Submission Deadline (Days)*
                   </label>
                   <input
+                    id="compliance-deadline-days"
                     type="number"
                     min={1}
                     max={60}
@@ -239,10 +250,11 @@ export function VendorComplianceCasesModal({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                  <label htmlFor="compliance-special-instructions" className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
                     Special Instructions (Optional)
                   </label>
                   <textarea
+                    id="compliance-special-instructions"
                     rows={2}
                     value={instructions}
                     onChange={(e) => setInstructions(e.target.value)}
