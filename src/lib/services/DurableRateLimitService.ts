@@ -2,8 +2,9 @@ import { db } from "@db";
 import { rateLimitBuckets } from "@db/schema";
 import { eq, sql } from "drizzle-orm";
 import crypto from "crypto";
+import { getServerSecret } from "@/lib/utils/config";
 
-const RATE_LIMIT_SALT = process.env.RATE_LIMIT_SALT || "e3-purchase-tracker-rate-limit-salt-v1";
+const RATE_LIMIT_SALT = getServerSecret("RATE_LIMIT_SALT", "local-development-rate-limit-salt");
 
 /**
  * DurableRateLimitService
