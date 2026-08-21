@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
 
 /**
  * POST /api/vendors/drafts
- * Creates a minimal vendor draft and generates a 24h onboarding link.
+ * Creates a minimal vendor draft and generates a 7-day onboarding link.
  */
 export async function POST(req: NextRequest) {
   try {
