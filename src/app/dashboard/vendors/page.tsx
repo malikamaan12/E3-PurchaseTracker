@@ -22,7 +22,6 @@ import {
   Clock
 } from "lucide-react";
 import { toast } from "sonner";
-import * as Tabs from "@radix-ui/react-tabs";
 import { VendorManagementModal } from "@/components/vendors/VendorManagementModal";
 import { VendorDocumentsModal } from "@/components/vendors/VendorDocumentsModal";
 import { VendorInviteModal } from "@/components/vendors/VendorInviteModal";
@@ -30,11 +29,16 @@ import { VendorDraftReviewDrawer } from "@/components/vendors/VendorDraftReviewD
 import { VendorComplianceCasesModal } from "@/components/vendors/VendorComplianceCasesModal";
 import { VendorGracePeriodModal } from "@/components/vendors/VendorGracePeriodModal";
 import { VendorOnboardingBadge } from "@/components/vendors/VendorOnboardingBadge";
+import { VendorQuickCreateModal } from "@/components/vendors/VendorQuickCreateModal";
+import { VendorRuleMatrixModal } from "@/components/vendors/VendorRuleMatrixModal";
+import { VendorComplianceMatrixGrid } from "@/components/vendors/VendorComplianceMatrixGrid";
 import { useState, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { StarRating } from "@/components/shared/StarRating";
 import { VendorListView } from "@/components/vendors/VendorListView";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
+import { Sliders, Sparkles } from "lucide-react";
+import { featureFlags } from "@/lib/config/featureFlags";
 
 function safeFormatDate(date: any, format: string) {
   if (!date) return "N/A";
@@ -47,9 +51,11 @@ export default function VendorsDashboard() {
   const { isAdmin, user } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
   const [isOnboarding, setIsOnboarding] = useState(false);
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
+  const [isRuleMatrixOpen, setIsRuleMatrixOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [selectedDraftId, setSelectedDraftId] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<"approved" | "drafts">("approved");
+  const [activeTab, setActiveTab] = useState<"approved" | "matrix" | "drafts">("approved");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
@@ -127,7 +133,7 @@ export default function VendorsDashboard() {
           <p className="text-xs sm:text-sm text-muted-foreground font-medium uppercase tracking-widest">Global Supplier Matrix & Compliance Hub</p>
         </div>
 
-        <div className="flex items-center justify-between sm:justify-end gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5 w-full md:w-auto">
           <div className="flex bg-secondary/50 p-1.5 rounded-xl border border-border/50 shadow-sm">
             <button
               onClick={() => setViewMode("grid")}
@@ -145,22 +151,44 @@ export default function VendorsDashboard() {
             </button>
           </div>
 
+          {/* Quick-Create Vendor (Universal - any employee) */}
+          {featureFlags.FF_QUICK_VENDOR_CREATE && (
+            <button
+              onClick={() => setIsQuickCreateOpen(true)}
+              className="flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground hover:opacity-95 font-bold px-4 py-2.5 rounded-xl shadow-md shadow-primary/20 transition-all shrink-0 min-h-[44px] touch-target text-sm"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>Quick Add Vendor</span>
+            </button>
+          )}
+
           {isAdmin && (
             <div className="flex items-center gap-2">
+              {featureFlags.FF_DYNAMIC_COMPLIANCE_ENGINE && (
+                <button
+                  onClick={() => setIsRuleMatrixOpen(true)}
+                  className="flex items-center justify-center gap-1.5 bg-secondary text-foreground hover:bg-secondary/80 border border-border font-semibold px-3.5 py-2.5 rounded-xl transition-all shrink-0 min-h-[44px] touch-target text-sm"
+                  title="Configure Compliance Rules"
+                >
+                  <Sliders className="w-4 h-4 text-primary" />
+                  <span className="hidden sm:inline">Rule Matrix</span>
+                </button>
+              )}
+
               <button
                 onClick={() => setIsInviteModalOpen(true)}
-                className="flex items-center justify-center gap-2 bg-secondary text-foreground hover:bg-secondary/80 border border-border font-semibold px-4 py-2.5 rounded-xl transition-all shrink-0 min-h-[44px] touch-target text-sm"
+                className="flex items-center justify-center gap-2 bg-secondary text-foreground hover:bg-secondary/80 border border-border font-semibold px-3.5 py-2.5 rounded-xl transition-all shrink-0 min-h-[44px] touch-target text-sm"
               >
                 <Mail className="w-4 h-4 text-primary" />
-                <span className="hidden sm:inline">Invite Vendor</span>
+                <span className="hidden sm:inline">Invite</span>
               </button>
 
               <button
                 onClick={() => setIsOnboarding(true)}
-                className="flex items-center justify-center gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-bold px-4 py-2.5 rounded-xl shadow-md shadow-primary/20 transition-all shrink-0 min-h-[44px] touch-target text-sm"
+                className="flex items-center justify-center gap-2 bg-secondary text-foreground hover:bg-secondary/80 border border-border font-bold px-4 py-2.5 rounded-xl transition-all shrink-0 min-h-[44px] touch-target text-sm"
               >
                 <Plus className="w-4 h-4" />
-                <span>Add Supplier</span>
+                <span>Full Supplier</span>
               </button>
             </div>
           )}
@@ -184,6 +212,19 @@ export default function VendorsDashboard() {
           </span>
         </button>
 
+        {featureFlags.FF_COMPLIANCE_MATRIX_UI && (
+          <button
+            onClick={() => setActiveTab("matrix")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all shrink-0 ${
+              activeTab === "matrix"
+                ? "bg-primary/10 text-primary border border-primary/30"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <span>Compliance Matrix (Grid)</span>
+          </button>
+        )}
+
         {isAdmin && (
           <button
             onClick={() => setActiveTab("drafts")}
@@ -203,7 +244,9 @@ export default function VendorsDashboard() {
         )}
       </div>
 
-      {activeTab === "drafts" && isAdmin ? (
+      {activeTab === "matrix" ? (
+        <VendorComplianceMatrixGrid />
+      ) : activeTab === "drafts" && isAdmin ? (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-foreground">Self-Service Onboarding Pipeline</h2>
@@ -377,6 +420,20 @@ export default function VendorsDashboard() {
           refetchDrafts();
           queryClient.invalidateQueries({ queryKey: ["vendors"] });
         }}
+      />
+
+      <VendorQuickCreateModal
+        open={isQuickCreateOpen}
+        onOpenChange={setIsQuickCreateOpen}
+        onVendorCreated={() => {
+          refetchVendors();
+          queryClient.invalidateQueries({ queryKey: ["vendors"] });
+        }}
+      />
+
+      <VendorRuleMatrixModal
+        open={isRuleMatrixOpen}
+        onOpenChange={setIsRuleMatrixOpen}
       />
 
       <section className="mt-8 space-y-6">

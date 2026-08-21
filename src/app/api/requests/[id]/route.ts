@@ -19,7 +19,7 @@ import { getAuthenticatedUser } from "@/lib/auth-next";
 import { normalizeDepartmentAssignments } from "@/lib/auth-shared";
 import { updateRequestSchema } from "@/lib/validation";
 import { notificationService } from "@/lib/services/NotificationService";
-import { evaluateCompliance } from "@/lib/core/compliance";
+import { evaluateCompliance, capturePrComplianceSnapshot } from "@/lib/core/compliance";
 import { seedInitialApprovals } from "@/lib/core/workflow";
 import { getExchangeRateToQAR } from "@/lib/utils/currency";
 import { ComplianceOverrideService } from "@/lib/services/ComplianceOverrideService";
@@ -388,17 +388,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (isTransitioningToPending) {
       const targetVendorId = cleanData.vendorId ?? existing.vendorId;
       if (targetVendorId) {
-        const { isBlocked, message, hasApprovedOverride } = await evaluateCompliance(targetVendorId, requestId);
-        if (isBlocked) {
-          return NextResponse.json({ 
-            error: "Access Denied: Compliance Violation", 
-            message 
-          }, { status: 403 });
-        }
-
-        // Atomically consume approved override upon submission
-        if (hasApprovedOverride) {
-          await ComplianceOverrideService.consumeOverride(requestId, user.id);
+        // Non-blocking evaluation in accordance with approved vendor redesign
+        await evaluateCompliance(targetVendorId, requestId);
+        try {
+          await capturePrComplianceSnapshot(requestId, targetVendorId, "resubmission", user.id);
+        } catch (snapErr) {
+          console.warn("[PATCH /api/requests/[id]] Warning: Failed to capture PR compliance snapshot:", snapErr);
         }
       }
     }

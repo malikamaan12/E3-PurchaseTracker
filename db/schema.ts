@@ -142,6 +142,7 @@ export const purchaseRequests = pgTable("purchase_requests", {
   paymentStructure: text("payment_structure").notNull().default("POST_PROJECT"), // 'ADVANCE', 'IN_PARTS', 'POST_PROJECT'
   isLocked: boolean("is_locked").notNull().default(false),
   mandatoryApproversCount: integer("mandatory_approvers_count").notNull().default(0),
+  latestComplianceSnapshotId: integer("latest_compliance_snapshot_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -197,6 +198,74 @@ export const purchaseApprovers = pgTable("purchase_approvers", {
 });
 
 // Vendor Management Tables
+export const vendorRulesetVersions = pgTable("vendor_ruleset_versions", {
+  id: serial("id").primaryKey(),
+  versionNumber: integer("version_number").notNull().unique(),
+  status: text("status").notNull().default("draft"), // 'draft', 'published', 'archived'
+  rulesSnapshot: jsonb("rules_snapshot").$type<Array<Record<string, any>>>().notNull().default([]),
+  publishedBy: integer("published_by").references(() => users.id, { onDelete: "set null" }),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  changeSummary: text("change_summary"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  statusIdx: index("idx_vendor_ruleset_versions_status").on(table.status),
+}));
+
+export const activeVendorRuleset = pgTable("active_vendor_ruleset", {
+  id: integer("id").primaryKey().default(1),
+  activeRulesetVersionId: integer("active_ruleset_version_id")
+    .notNull()
+    .references(() => vendorRulesetVersions.id, { onDelete: "restrict" }),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedBy: integer("updated_by").references(() => users.id, { onDelete: "set null" }),
+});
+
+
+export const vendorRuleDefinitions = pgTable("vendor_rule_definitions", {
+  id: serial("id").primaryKey(),
+  ruleKey: text("rule_key").notNull().unique(), // 'cr_document', 'qid_document', 'tax_card', 'bank_details', etc.
+  name: text("name").notNull(),
+  section: text("section").notNull().default("legal"), // 'basic', 'legal', 'finance', 'document', 'contract', 'other'
+  description: text("description"),
+  instructions: text("instructions"),
+  inputType: text("input_type").notNull().default("document"), // 'short_text', 'long_text', 'number', 'currency', 'date', 'email', 'mobile', 'dropdown', 'checkbox', 'document', 'field_and_document'
+  dropdownOptions: jsonb("dropdown_options").$type<string[]>().default([]),
+  isActive: boolean("is_active").notNull().default(true),
+  isLocked: boolean("is_locked").notNull().default(false), // True for Company CR & Freelancer QID
+  displayOrder: integer("display_order").notNull().default(0),
+
+  // Company Configuration
+  companyApplicable: boolean("company_applicable").notNull().default(true),
+  companyMandatory: boolean("company_mandatory").notNull().default(false),
+  companyCreatorCanChange: boolean("company_creator_can_change").notNull().default(false),
+  companyAffectsScore: boolean("company_affects_score").notNull().default(true),
+  companyInfoRequired: boolean("company_info_required").notNull().default(false),
+  companyDocRequired: boolean("company_doc_required").notNull().default(true),
+
+  // Freelancer Configuration
+  freelancerApplicable: boolean("freelancer_applicable").notNull().default(false),
+  freelancerMandatory: boolean("freelancer_mandatory").notNull().default(false),
+  freelancerCreatorCanChange: boolean("freelancer_creator_can_change").notNull().default(false),
+  freelancerAffectsScore: boolean("freelancer_affects_score").notNull().default(true),
+  freelancerInfoRequired: boolean("freelancer_info_required").notNull().default(false),
+  freelancerDocRequired: boolean("freelancer_doc_required").notNull().default(true),
+
+  // Document & Verification Settings
+  expiryRequired: boolean("expiry_required").notNull().default(false),
+  verificationRequired: boolean("verification_required").notNull().default(true),
+  verificationRole: text("verification_role").notNull().default("finance"), // 'finance', 'admin', 'super_admin'
+  expiryWarningDays: integer("expiry_warning_days").notNull().default(30),
+  acceptedFileFormats: jsonb("accepted_file_formats").$type<string[]>().default(["pdf", "jpg", "jpeg", "png"]),
+  maxFileSizeMb: integer("max_file_size_mb").notNull().default(10),
+  scoreWeight: integer("score_weight").notNull().default(10), // Bounded 1-100
+
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  ruleKeyIdx: index("idx_vendor_rule_definitions_key").on(table.ruleKey),
+  sectionIdx: index("idx_vendor_rule_definitions_section").on(table.section),
+}));
+
 export const vendors = pgTable("vendors", {
   id: serial("id").primaryKey(),
   companyName: text("company_name").notNull(),
@@ -206,16 +275,22 @@ export const vendors = pgTable("vendors", {
   address: text("address").notNull(),
   taxNumber: text("tax_number"),
   registrationNumber: text("registration_number"),
-  bankName: text("bank_name").notNull(),
-  accountNumber: text("account_number").notNull(),
-  ibanNumber: text("iban_number").notNull(),
-  branchName: text("branch_name").notNull(),
+  bankName: text("bank_name"),
+  accountNumber: text("account_number"),
+  ibanNumber: text("iban_number"),
+  branchName: text("branch_name"),
   category: text("category").default("general"),
   payment_currency: text("payment_currency").notNull().default("QAR"),
   rating: integer("rating").default(0),
   vendorType: text("vendor_type").notNull().default("company"), // 'company' | 'freelancer' | 'contractor' | 'consultant' | 'service_provider'
+  engagementType: text("engagement_type").notNull().default("permanent"), // 'temporary' | 'permanent'
   complianceStatus: text("compliance_status").notNull().default("legacy_pending_assessment"), // 'unassessed' | 'legacy_pending_assessment' | 'compliant' | 'expiring_soon' | 'non_compliant' | 'grace_period' | 'compliance_not_applicable'
   complianceScore: integer("compliance_score").notNull().default(0),
+  complianceDeadline: timestamp("compliance_deadline", { withTimezone: true }),
+  rulesetVersionId: integer("ruleset_version_id").references(() => vendorRulesetVersions.id, { onDelete: "set null" }),
+  bankingVerificationStatus: text("banking_verification_status").notNull().default("unverified"), // 'unverified' | 'pending_stage1' | 'pending_stage2' | 'verified'
+  requiresClassificationReview: boolean("requires_classification_review").notNull().default(false),
+  creatorId: integer("creator_id").references(() => users.id, { onDelete: "set null" }),
   complianceMetadata: jsonb("compliance_metadata").$type<Record<string, any>>().default({}),
   gracePeriodDeadline: timestamp("grace_period_deadline", { withTimezone: true }),
   gracePeriodReason: text("grace_period_reason"),
@@ -226,7 +301,153 @@ export const vendors = pgTable("vendors", {
   remarks: text("remarks"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  engagementTypeIdx: index("idx_vendors_engagement_type").on(table.engagementType),
+  complianceDeadlineIdx: index("idx_vendors_compliance_deadline").on(table.complianceDeadline),
+}));
+
+export const vendorAssignedRequirements = pgTable("vendor_assigned_requirements", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
+  ruleId: integer("rule_id").references(() => vendorRuleDefinitions.id, { onDelete: "set null" }),
+  sourceRulesetVersionId: integer("source_ruleset_version_id").notNull().references(() => vendorRulesetVersions.id, { onDelete: "restrict" }),
+  ruleKey: text("rule_key").notNull(),
+  name: text("name").notNull(),
+  section: text("section").notNull(),
+  inputType: text("input_type").notNull(),
+  isMandatory: boolean("is_mandatory").notNull().default(false),
+  isCustom: boolean("is_custom").notNull().default(false),
+  affectsScore: boolean("affects_score").notNull().default(true),
+  scoreWeight: integer("score_weight").notNull().default(10),
+  infoRequired: boolean("info_required").notNull().default(false),
+  docRequired: boolean("doc_required").notNull().default(false),
+  expiryRequired: boolean("expiry_required").notNull().default(false),
+  verificationRequired: boolean("verification_required").notNull().default(true),
+  verificationRole: text("verification_role").notNull().default("finance"),
+  acceptedFileFormats: jsonb("accepted_file_formats").$type<string[]>().default(["pdf", "jpg", "jpeg", "png"]),
+  maxFileSizeMb: integer("max_file_size_mb").notNull().default(10),
+  dropdownOptions: jsonb("dropdown_options").$type<string[]>().default([]),
+  instructions: text("instructions"),
+  displayOrder: integer("display_order").notNull().default(0),
+  resolvedDueDate: timestamp("resolved_due_date", { withTimezone: true }).notNull(),
+
+  // Multi-dimensional states
+  submissionStatus: text("submission_status").notNull().default("missing"), // 'missing', 'draft', 'submitted', 'under_review', 'verified', 'rejected'
+  validityStatus: text("validity_status").notNull().default("not_applicable"), // 'valid', 'expiring_soon', 'expired', 'not_applicable'
+  deadlineStatus: text("deadline_status").notNull().default("due"), // 'due', 'overdue', 'completed_on_time', 'completed_late'
+
+  createdBy: integer("created_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  vendorIdIdx: index("idx_assigned_reqs_vendor_id").on(table.vendorId),
+  submissionStatusIdx: index("idx_assigned_reqs_submission_status").on(table.submissionStatus),
+  validityStatusIdx: index("idx_assigned_reqs_validity_status").on(table.validityStatus),
+  deadlineStatusIdx: index("idx_assigned_reqs_deadline_status").on(table.deadlineStatus),
+}));
+
+export const vendorRequirementSubmissions = pgTable("vendor_requirement_submissions", {
+  id: serial("id").primaryKey(),
+  assignedRequirementId: integer("assigned_requirement_id").notNull().references(() => vendorAssignedRequirements.id, { onDelete: "cascade" }),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
+  versionNumber: integer("version_number").notNull().default(1),
+  fieldValue: text("field_value"),
+  documentIds: jsonb("document_ids").$type<number[]>().default([]),
+  expiryDate: timestamp("expiry_date", { withTimezone: true }),
+  submissionNotes: text("submission_notes"),
+  status: text("status").notNull().default("submitted"), // 'draft', 'submitted', 'verified', 'rejected', 'superseded'
+  submittedByType: text("submitted_by_type").notNull().default("vendor"), // 'vendor', 'user'
+  submittedById: integer("submitted_by_id").references(() => users.id, { onDelete: "set null" }),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+
+  verifiedBy: integer("verified_by").references(() => users.id, { onDelete: "set null" }),
+  verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  rejectionReason: text("rejection_reason"),
+  verificationNotes: text("verification_notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  assignedReqIdx: index("idx_req_submissions_assigned_id").on(table.assignedRequirementId),
+  vendorIdIdx: index("idx_req_submissions_vendor_id").on(table.vendorId),
+  statusIdx: index("idx_req_submissions_status").on(table.status),
+}));
+
+export const vendorBankingSubmissions = pgTable("vendor_banking_submissions", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
+  bankName: text("bank_name").notNull(),
+  branchName: text("branch_name").notNull(),
+  accountNumber: text("account_number").notNull(),
+  ibanNumber: text("iban_number").notNull(),
+  payment_currency: text("payment_currency").notNull().default("QAR"),
+  bankLetterDocId: integer("bank_letter_doc_id"),
+  status: text("status").notNull().default("pending_stage1"), // 'pending_stage1', 'pending_stage2', 'verified', 'rejected'
+
+  stage1ReviewedBy: integer("stage1_reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  stage1ReviewedAt: timestamp("stage1_reviewed_at", { withTimezone: true }),
+  stage1Notes: text("stage1_notes"),
+
+  stage2ReviewedBy: integer("stage2_reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  stage2ReviewedAt: timestamp("stage2_reviewed_at", { withTimezone: true }),
+  stage2Notes: text("stage2_notes"),
+
+  rejectionReason: text("rejection_reason"),
+  submittedAt: timestamp("submitted_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  vendorIdIdx: index("idx_banking_submissions_vendor_id").on(table.vendorId),
+  statusIdx: index("idx_banking_submissions_status").on(table.status),
+}));
+
+export const purchaseRequestComplianceSnapshots = pgTable("purchase_request_compliance_snapshots", {
+  id: serial("id").primaryKey(),
+  requestId: integer("request_id").notNull(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: "restrict" }),
+  eventType: text("event_type").notNull().default("submission"), // 'submission', 'resubmission', 'approval_step'
+  complianceScore: integer("compliance_score").notNull(),
+  complianceStatus: text("compliance_status").notNull(),
+  vendorAgeDays: integer("vendor_age_days").notNull(),
+  complianceDeadline: timestamp("compliance_deadline", { withTimezone: true }),
+  isOverdue: boolean("is_overdue").notNull().default(false),
+  overdueDays: integer("overdue_days").notNull().default(0),
+  missingMandatoryKeys: jsonb("missing_mandatory_keys").$type<string[]>().notNull().default([]),
+  expiredRequirementKeys: jsonb("expired_requirement_keys").$type<string[]>().notNull().default([]),
+  rulesetVersionId: integer("ruleset_version_id").references(() => vendorRulesetVersions.id, { onDelete: "set null" }),
+  rawSnapshotData: jsonb("raw_snapshot_data").$type<Record<string, any>>().notNull().default({}),
+  triggeredBy: integer("triggered_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  requestIdIdx: index("idx_pr_snapshots_request_id").on(table.requestId),
+  vendorIdIdx: index("idx_pr_snapshots_vendor_id").on(table.vendorId),
+}));
+
+export const vendorComplianceScoreHistory = pgTable("vendor_compliance_score_history", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
+  previousScore: integer("previous_score").notNull(),
+  newScore: integer("new_score").notNull(),
+  previousStatus: text("previous_status").notNull(),
+  newStatus: text("new_status").notNull(),
+  calculationBreakdown: jsonb("calculation_breakdown").$type<Record<string, any>>().notNull().default({}),
+  triggeringEvent: text("triggering_event").notNull(), // 'INITIAL_CREATION', 'SUBMISSION_VERIFIED', 'SUBMISSION_REJECTED', 'DOCUMENT_EXPIRED', 'DEADLINE_PASSED', 'RULESET_REAPPLIED'
+  rulesetVersionId: integer("ruleset_version_id").references(() => vendorRulesetVersions.id, { onDelete: "set null" }),
+  recalculatedBy: integer("recalculated_by").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  vendorIdIdx: index("idx_score_history_vendor_id").on(table.vendorId),
+}));
+
+export const vendorPortalEvents = pgTable("vendor_portal_events", {
+  id: serial("id").primaryKey(),
+  vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: "cascade" }),
+  tokenId: integer("token_id"),
+  eventType: text("event_type").notNull(), // 'LINK_GENERATED', 'LINK_COPIED', 'LINK_SENT_EMAIL', 'PORTAL_OPENED', 'DRAFT_SAVED', 'PORTAL_SUBMITTED', 'REMINDER_SENT'
+  actorId: integer("actor_id").references(() => users.id, { onDelete: "set null" }),
+  actorType: text("actor_type").notNull().default("user"), // 'user', 'vendor', 'system'
+  metadata: jsonb("metadata").$type<Record<string, any>>().default({}),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  vendorIdIdx: index("idx_portal_events_vendor_id").on(table.vendorId),
+}));
 
 export const vendorComplianceCases = pgTable("vendor_compliance_cases", {
   id: serial("id").primaryKey(),
@@ -590,10 +811,80 @@ export const fileAttachmentRelations = relations(fileAttachments, ({ one }) => (
 }));
 
 // Relations
-export const vendorRelations = relations(vendors, ({ many }) => ({
+export const vendorRelations = relations(vendors, ({ one, many }) => ({
   categories: many(vendorToCategories),
   performance: many(vendorPerformance),
   installments: many(paymentInstallments),
+  assignedRequirements: many(vendorAssignedRequirements),
+  requirementSubmissions: many(vendorRequirementSubmissions),
+  bankingSubmissions: many(vendorBankingSubmissions),
+  scoreHistory: many(vendorComplianceScoreHistory),
+  portalEvents: many(vendorPortalEvents),
+  rulesetVersion: one(vendorRulesetVersions, {
+    fields: [vendors.rulesetVersionId],
+    references: [vendorRulesetVersions.id],
+  }),
+}));
+
+export const vendorAssignedRequirementsRelations = relations(vendorAssignedRequirements, ({ one, many }) => ({
+  vendor: one(vendors, {
+    fields: [vendorAssignedRequirements.vendorId],
+    references: [vendors.id],
+  }),
+  rule: one(vendorRuleDefinitions, {
+    fields: [vendorAssignedRequirements.ruleId],
+    references: [vendorRuleDefinitions.id],
+  }),
+  sourceRulesetVersion: one(vendorRulesetVersions, {
+    fields: [vendorAssignedRequirements.sourceRulesetVersionId],
+    references: [vendorRulesetVersions.id],
+  }),
+  submissions: many(vendorRequirementSubmissions),
+}));
+
+export const vendorRequirementSubmissionsRelations = relations(vendorRequirementSubmissions, ({ one }) => ({
+  assignedRequirement: one(vendorAssignedRequirements, {
+    fields: [vendorRequirementSubmissions.assignedRequirementId],
+    references: [vendorAssignedRequirements.id],
+  }),
+  vendor: one(vendors, {
+    fields: [vendorRequirementSubmissions.vendorId],
+    references: [vendors.id],
+  }),
+  verifiedByUser: one(users, {
+    fields: [vendorRequirementSubmissions.verifiedBy],
+    references: [users.id],
+  }),
+}));
+
+export const vendorBankingSubmissionsRelations = relations(vendorBankingSubmissions, ({ one }) => ({
+  vendor: one(vendors, {
+    fields: [vendorBankingSubmissions.vendorId],
+    references: [vendors.id],
+  }),
+  stage1User: one(users, {
+    fields: [vendorBankingSubmissions.stage1ReviewedBy],
+    references: [users.id],
+  }),
+  stage2User: one(users, {
+    fields: [vendorBankingSubmissions.stage2ReviewedBy],
+    references: [users.id],
+  }),
+}));
+
+export const purchaseRequestComplianceSnapshotsRelations = relations(purchaseRequestComplianceSnapshots, ({ one }) => ({
+  request: one(purchaseRequests, {
+    fields: [purchaseRequestComplianceSnapshots.requestId],
+    references: [purchaseRequests.id],
+  }),
+  vendor: one(vendors, {
+    fields: [purchaseRequestComplianceSnapshots.vendorId],
+    references: [vendors.id],
+  }),
+  rulesetVersion: one(vendorRulesetVersions, {
+    fields: [purchaseRequestComplianceSnapshots.rulesetVersionId],
+    references: [vendorRulesetVersions.id],
+  }),
 }));
 
 export const vendorCategoryRelations = relations(vendorCategories, ({ many }) => ({
@@ -656,6 +947,25 @@ export type PaymentVariation = InferModel<typeof paymentVariations>;
 export type Department = typeof departments.$inferSelect;
 export type InsertDepartment = typeof departments.$inferInsert;
 export type SelectDepartment = typeof departments.$inferSelect;
+
+export type VendorRulesetVersion = InferModel<typeof vendorRulesetVersions>;
+export type InsertVendorRulesetVersion = InferModel<typeof vendorRulesetVersions, "insert">;
+export type ActiveVendorRuleset = InferModel<typeof activeVendorRuleset>;
+export type InsertActiveVendorRuleset = InferModel<typeof activeVendorRuleset, "insert">;
+export type VendorRuleDefinition = InferModel<typeof vendorRuleDefinitions>;
+export type InsertVendorRuleDefinition = InferModel<typeof vendorRuleDefinitions, "insert">;
+export type VendorAssignedRequirement = InferModel<typeof vendorAssignedRequirements>;
+export type InsertVendorAssignedRequirement = InferModel<typeof vendorAssignedRequirements, "insert">;
+export type VendorRequirementSubmission = InferModel<typeof vendorRequirementSubmissions>;
+export type InsertVendorRequirementSubmission = InferModel<typeof vendorRequirementSubmissions, "insert">;
+export type VendorBankingSubmission = InferModel<typeof vendorBankingSubmissions>;
+export type InsertVendorBankingSubmission = InferModel<typeof vendorBankingSubmissions, "insert">;
+export type PurchaseRequestComplianceSnapshot = InferModel<typeof purchaseRequestComplianceSnapshots>;
+export type InsertPurchaseRequestComplianceSnapshot = InferModel<typeof purchaseRequestComplianceSnapshots, "insert">;
+export type VendorComplianceScoreHistory = InferModel<typeof vendorComplianceScoreHistory>;
+export type InsertVendorComplianceScoreHistory = InferModel<typeof vendorComplianceScoreHistory, "insert">;
+export type VendorPortalEvent = InferModel<typeof vendorPortalEvents>;
+export type InsertVendorPortalEvent = InferModel<typeof vendorPortalEvents, "insert">;
 
 // Add PurchaseRequestWithRelations type
 export type PurchaseRequestWithRelations = PurchaseRequest & {
@@ -809,21 +1119,38 @@ export const insertVendorSchema = createInsertSchema(vendors, {
     .max(15, "Contact number cannot exceed 15 digits")
     .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
   email: z.string().email("Invalid email format"),
-  address: z.string().min(5, "Address must be at least 5 characters"),
+  address: z.string().min(3, "Address must be at least 3 characters"),
   taxNumber: z.string().optional().nullable(),
   registrationNumber: z.string().optional().nullable(),
-  bankName: z.string().min(2, "Bank name must be at least 2 characters"),
-  accountNumber: z.string()
-    .min(5, "Account number must be at least 5 characters")
-    .regex(/^[\w\s\-\.\/]+$/, "Account number can only contain letters, numbers, spaces, hyphens, dots, and slashes"),
-  ibanNumber: z.string()
-    .min(10, "IBAN must be at least 10 characters") // Relaxed from 15
-    .regex(/^[A-Z0-9\s\-\.]+$/, "IBAN must contain only uppercase letters, numbers, spaces, dots, and slashes"),
-  branchName: z.string().min(2, "Branch name must be at least 2 characters"),
+  bankName: z.string().optional().nullable(),
+  accountNumber: z.string().optional().nullable(),
+  ibanNumber: z.string().optional().nullable(),
+  branchName: z.string().optional().nullable(),
+  category: z.string().default("general"),
+  payment_currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).default("QAR"),
+  vendorType: z.enum(["company", "freelancer", "contractor", "consultant", "service_provider"]).default("company"),
+  engagementType: z.enum(["temporary", "permanent"]).default("permanent"),
+  remarks: z.string().optional().nullable(),
+  status: z.enum(["active", "blocked", "frozen", "pending"]).default("active"),
+});
+
+// Universal quick vendor creation schema
+export const vendorQuickCreateSchema = z.object({
+  companyName: z.string().min(2, "Company / Freelancer name must be at least 2 characters"),
+  contactPerson: z.string().min(2, "Contact person name must be at least 2 characters"),
+  contactNumber: z.string()
+    .min(8, "Contact number must be at least 8 digits")
+    .max(15, "Contact number cannot exceed 15 digits")
+    .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
+  email: z.string().email("Invalid email format"),
+  address: z.string().min(3, "Address must be at least 3 characters").default("Doha, Qatar"),
+  vendorType: z.enum(["company", "freelancer", "contractor", "consultant", "service_provider"]).default("company"),
+  engagementType: z.enum(["temporary", "permanent"]).default("permanent"),
+  deadlineOption: z.enum(["7", "14", "30", "custom"]).default("30"),
+  customDeadline: z.string().optional().nullable(),
   category: z.string().default("general"),
   payment_currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).default("QAR"),
   remarks: z.string().optional().nullable(),
-  status: z.enum(["active", "blocked", "frozen", "pending"]).default("active"),
 });
 
 // Admin minimal draft creation schema

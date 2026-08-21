@@ -15,7 +15,7 @@ import {
 import { eq, and, desc, inArray, gte, lte, count, or, ilike, sql } from "drizzle-orm";
 import { getAuthenticatedUser, canCreateInDepartment, isDepartmentFrozen, normalizeDepartmentAssignments } from "@/lib/auth-next";
 import { createRequestSchema } from "@/lib/validation";
-import { evaluateCompliance } from "@/lib/core/compliance";
+import { evaluateCompliance, capturePrComplianceSnapshot } from "@/lib/core/compliance";
 import { seedInitialApprovals } from "@/lib/core/workflow";
 import { getExchangeRateToQAR } from "@/lib/utils/currency";
 import { generateUniqueRequestId } from "@/lib/utils/request-number";
@@ -318,18 +318,13 @@ export async function POST(req: NextRequest) {
     // --- Currency Conversion Lock-In ---
     const activeRate = await getExchangeRateToQAR(currency || "QAR");
     const baseAmountQar = Math.round(totalCost * activeRate);
-
-    // --- COMPLIANCE HARD STOP (Backend Gatekeeper) ---
-    // Draft submissions bypass the compliance gateway — users can save
-    // incomplete requests and resolve vendor documentation later.
-    if (requestedStatus !== "draft" && vendorIdNum) {
-      const { isBlocked, message } = await evaluateCompliance(vendorIdNum);
-      if (isBlocked) {
-        return NextResponse.json({ 
-          error: "Access Denied: Compliance Violation", 
-          message 
-        }, { status: 403 });
-      }
+    // --- NON-BLOCKING COMPLIANCE CHECK ---
+    // In accordance with the approved vendor redesign, missing or incomplete vendor
+    // compliance information NEVER blocks PR creation, submission, or approval.
+    let complianceWarning: string | undefined;
+    if (vendorIdNum) {
+      const complianceResult = await evaluateCompliance(vendorIdNum);
+      complianceWarning = complianceResult.warning;
     }
 
     // --- BUDGET HARD STOP (Backend Gatekeeper) ---
@@ -350,16 +345,17 @@ export async function POST(req: NextRequest) {
         .from(purchaseRequests)
         .where(and(
           eq(purchaseRequests.subPurposeId, subPurposeId),
-          inArray(purchaseRequests.status, ["pending", "partially_approved", "approved"])
+          inArray(purchaseRequests.status, ["pending", "pending_dept_head", "approved"])
         ));
 
-        const currentTotal = Number(spent.total);
-        if (currentTotal + totalCost > budgetInfo.allocated) {
-          console.warn(`[PR_GATEKEEPER] BLOCKED: Project "${budgetInfo.name}" budget exceeded by ${currentTotal + totalCost - budgetInfo.allocated} QAR`);
+        const currentSpent = Number(spent?.total || 0);
+        const remainingBudget = Number(budgetInfo.allocated) - currentSpent;
+
+        if (totalCost > remainingBudget) {
           return NextResponse.json({
-            error: "Budget Capacity Exceeded",
-            message: `The current request (${totalCost.toLocaleString()} QAR) exceeds the remaining institutional allocation for "${budgetInfo.name}". (Limit: ${budgetInfo.allocated.toLocaleString()} QAR | Remaining: ${(budgetInfo.allocated - currentTotal).toLocaleString()} QAR).`
-          }, { status: 403 });
+            error: "Budget Exceeded",
+            message: `Request total (${totalCost.toLocaleString()} QAR) exceeds remaining budget (${remainingBudget.toLocaleString()} QAR) for project "${budgetInfo.name}". Please submit a budget variation or reduce item quantities.`
+          }, { status: 400 });
         }
       }
     }
@@ -417,6 +413,15 @@ export async function POST(req: NextRequest) {
       })
       .returning();
     console.log("[POST /api/requests] Step 1 OK: request id", newRequest.id, "initialStatus:", initialStatus);
+
+    // 1.2 Capture Non-Blocking Compliance Snapshot
+    if (vendorIdNum && requestedStatus !== "draft") {
+      try {
+        await capturePrComplianceSnapshot(newRequest.id, vendorIdNum, "submission", user.id);
+      } catch (snapErr) {
+        console.warn("[POST /api/requests] Warning: Failed to capture PR compliance snapshot:", snapErr);
+      }
+    }
 
     // 1.5 Learn Items for Catalog
     if (items && Array.isArray(items) && items.length > 0) {

@@ -273,9 +273,52 @@ export async function generatePurchaseRequestPdf(requestData: any, options: PdfG
   drawMeta(page, PAGE_WIDTH / 2 + 10, gridY - 54, "Purpose Type", requestData.purposeType || "N/A");
   
   drawMeta(page, 50, gridY - 72, "Project / Sub-Purpose", requestData.subPurpose?.name || "N/A");
-  drawMeta(page, PAGE_WIDTH / 2 + 10, gridY - 72, "Payment Structure", requestData.paymentStructure?.replace(/_/g, ' ') || "POST PROJECT");
-
   y -= 115;
+
+  // Vendor Compliance Notice Stamp (Reads immutable snapshot at submission time)
+  const snapshot = requestData.latestComplianceSnapshot?.snapshotData;
+  const vendorScore = snapshot?.score ?? requestData.vendor?.complianceScore ?? 100;
+  const vendorComplianceStatus = (snapshot?.status || requestData.vendor?.complianceStatus || "compliant").toUpperCase().replace(/_/g, ' ');
+  const missingItems = snapshot?.missingMandatoryDocuments || [];
+  
+  if (vendorScore < 100 || vendorComplianceStatus !== "COMPLIANT") {
+    const isCritical = vendorScore < 50 || vendorComplianceStatus === "NON COMPLIANT";
+    const stampBg = isCritical ? rgb(254 / 255, 242 / 255, 242 / 255) : rgb(254 / 255, 243 / 255, 199 / 255);
+    const stampBorder = isCritical ? rgb(239 / 255, 68 / 255, 68 / 255) : rgb(245 / 255, 158 / 255, 11 / 255);
+    const stampText = isCritical ? rgb(185 / 255, 28 / 255, 28 / 255) : rgb(180 / 255, 83 / 255, 9 / 255);
+
+    let noticeText = `VENDOR COMPLIANCE NOTICE: Status at Submission: ${vendorComplianceStatus} (${vendorScore}% Score) — Procurement Proceeded Under Policy`;
+    if (missingItems.length > 0) {
+      noticeText += ` | Pending Requirements: ${missingItems.slice(0, 3).join(", ")}${missingItems.length > 3 ? ` (+${missingItems.length - 3} more)` : ""}`;
+    }
+
+    const wrappedNotice = wrapText(noticeText, PAGE_WIDTH - 100, fontBold, 7.5);
+    const boxHeight = Math.max(24, wrappedNotice.length * 11 + 10);
+
+    page.drawRectangle({
+      x: 40,
+      y: y - boxHeight + 4,
+      width: PAGE_WIDTH - 80,
+      height: boxHeight,
+      color: stampBg,
+      borderColor: stampBorder,
+      borderWidth: 1,
+    });
+
+    let textY = y - 8;
+    for (const line of wrappedNotice) {
+      page.drawText(line, {
+        x: 48,
+        y: textY,
+        size: 7.5,
+        font: fontBold,
+        color: stampText,
+      });
+      textY -= 11;
+    }
+
+    y -= (boxHeight + 10);
+  }
 
   if (y < SAFE_ZONE_BOTTOM + 60) {
     page = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);

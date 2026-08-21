@@ -112,6 +112,14 @@ class ApiClient {
     get: (id: number) => this.request<any>(`/vendors/${id}`),
     patchStatus: (id: number, status: "active" | "blocked" | "frozen") => 
       this.request<any>(`/vendors/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) }),
+    quickCreate: (data: any) =>
+      this.request<any>("/vendors/quick-create", { method: "POST", body: JSON.stringify(data) }),
+    getMatrix: (params: Record<string, any> = {}) => {
+      const search = new URLSearchParams(params).toString();
+      return this.request<any>(`/vendors/matrix?${search}`);
+    },
+    getCompletionLink: (vendorId: number) =>
+      this.request<any>(`/vendors/${vendorId}/completion-link`),
     onboard: (data: any) => this.request<any>("/vendors", { method: "POST", body: JSON.stringify(data) }),
     update: (id: number, data: any) => this.request<any>(`/vendors/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     rate: (id: number, rating: number) => 

@@ -40,11 +40,30 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => ({}));
     const { version, ...formData } = body;
 
+    const mergedData = {
+      companyName: session.draft.companyName,
+      contactPerson: session.draft.contactPerson,
+      contactNumber: session.draft.contactNumber,
+      email: session.draft.email,
+      address: session.draft.address,
+      taxNumber: session.draft.taxNumber,
+      registrationNumber: session.draft.registrationNumber,
+      bankName: session.draft.bankName,
+      accountNumber: session.draft.accountNumber,
+      ibanNumber: session.draft.ibanNumber,
+      branchName: session.draft.branchName,
+      vendorType: session.draft.vendorType,
+      category: session.draft.category,
+      payment_currency: session.draft.payment_currency,
+      ...formData,
+      version: Number(version ?? session.draft.version),
+    };
+
     const result = await vendorOnboardingService.submitVendorProfile({
       draftId: session.draft.id,
       invitationId: session.tokenRecord.id,
-      data: { ...formData, version: Number(version) },
-      currentVersion: Number(version),
+      data: mergedData,
+      currentVersion: Number(version ?? session.draft.version),
     });
 
     const res = NextResponse.json({

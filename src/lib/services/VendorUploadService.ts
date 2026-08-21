@@ -254,7 +254,7 @@ export class VendorUploadService {
       // Mark intent cancelled so it cannot block subsequent submission
       await db
         .update(vendorUploadIntents)
-        .set({ status: "cancelled" })
+        .set({ status: "failed" })
         .where(eq(vendorUploadIntents.id, intent.id));
 
       throw new Error(
@@ -310,7 +310,7 @@ export class VendorUploadService {
       if (currentDraft?.onboardingStatus === "submitted" || currentDraft?.onboardingStatus === "approved") {
         await db
           .update(vendorUploadIntents)
-          .set({ status: "cancelled" })
+          .set({ status: "failed" })
           .where(eq(vendorUploadIntents.id, intent.id));
         throw new Error("Upload finalization is not permitted after the profile has been submitted.");
       }
@@ -365,7 +365,7 @@ export class VendorUploadService {
           if (lockedDraft?.onboardingStatus === "submitted" || lockedDraft?.onboardingStatus === "approved") {
             await tx
               .update(vendorUploadIntents)
-              .set({ status: "cancelled" })
+              .set({ status: "failed" })
               .where(eq(vendorUploadIntents.id, intent.id));
             throw new Error("Upload finalization is not permitted after the profile has been submitted.");
           }
@@ -401,7 +401,7 @@ export class VendorUploadService {
       await this.cleanupFailedUpload(intent.objectKey);
       await db
         .update(vendorUploadIntents)
-        .set({ status: "cancelled" })
+        .set({ status: "failed" })
         .where(eq(vendorUploadIntents.id, intent.id));
 
       console.error("[VendorUploadService] Upload validation failed:", err);

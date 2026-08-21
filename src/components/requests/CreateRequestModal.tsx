@@ -170,7 +170,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   const selectedVendorCompliance = useMemo(() => {
     if (!vendorId || vendors.length === 0) return null;
     const v = vendors.find(vend => vend.id === Number(vendorId));
-    return v ? { score: v.complianceScore, name: v.companyName } : null;
+    return v ? { score: v.complianceScore, name: v.companyName, status: v.complianceStatus } : null;
   }, [vendorId, vendors]);
 
   const isNonCompliant = selectedVendorCompliance && selectedVendorCompliance.score < 50;
@@ -644,24 +644,22 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             {errors.vendorId?.message && typeof errors.vendorId.message === 'string' && <p className="text-xs text-rose-500 mt-1 font-medium pl-1">{errors.vendorId.message}</p>}
                           </div>
                           
-                          {/* Compliance Hard Stop Banner */}
+                          {/* Compliance Advisory Notice (Non-Blocking) */}
                           <AnimatePresence>
-                            {isNonCompliant && (
+                            {selectedVendorCompliance && (selectedVendorCompliance.score < 50 || selectedVendorCompliance.status === 'non_compliant') && (
                               <motion.div 
                                 initial={{ opacity: 0, height: 0 }}
                                 animate={{ opacity: 1, height: "auto" }}
                                 exit={{ opacity: 0, height: 0 }}
                                 className="overflow-hidden"
                               >
-                                <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-start gap-3 mt-2">
-                                  <ShieldAlert className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
+                                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3 mt-2">
+                                  <ShieldAlert className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
                                   <div>
-                                    <p className="text-sm font-semibold text-rose-600">Regulatory Risk</p>
-                                    <p className="text-xs text-rose-600/90 mt-1 leading-relaxed font-medium">
-                                      {selectedVendorCompliance?.name} is in **Critical Non-Compliance**. 
-                                      Institutional policy blocks procurement until required legal documentation (CR, Tax, etc.) 
-
-                                      is updated in the Compliance Gateway.
+                                    <p className="text-sm font-semibold text-amber-600">Vendor Compliance Notice ({selectedVendorCompliance.score}% Profile Score)</p>
+                                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1 leading-relaxed font-medium">
+                                      {selectedVendorCompliance?.name} has pending/incomplete documentation. 
+                                      Your purchase request can proceed normally, and a compliance notice will be recorded with the submission.
                                     </p>
                                   </div>
                                 </div>
@@ -1181,27 +1179,20 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         </Button>
                       ) : (
                         <Button
-                          disabled={isSubmitting || !!isNonCompliant}
+                          disabled={isSubmitting}
                           size="lg"
                           onClick={handleSubmit((data) => handleAction(data, "pending"))}
                           className={cn(
                             "min-h-[44px] flex items-center gap-2 px-6 sm:px-8 rounded-xl shadow-sm font-semibold transition-all",
-                            isNonCompliant 
-                              ? "bg-rose-500 hover:bg-rose-600 grayscale opacity-50 cursor-not-allowed text-white shadow-rose-500/20" 
-                              : isOverBudget 
-                                ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-500/30" 
-                                : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/30"
+                            isOverBudget 
+                              ? "bg-rose-600 hover:bg-rose-700 text-white shadow-rose-500/30" 
+                              : "bg-primary hover:bg-primary/90 text-primary-foreground shadow-primary/30"
                           )}
                         >
                           {isSubmitting ? (
                             <>
                               <Loader2 className="w-4 h-4 animate-spin" />
                               <span>Processing...</span>
-                            </>
-                          ) : isNonCompliant ? (
-                            <>
-                              <span>Access Denied</span>
-                              <ShieldAlert className="w-4 h-4" />
                             </>
                           ) : (
                             <>

@@ -1,27 +1,67 @@
 import { db } from "@db";
-import { vendors, vendorDocuments, vendorComplianceSettings, vendorComplianceCases, auditLogs } from "@db/schema";
-import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import {
+  vendors,
+  vendorAssignedRequirements,
+  vendorRequirementSubmissions,
+  vendorComplianceScoreHistory,
+  vendorDocuments,
+  auditLogs,
+  type VendorAssignedRequirement,
+} from "../../../db/schema";
+import { eq, and, desc, sql } from "drizzle-orm";
+
+export interface ComplianceSnapshotData {
+  vendorId: number;
+  vendorName: string;
+  entityType: string;
+  engagementType: string;
+  complianceScore: number;
+  complianceStatus: string;
+  vendorAgeDays: number;
+  complianceDeadline: string | null;
+  isOverdue: boolean;
+  overdueDays: number;
+  missingMandatoryKeys: string[];
+  expiredRequirementKeys: string[];
+  rulesetVersionId: number | null;
+  assignedRequirementsCount: number;
+  verifiedCount: number;
+  underReviewCount: number;
+  missingCount: number;
+  snapshotTimestamp: string;
+}
 
 export interface ComplianceEvaluationResult {
   vendorId: number;
-  vendorType: string;
+  previousScore: number;
+  newScore: number;
   previousStatus: string;
   newStatus: string;
-  complianceScore: number;
-  missingDocuments: string[];
-  expiringDocuments: Array<{ documentType: string; expiryDate: Date; daysRemaining: number }>;
-  expiredDocuments: Array<{ documentType: string; expiryDate: Date }>;
-  validDocuments: string[];
-  isInGracePeriod: boolean;
-  gracePeriodDeadline?: Date | null;
+  isCompliant: boolean;
+  scoreBreakdown: {
+    totalWeight: number;
+    earnedWeight: number;
+    score: number;
+    verifiedRequirements: string[];
+    underReviewRequirements: string[];
+    missingMandatory: string[];
+    expiredRequirements: string[];
+    expiringSoonRequirements: string[];
+    optionalIncomplete: string[];
+  };
+  summaryLabel: string;
 }
 
 export class ComplianceEvaluationService {
   /**
-   * Deterministically evaluates a vendor's compliance posture across all documents,
-   * expiration thresholds, and checklist configurations.
+   * Deterministically evaluates a vendor's compliance posture across assigned requirements,
+   * verification states, document expiration, and deadlines.
    */
-  static async evaluateVendor(vendorId: number, executorId?: number): Promise<ComplianceEvaluationResult> {
+  static async evaluateVendor(
+    vendorId: number,
+    triggeringEvent: string = "MANUAL_EVALUATION",
+    executorId?: number
+  ): Promise<ComplianceEvaluationResult> {
     const [vendor] = await db
       .select()
       .from(vendors)
@@ -32,169 +72,256 @@ export class ComplianceEvaluationService {
       throw new Error(`Vendor #${vendorId} not found for compliance evaluation`);
     }
 
-    // 1. Fetch compliance settings or defaults
-    const [settings] = await db
+    const assignedRequirements = await db
       .select()
-      .from(vendorComplianceSettings)
-      .limit(1);
-
-    const companyChecklist: string[] = settings?.companyChecklist || ["CR", "TAX_CARD", "ESTABLISHMENT_ID"];
-    const freelancerChecklist: string[] = settings?.freelancerChecklist || [];
-
-    const activeChecklist = vendor.vendorType === "freelancer" ? freelancerChecklist : companyChecklist;
-
-    // 2. If active checklist is completely empty, compliance is not applicable
-    if (!activeChecklist || activeChecklist.length === 0) {
-      const newStatus = "compliance_not_applicable";
-      if (vendor.complianceStatus !== newStatus) {
-        await db.update(vendors)
-          .set({ complianceStatus: newStatus, complianceScore: 100, updatedAt: new Date() })
-          .where(eq(vendors.id, vendorId));
-      }
-      return {
-        vendorId,
-        vendorType: vendor.vendorType,
-        previousStatus: vendor.complianceStatus,
-        newStatus,
-        complianceScore: 100,
-        missingDocuments: [],
-        expiringDocuments: [],
-        expiredDocuments: [],
-        validDocuments: [],
-        isInGracePeriod: false,
-      };
-    }
-
-    // 3. Fetch all active approved documents for this vendor
-    const activeDocs = await db
-      .select()
-      .from(vendorDocuments)
-      .where(and(
-        eq(vendorDocuments.vendorId, vendorId),
-        eq(vendorDocuments.status, "valid"),
-        eq(vendorDocuments.reviewStatus, "approved")
-      ))
-      .orderBy(desc(vendorDocuments.uploadedAt));
-
-    // Deduplicate by latest documentType
-    const latestDocMap = new Map<string, typeof activeDocs[0]>();
-    for (const doc of activeDocs) {
-      if (!latestDocMap.has(doc.documentType)) {
-        latestDocMap.set(doc.documentType, doc);
-      }
-    }
+      .from(vendorAssignedRequirements)
+      .where(eq(vendorAssignedRequirements.vendorId, vendorId))
+      .orderBy(vendorAssignedRequirements.displayOrder);
 
     const now = new Date();
-    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    const vendorCreatedAt = vendor.createdAt ? new Date(vendor.createdAt) : now;
+    const vendorAgeDays = Math.max(0, Math.floor((now.getTime() - vendorCreatedAt.getTime()) / (1000 * 60 * 60 * 24)));
 
-    const missingDocuments: string[] = [];
-    const expiredDocuments: Array<{ documentType: string; expiryDate: Date }> = [];
-    const expiringDocuments: Array<{ documentType: string; expiryDate: Date; daysRemaining: number }> = [];
-    const validDocuments: string[] = [];
+    let complianceDeadline = vendor.complianceDeadline ? new Date(vendor.complianceDeadline) : null;
+    let isOverdue = false;
+    let overdueDays = 0;
 
-    for (const requiredType of activeChecklist) {
-      const doc = latestDocMap.get(requiredType);
-      if (!doc) {
-        missingDocuments.push(requiredType);
-        continue;
+    if (complianceDeadline) {
+      const diffMs = now.getTime() - complianceDeadline.getTime();
+      if (diffMs > 0) {
+        isOverdue = true;
+        overdueDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      }
+    }
+
+    let totalWeight = 0;
+    let earnedWeight = 0;
+    const verifiedRequirements: string[] = [];
+    const underReviewRequirements: string[] = [];
+    const missingMandatory: string[] = [];
+    const expiredRequirements: string[] = [];
+    const expiringSoonRequirements: string[] = [];
+    const optionalIncomplete: string[] = [];
+
+    let hasUnderReviewMandatory = false;
+    let hasMissingOrRejectedMandatory = false;
+    let hasExpiredMandatory = false;
+    let hasExpiringSoonMandatory = false;
+
+    // Evaluate each assigned requirement
+    for (const req of assignedRequirements) {
+      const weight = req.scoreWeight || 10;
+      if (req.affectsScore) {
+        totalWeight += weight;
       }
 
-      if (doc.expiryDate) {
-        const expiry = new Date(doc.expiryDate);
-        if (expiry.getTime() < now.getTime()) {
-          expiredDocuments.push({ documentType: requiredType, expiryDate: expiry });
-        } else if (expiry.getTime() <= thirtyDaysFromNow.getTime()) {
-          const daysRemaining = Math.max(0, Math.ceil((expiry.getTime() - now.getTime()) / (24 * 60 * 60 * 1000)));
-          expiringDocuments.push({ documentType: requiredType, expiryDate: expiry, daysRemaining });
-          validDocuments.push(requiredType);
+      // Refresh deadline status if needed
+      let deadlineStatus = req.deadlineStatus;
+      const reqDueDate = new Date(req.resolvedDueDate);
+      if (req.submissionStatus === "missing" || req.submissionStatus === "rejected") {
+        deadlineStatus = now > reqDueDate ? "overdue" : "due";
+      }
+
+      if (req.submissionStatus === "verified") {
+        if (req.validityStatus === "expired") {
+          expiredRequirements.push(req.ruleKey);
+          if (req.isMandatory) hasExpiredMandatory = true;
         } else {
-          validDocuments.push(requiredType);
+          // Verified & not expired: Award 100% of weight
+          if (req.affectsScore) earnedWeight += weight;
+          verifiedRequirements.push(req.ruleKey);
+
+          if (req.validityStatus === "expiring_soon") {
+            expiringSoonRequirements.push(req.ruleKey);
+            if (req.isMandatory) hasExpiringSoonMandatory = true;
+          }
+        }
+      } else if (req.submissionStatus === "submitted" || req.submissionStatus === "under_review") {
+        // DIRECTIVE 1: Submitted or under-review requirements receive 0 compliance-score credit until verified.
+        underReviewRequirements.push(req.ruleKey);
+        if (req.isMandatory) {
+          hasUnderReviewMandatory = true;
         }
       } else {
-        validDocuments.push(requiredType);
+        // Missing or rejected
+        if (req.isMandatory) {
+          missingMandatory.push(req.ruleKey);
+          hasMissingOrRejectedMandatory = true;
+        } else if (req.affectsScore) {
+          optionalIncomplete.push(req.ruleKey);
+        }
       }
     }
 
-    // 4. Check active grace period
-    const isInGracePeriod = Boolean(
-      vendor.gracePeriodDeadline && new Date(vendor.gracePeriodDeadline).getTime() > now.getTime()
-    );
+    // Mathematical score calculation (0-100)
+    let newScore = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 100;
+    newScore = Math.max(0, Math.min(100, newScore));
 
-    // 5. Determine new status and score
-    let newStatus: string = "compliant";
-    let complianceScore = 100;
+    // Derive compliance status
+    let newStatus = "compliant";
 
-    if (missingDocuments.length > 0 || expiredDocuments.length > 0) {
-      if (isInGracePeriod) {
-        newStatus = "grace_period";
-        complianceScore = 50;
-      } else {
+    if (hasExpiredMandatory) {
+      newStatus = "non_compliant";
+    } else if (hasMissingOrRejectedMandatory) {
+      if (isOverdue) {
         newStatus = "non_compliant";
-        complianceScore = 0;
+      } else {
+        newStatus = "pending";
       }
-    } else if (expiringDocuments.length > 0) {
+    } else if (hasUnderReviewMandatory) {
+      newStatus = "under_review";
+    } else if (hasExpiringSoonMandatory) {
       newStatus = "expiring_soon";
-      complianceScore = 75;
     } else {
       newStatus = "compliant";
-      complianceScore = 100;
     }
 
-    // Preserve legacy_pending_assessment if vendor is unassessed and not yet evaluated
-    if (vendor.complianceStatus === "legacy_pending_assessment" && newStatus === "non_compliant" && !vendor.remarks?.includes("FORMAL_AUDIT_COMPLETED")) {
-      newStatus = "legacy_pending_assessment";
+    // Build human-readable summary label
+    let summaryLabel = "";
+    if (newStatus === "compliant") {
+      if (newScore === 100) {
+        summaryLabel = "Compliant — 100% Profile Score. All requirements satisfied.";
+      } else {
+        summaryLabel = `Compliant — ${newScore}% Profile Score. All mandatory requirements satisfied; optional details incomplete.`;
+      }
+    } else if (newStatus === "under_review") {
+      summaryLabel = `Submitted — Under Review (${newScore}% Score). Documents submitted, pending review.`;
+    } else if (newStatus === "pending") {
+      summaryLabel = `Pending — ${newScore}% Score. Mandatory requirements due before ${vendor.complianceDeadline ? new Date(vendor.complianceDeadline).toLocaleDateString() : "deadline"}.`;
+    } else if (newStatus === "expiring_soon") {
+      summaryLabel = `Expiring Soon — ${newScore}% Score. Mandatory document expiring in less than 30 days.`;
+    } else {
+      summaryLabel = `Non-Compliant — ${newScore}% Score. ${isOverdue ? `Overdue by ${overdueDays} days.` : "Mandatory requirements missing or expired."}`;
     }
 
-    // 6. Update vendor if status or score changed
-    if (vendor.complianceStatus !== newStatus || vendor.complianceScore !== complianceScore) {
-      await db.update(vendors)
-        .set({
-          complianceStatus: newStatus,
-          complianceScore,
-          complianceMetadata: {
-            lastEvaluatedAt: now.toISOString(),
-            missingDocuments,
-            expiredDocuments,
-            expiringDocuments,
-            validDocuments,
-          },
-          updatedAt: now,
-        })
-        .where(eq(vendors.id, vendorId));
+    const previousScore = vendor.complianceScore || 0;
+    const previousStatus = vendor.complianceStatus || "unassessed";
 
-      // Record audit log
-      try {
-        await db.insert(auditLogs).values({
-          resourceType: "vendor",
-          resourceId: vendorId,
-          action: "COMPLIANCE_STATUS_RECALCULATED",
-          userId: executorId || 1,
-          details: {
-            previousStatus: vendor.complianceStatus,
-            newStatus,
-            complianceScore,
-            missingDocuments,
-            expiredDocuments,
-            expiringDocuments,
-          },
-        });
-      } catch (logErr) {
-        console.error("[ComplianceEvaluationService] Audit log write failed:", logErr);
+    // Update vendor record
+    await db
+      .update(vendors)
+      .set({
+        complianceScore: newScore,
+        complianceStatus: newStatus,
+        updatedAt: new Date(),
+      })
+      .where(eq(vendors.id, vendorId));
+
+    const scoreBreakdown = {
+      totalWeight,
+      earnedWeight,
+      score: newScore,
+      verifiedRequirements,
+      underReviewRequirements,
+      missingMandatory,
+      expiredRequirements,
+      expiringSoonRequirements,
+      optionalIncomplete,
+    };
+
+    // Log append-only score history
+    if (previousScore !== newScore || previousStatus !== newStatus || triggeringEvent === "INITIAL_CREATION") {
+      await db.insert(vendorComplianceScoreHistory).values({
+        vendorId,
+        previousScore,
+        newScore,
+        previousStatus,
+        newStatus,
+        calculationBreakdown: scoreBreakdown,
+        triggeringEvent,
+        rulesetVersionId: vendor.rulesetVersionId,
+        recalculatedBy: executorId,
+      });
+    }
+
+    return {
+      vendorId,
+      previousScore,
+      newScore,
+      previousStatus,
+      newStatus,
+      isCompliant: newStatus === "compliant",
+      scoreBreakdown,
+      summaryLabel,
+    };
+  }
+
+  /**
+   * Generates an immutable compliance snapshot for a Purchase Request.
+   */
+  static async getSnapshot(vendorId: number): Promise<ComplianceSnapshotData> {
+    const [vendor] = await db
+      .select()
+      .from(vendors)
+      .where(eq(vendors.id, vendorId))
+      .limit(1);
+
+    if (!vendor) {
+      throw new Error(`Vendor #${vendorId} not found for PR snapshot`);
+    }
+
+    const reqs = await db
+      .select()
+      .from(vendorAssignedRequirements)
+      .where(eq(vendorAssignedRequirements.vendorId, vendorId));
+
+    const now = new Date();
+    const vendorCreatedAt = vendor.createdAt ? new Date(vendor.createdAt) : now;
+    const vendorAgeDays = Math.max(0, Math.floor((now.getTime() - vendorCreatedAt.getTime()) / (1000 * 60 * 60 * 24)));
+
+    let complianceDeadlineStr = vendor.complianceDeadline ? new Date(vendor.complianceDeadline).toISOString() : null;
+    let isOverdue = false;
+    let overdueDays = 0;
+
+    if (vendor.complianceDeadline) {
+      const diffMs = now.getTime() - new Date(vendor.complianceDeadline).getTime();
+      if (diffMs > 0) {
+        isOverdue = true;
+        overdueDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      }
+    }
+
+    const missingMandatoryKeys: string[] = [];
+    const expiredRequirementKeys: string[] = [];
+    let verifiedCount = 0;
+    let underReviewCount = 0;
+    let missingCount = 0;
+
+    for (const r of reqs) {
+      if (r.submissionStatus === "verified") {
+        verifiedCount++;
+        if (r.validityStatus === "expired") {
+          expiredRequirementKeys.push(r.ruleKey);
+        }
+      } else if (r.submissionStatus === "submitted" || r.submissionStatus === "under_review") {
+        underReviewCount++;
+      } else {
+        missingCount++;
+        if (r.isMandatory) {
+          missingMandatoryKeys.push(r.ruleKey);
+        }
       }
     }
 
     return {
       vendorId,
-      vendorType: vendor.vendorType,
-      previousStatus: vendor.complianceStatus,
-      newStatus,
-      complianceScore,
-      missingDocuments,
-      expiringDocuments,
-      expiredDocuments,
-      validDocuments,
-      isInGracePeriod,
-      gracePeriodDeadline: vendor.gracePeriodDeadline,
+      vendorName: vendor.companyName,
+      entityType: vendor.vendorType,
+      engagementType: vendor.engagementType,
+      complianceScore: vendor.complianceScore || 0,
+      complianceStatus: vendor.complianceStatus || "unassessed",
+      vendorAgeDays,
+      complianceDeadline: complianceDeadlineStr,
+      isOverdue,
+      overdueDays,
+      missingMandatoryKeys,
+      expiredRequirementKeys,
+      rulesetVersionId: vendor.rulesetVersionId,
+      assignedRequirementsCount: reqs.length,
+      verifiedCount,
+      underReviewCount,
+      missingCount,
+      snapshotTimestamp: now.toISOString(),
     };
   }
 }

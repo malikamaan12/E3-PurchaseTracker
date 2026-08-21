@@ -1,85 +1,131 @@
 import { db } from "@db";
-import { vendors, vendorDocuments, vendorComplianceOverrides } from "@db/schema";
+import {
+  vendors,
+  vendorDocuments,
+  purchaseRequestComplianceSnapshots,
+  purchaseRequests,
+} from "../../../db/schema";
 import { eq, and } from "drizzle-orm";
-import { differenceInDays } from "date-fns";
+import { ComplianceEvaluationService, type ComplianceSnapshotData } from "../services/ComplianceEvaluationService";
 
 /**
- * PROPRIETARY INTELLECTUAL PROPERTY
- * Core Heuristic Matching Engine for Vendor Compliance
+ * Non-Blocking Vendor Compliance Assessment for Purchase Requests.
+ * Evaluates compliance score and warnings for display and logging without blocking procurement.
  * 
- * Scans vendor metadata and evaluates the compliance health score.
- * Returns { isBlocked: true, message: string } if the vendor fails compliance.
- * If a valid Super-Admin approved override exists for this requestId, permits workflow progression.
- * 
- * @param vendorId The database ID of the vendor
- * @param requestId Optional PR ID to verify approved compliance overrides
- * @returns Object with isBlocked status and message if blocked
+ * In accordance with the approved redesign:
+ * Missing or incomplete vendor compliance information NEVER blocks PR creation, submission, or approval.
  */
 export async function evaluateCompliance(
   vendorId: number,
   requestId?: number
-): Promise<{ isBlocked: boolean; message?: string; hasApprovedOverride?: boolean }> {
-  if (!vendorId) return { isBlocked: false };
-
-  // Check if there is an active approved compliance override for this specific request
-  if (requestId) {
-    const [approvedOverride] = await db
-      .select()
-      .from(vendorComplianceOverrides)
-      .where(and(
-        eq(vendorComplianceOverrides.requestId, requestId),
-        eq(vendorComplianceOverrides.status, "approved")
-      ))
-      .limit(1);
-
-    if (approvedOverride) {
-      return { isBlocked: false, hasApprovedOverride: true };
-    }
-  }
-
-  const vendorRecord = await db.select({ 
-    score: vendors.complianceScore,
-    name: vendors.companyName,
-    status: vendors.status,
-  })
-  .from(vendors)
-  .where(eq(vendors.id, vendorId))
-  .limit(1);
-
-  if (vendorRecord.length === 0) return { isBlocked: false };
-  const v = vendorRecord[0];
-
-  // Hard stop: Pending, frozen, or blocked vendors are strictly blocked from institutional procurement
-  if (v.status !== "active") {
-    console.warn(`[PR_GATEKEEPER] BLOCKED: Vendor "${v.name}" (ID: ${vendorId}) is in non-active status: ${v.status}`);
+): Promise<{
+  isBlocked: false;
+  warning?: string;
+  complianceScore: number;
+  complianceStatus: string;
+  isOverdue: boolean;
+  overdueDays: number;
+}> {
+  if (!vendorId) {
     return {
-      isBlocked: true,
-      message: `The selected vendor (${v.name}) is currently in "${v.status}" status and is not eligible for purchase requests until approved and active.`
+      isBlocked: false,
+      complianceScore: 100,
+      complianceStatus: "compliant",
+      isOverdue: false,
+      overdueDays: 0,
     };
   }
 
-  if (v.score < 50) {
-    console.warn(`[PR_GATEKEEPER] BLOCKED: Vendor "${v.name}" (ID: ${vendorId}) has a critical compliance score of ${v.score}%`);
-    return { 
-      isBlocked: true, 
-      message: `The selected vendor (${v.name}) is currently in CRITICAL status (< 50% health) and is blocked from new institutional procurement until documentation is updated.` 
+  const [vendor] = await db
+    .select({
+      id: vendors.id,
+      score: vendors.complianceScore,
+      name: vendors.companyName,
+      status: vendors.status,
+      complianceStatus: vendors.complianceStatus,
+      complianceDeadline: vendors.complianceDeadline,
+    })
+    .from(vendors)
+    .where(eq(vendors.id, vendorId))
+    .limit(1);
+
+  if (!vendor) {
+    return {
+      isBlocked: false,
+      complianceScore: 0,
+      complianceStatus: "unassessed",
+      isOverdue: false,
+      overdueDays: 0,
     };
   }
 
-  const docs = await db.select().from(vendorDocuments).where(eq(vendorDocuments.vendorId, vendorId));
   const now = new Date();
-  
-  for (const doc of docs) {
-    if (doc.expiryDate) {
-      const daysSinceExpiry = differenceInDays(now, new Date(doc.expiryDate));
-      if (daysSinceExpiry > 30) {
-         return {
-            isBlocked: true,
-            message: `Vendor ${v.name} is blocked because their ${doc.documentType} (${doc.documentName}) expired ${daysSinceExpiry} days ago, exceeding the 30-day grace period.`
-         };
-      }
+  let isOverdue = false;
+  let overdueDays = 0;
+
+  if (vendor.complianceDeadline) {
+    const diffMs = now.getTime() - new Date(vendor.complianceDeadline).getTime();
+    if (diffMs > 0) {
+      isOverdue = true;
+      overdueDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     }
   }
 
-  return { isBlocked: false };
+  let warning: string | undefined;
+  if (vendor.complianceStatus === "non_compliant") {
+    warning = `Vendor compliance is currently non-compliant (${vendor.score}% score). Procurement may proceed, but documentation should be requested.`;
+  } else if (vendor.complianceStatus === "pending") {
+    warning = `Vendor compliance is pending (${vendor.score}% score). Documents are due before deadline.`;
+  } else if (vendor.complianceStatus === "expiring_soon") {
+    warning = `Vendor has documents expiring in less than 30 days.`;
+  }
+
+  return {
+    isBlocked: false, // NEVER BLOCK
+    warning,
+    complianceScore: vendor.score || 0,
+    complianceStatus: vendor.complianceStatus || "unassessed",
+    isOverdue,
+    overdueDays,
+  };
+}
+
+/**
+ * Captures an immutable append-only compliance snapshot for a Purchase Request submission/resubmission event.
+ */
+export async function capturePrComplianceSnapshot(
+  requestId: number,
+  vendorId: number,
+  eventType: "submission" | "resubmission" | "approval_step" = "submission",
+  triggeredBy?: number
+): Promise<number> {
+  const snapshotData = await ComplianceEvaluationService.getSnapshot(vendorId);
+
+  const [inserted] = await db
+    .insert(purchaseRequestComplianceSnapshots)
+    .values({
+      requestId,
+      vendorId,
+      eventType,
+      complianceScore: snapshotData.complianceScore,
+      complianceStatus: snapshotData.complianceStatus,
+      vendorAgeDays: snapshotData.vendorAgeDays,
+      complianceDeadline: snapshotData.complianceDeadline ? new Date(snapshotData.complianceDeadline) : null,
+      isOverdue: snapshotData.isOverdue,
+      overdueDays: snapshotData.overdueDays,
+      missingMandatoryKeys: snapshotData.missingMandatoryKeys,
+      expiredRequirementKeys: snapshotData.expiredRequirementKeys,
+      rulesetVersionId: snapshotData.rulesetVersionId,
+      rawSnapshotData: snapshotData,
+      triggeredBy,
+    })
+    .returning();
+
+  // Update latest snapshot reference on PR
+  await db
+    .update(purchaseRequests)
+    .set({ latestComplianceSnapshotId: inserted.id })
+    .where(eq(purchaseRequests.id, requestId));
+
+  return inserted.id;
 }

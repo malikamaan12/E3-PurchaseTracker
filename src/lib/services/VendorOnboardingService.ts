@@ -1290,7 +1290,7 @@ export class VendorOnboardingService {
     // Deterministically evaluate initial compliance status based on checklist & documents
     try {
       if (activeVendor?.id) {
-        await ComplianceEvaluationService.evaluateVendor(activeVendor.id, userId);
+        await ComplianceEvaluationService.evaluateVendor(activeVendor.id, "ONBOARDING_APPROVED", userId);
       }
     } catch (evalErr) {
       console.error("[VendorOnboardingService] Initial compliance evaluation error:", evalErr);
