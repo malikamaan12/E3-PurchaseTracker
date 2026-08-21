@@ -3,9 +3,9 @@ import { sql } from "drizzle-orm";
 
 async function checkConstraints() {
   const res = await db.execute(
-    sql`SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid = 'vendor_upload_intents'::regclass;`
+    sql`SELECT conname, pg_get_constraintdef(oid) FROM pg_constraint WHERE conrelid = 'vendors'::regclass;`
   );
-  console.log("Constraints on vendor_upload_intents:", res.rows);
+  console.log("Constraints on vendors table:", res.rows);
 }
 
 checkConstraints()

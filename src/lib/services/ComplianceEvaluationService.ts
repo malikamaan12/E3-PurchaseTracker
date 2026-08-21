@@ -157,7 +157,7 @@ export class ComplianceEvaluationService {
     let newScore = totalWeight > 0 ? Math.round((earnedWeight / totalWeight) * 100) : 100;
     newScore = Math.max(0, Math.min(100, newScore));
 
-    // Derive compliance status
+    // Derive compliance status (strictly constrained to allowed database enums)
     let newStatus = "compliant";
 
     if (hasExpiredMandatory) {
@@ -166,10 +166,10 @@ export class ComplianceEvaluationService {
       if (isOverdue) {
         newStatus = "non_compliant";
       } else {
-        newStatus = "pending";
+        newStatus = "unassessed";
       }
     } else if (hasUnderReviewMandatory) {
-      newStatus = "under_review";
+      newStatus = "unassessed";
     } else if (hasExpiringSoonMandatory) {
       newStatus = "expiring_soon";
     } else {
