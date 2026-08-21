@@ -130,7 +130,7 @@ export function VendorDraftReviewDrawer({
 
   const handleRegenerateLink = async () => {
     if (!draftId) return;
-    if (!window.confirm("Generate a new 24-hour invitation link? This will immediately revoke any existing active link.")) return;
+    if (!window.confirm("Generate a new 7-day invitation link? This will immediately revoke any existing active link.")) return;
 
     try {
       setActionLoading(true);
@@ -299,7 +299,7 @@ export function VendorDraftReviewDrawer({
                     <span>Request Corrections from Vendor</span>
                   </h4>
                   <p className="text-[11px] text-amber-800/90 dark:text-amber-200/90 leading-relaxed">
-                    Specify what needs updating (e.g. invalid CR document, mismatched bank branch, expired license). This will issue a new 24-hour invitation link to the vendor.
+                    Specify what needs updating (e.g. invalid CR document, mismatched bank branch, expired license). This will issue a new 7-day invitation link to the vendor.
                   </p>
                   <textarea
                     value={changeNotes}
@@ -457,7 +457,7 @@ export function VendorDraftReviewDrawer({
                   <div>
                     <span className="text-muted-foreground block">Current Link Status:</span>
                     <span className="text-foreground font-medium capitalize">
-                      {activeToken ? "Active (Valid for 24h)" : draft.onboardingStatus}
+                      {activeToken ? "Active (Valid for 7 days)" : draft.onboardingStatus}
                     </span>
                   </div>
 
@@ -480,7 +480,7 @@ export function VendorDraftReviewDrawer({
                     className="px-3.5 py-2 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground text-xs font-semibold flex items-center gap-1.5 transition-colors border border-border shadow-sm"
                   >
                     <RotateCcw className="w-3.5 h-3.5 text-primary" />
-                    <span>Regenerate 24h Link</span>
+                    <span>Regenerate 7-Day Link</span>
                   </button>
 
                   {activeToken && (
