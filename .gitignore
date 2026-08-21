@@ -17,3 +17,4 @@ scratch/
 strix/
 .vercel
 .env*
+!.env.example
