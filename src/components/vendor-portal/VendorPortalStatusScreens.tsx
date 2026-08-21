@@ -79,7 +79,7 @@ export function VendorPortalExpiredScreen() {
         </h2>
 
         <p className="text-xs text-slate-300 mt-2 leading-relaxed">
-          For security and data-protection requirements, all self-service onboarding links remain valid for exactly 24 hours.
+          For security and data-protection requirements, self-service onboarding links remain valid for 7 days.
         </p>
 
         <div className="mt-6 p-4 bg-slate-950/60 border border-slate-800 rounded-xl text-left">
@@ -93,7 +93,7 @@ export function VendorPortalExpiredScreen() {
           <a href="mailto:procurement@e3.qa" className="text-primary font-mono hover:underline">
             procurement@e3.qa
           </a>{" "}
-          to request a fresh 24-hour link.
+          to request a fresh 7-day link.
         </p>
       </div>
     </div>
