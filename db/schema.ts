@@ -1143,7 +1143,7 @@ export const vendorQuickCreateSchema = z.object({
     .max(15, "Contact number cannot exceed 15 digits")
     .regex(/^[+]?[\d\s-]+$/, "Invalid contact number format"),
   email: z.string().email("Invalid email format"),
-  address: z.string().min(3, "Address must be at least 3 characters").default("Doha, Qatar"),
+  address: z.string().trim().min(3, "Address must be at least 3 characters"),
   vendorType: z.enum(["company", "freelancer", "contractor", "consultant", "service_provider"]).default("company"),
   engagementType: z.enum(["temporary", "permanent"]).default("permanent"),
   deadlineOption: z.enum(["7", "14", "30", "custom"]).default("30"),
@@ -1151,6 +1151,26 @@ export const vendorQuickCreateSchema = z.object({
   category: z.string().default("general"),
   payment_currency: z.enum(["QAR", "USD", "EUR", "AED", "CNY"]).default("QAR"),
   remarks: z.string().optional().nullable(),
+}).superRefine((data, ctx) => {
+  if (data.deadlineOption !== "custom") return;
+
+  if (!data.customDeadline) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["customDeadline"],
+      message: "Custom compliance deadline is required",
+    });
+    return;
+  }
+
+  const customDeadline = new Date(data.customDeadline);
+  if (Number.isNaN(customDeadline.getTime()) || customDeadline <= new Date()) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["customDeadline"],
+      message: "Custom compliance deadline must be a future date",
+    });
+  }
 });
 
 // Admin minimal draft creation schema
@@ -1171,7 +1191,7 @@ export const vendorDraftCreationSchema = z.object({
     description: z.string().optional()
   })).default([
     { type: "Commercial Registration", mandatory: true, description: "Official CR document with valid expiry date" },
-    { type: "Tax Certificate", mandatory: true, description: "Tax / VAT identification certificate" },
+    { type: "Tax Certificate", mandatory: false, description: "Optional tax / VAT identification certificate" },
     { type: "Establishment Card", mandatory: false, description: "Computer card / Municipality license" }
   ]),
   notes: z.string().optional()
