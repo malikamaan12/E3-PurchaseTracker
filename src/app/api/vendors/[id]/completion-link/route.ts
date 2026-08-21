@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { vendors, vendorOnboardingTokens, vendorPortalEvents, auditLogs } from "@db/schema";
 import { db } from "@db";
-import { eq, and, gt } from "drizzle-orm";
+import { eq, and, desc, gt } from "drizzle-orm";
 import crypto from "crypto";
 
+/**
+ * GET /api/vendors/[id]/completion-link
+ * 
+ * Read-only endpoint for retrieving link status, token validity, and event history.
+ * IDEMPOTENT: Does NOT create, rotate, or revoke tokens (safe for prefetching and caching).
+ */
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const user = await getAuthenticatedUser(req);
@@ -23,63 +29,60 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
       return NextResponse.json({ success: false, message: "Vendor not found" }, { status: 404 });
     }
 
-    // Generate fresh 7-day token without changing vendor deadline or creation date
-    const rawToken = crypto.randomBytes(32).toString("hex");
-    const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
-    const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-
-    // Revoke existing active tokens for this vendor
-    await db
-      .update(vendorOnboardingTokens)
-      .set({ status: "revoked", revokedAt: new Date(), revokedBy: user.id })
+    // Retrieve most recent active token metadata (without exposing raw token or hash)
+    const [activeToken] = await db
+      .select({
+        id: vendorOnboardingTokens.id,
+        status: vendorOnboardingTokens.status,
+        expiresAt: vendorOnboardingTokens.expiresAt,
+        createdAt: vendorOnboardingTokens.createdAt,
+      })
+      .from(vendorOnboardingTokens)
       .where(
         and(
           eq(vendorOnboardingTokens.vendorId, vendorId),
-          eq(vendorOnboardingTokens.status, "active")
+          eq(vendorOnboardingTokens.status, "active"),
+          gt(vendorOnboardingTokens.expiresAt, new Date())
         )
-      );
+      )
+      .orderBy(desc(vendorOnboardingTokens.createdAt))
+      .limit(1);
 
-    // Insert new active token
-    const [tokenRecord] = await db
-      .insert(vendorOnboardingTokens)
-      .values({
-        vendorId,
-        scope: "onboarding",
-        tokenHash,
-        status: "active",
-        expiresAt: tokenExpiresAt,
+    // Retrieve link event history
+    const history = await db
+      .select({
+        id: vendorPortalEvents.id,
+        eventType: vendorPortalEvents.eventType,
+        actorType: vendorPortalEvents.actorType,
+        createdAt: vendorPortalEvents.createdAt,
       })
-      .returning();
-
-    const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost:3000";
-    const proto = req.headers.get("x-forwarded-proto") || "http";
-    const completionLink = `${proto}://${host}/vendor/onboard#token=${rawToken}`;
-
-    // Log event
-    await db.insert(vendorPortalEvents).values({
-      vendorId,
-      tokenId: tokenRecord.id,
-      eventType: "LINK_GENERATED",
-      actorId: user.id,
-      actorType: "user",
-      metadata: { rawTokenExpiresAt: tokenExpiresAt.toISOString() },
-    });
+      .from(vendorPortalEvents)
+      .where(eq(vendorPortalEvents.vendorId, vendorId))
+      .orderBy(desc(vendorPortalEvents.createdAt))
+      .limit(10);
 
     return NextResponse.json({
       success: true,
       vendorId,
-      completionLink,
-      expiresAt: tokenExpiresAt,
+      hasActiveToken: !!activeToken,
+      tokenExpiresAt: activeToken?.expiresAt || null,
+      isExpired: !activeToken,
+      history,
     });
   } catch (error: any) {
-    console.error("Failed to generate completion link:", error);
+    console.error("Failed to query completion link metadata:", error);
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to generate link" },
+      { success: false, message: error.message || "Failed to query link metadata" },
       { status: 500 }
     );
   }
 }
 
+/**
+ * POST /api/vendors/[id]/completion-link
+ * 
+ * State-mutating endpoint for generating fresh tokens, revoking tokens, or logging link interaction events.
+ */
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   try {
     const user = await getAuthenticatedUser(req);
@@ -93,22 +96,108 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       return NextResponse.json({ success: false, message: "Invalid vendor ID" }, { status: 400 });
     }
 
-    const body = await req.json();
-    const eventType = body.eventType || "LINK_COPIED"; // 'LINK_COPIED' | 'LINK_SENT_EMAIL' | 'REMINDER_SENT'
+    const [vendor] = await db.select().from(vendors).where(eq(vendors.id, vendorId)).limit(1);
+    if (!vendor) {
+      return NextResponse.json({ success: false, message: "Vendor not found" }, { status: 404 });
+    }
 
-    await db.insert(vendorPortalEvents).values({
-      vendorId,
-      eventType,
-      actorId: user.id,
-      actorType: "user",
-      metadata: body.metadata || {},
-    });
+    const body = await req.json().catch(() => ({}));
+    const action = body.action || "generate"; // 'generate' | 'revoke' | 'log_event'
 
-    return NextResponse.json({ success: true, loggedEvent: eventType });
+    // Action 1: Generate fresh 7-day token & revoke previous active tokens
+    if (action === "generate") {
+      const rawToken = crypto.randomBytes(32).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+      const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+      // Revoke existing active tokens for this vendor
+      await db
+        .update(vendorOnboardingTokens)
+        .set({ status: "revoked", revokedAt: new Date(), revokedBy: user.id })
+        .where(
+          and(
+            eq(vendorOnboardingTokens.vendorId, vendorId),
+            eq(vendorOnboardingTokens.status, "active")
+          )
+        );
+
+      // Insert new active token
+      const [tokenRecord] = await db
+        .insert(vendorOnboardingTokens)
+        .values({
+          vendorId,
+          scope: "onboarding",
+          tokenHash,
+          status: "active",
+          expiresAt: tokenExpiresAt,
+        })
+        .returning();
+
+      const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost:3000";
+      const proto = req.headers.get("x-forwarded-proto") || "http";
+      const completionLink = `${proto}://${host}/vendor/onboard#token=${rawToken}`;
+
+      // Log link generated event
+      await db.insert(vendorPortalEvents).values({
+        vendorId,
+        tokenId: tokenRecord.id,
+        eventType: "LINK_GENERATED",
+        actorId: user.id,
+        actorType: "user",
+        metadata: { rawTokenExpiresAt: tokenExpiresAt.toISOString() },
+      });
+
+      return NextResponse.json({
+        success: true,
+        vendorId,
+        completionLink,
+        rawToken,
+        expiresAt: tokenExpiresAt,
+      });
+    }
+
+    // Action 2: Revoke active link tokens
+    if (action === "revoke") {
+      await db
+        .update(vendorOnboardingTokens)
+        .set({ status: "revoked", revokedAt: new Date(), revokedBy: user.id })
+        .where(
+          and(
+            eq(vendorOnboardingTokens.vendorId, vendorId),
+            eq(vendorOnboardingTokens.status, "active")
+          )
+        );
+
+      await db.insert(vendorPortalEvents).values({
+        vendorId,
+        eventType: "LINK_REVOKED",
+        actorId: user.id,
+        actorType: "user",
+        metadata: { reason: body.reason || "Manual revocation by user" },
+      });
+
+      return NextResponse.json({ success: true, message: "Active completion links revoked." });
+    }
+
+    // Action 3: Log user interaction event (e.g. LINK_COPIED, LINK_SENT_EMAIL)
+    if (action === "log_event") {
+      const eventType = body.eventType || "LINK_COPIED";
+      await db.insert(vendorPortalEvents).values({
+        vendorId,
+        eventType,
+        actorId: user.id,
+        actorType: "user",
+        metadata: body.metadata || {},
+      });
+
+      return NextResponse.json({ success: true, loggedEvent: eventType });
+    }
+
+    return NextResponse.json({ success: false, message: "Invalid action" }, { status: 400 });
   } catch (error: any) {
-    console.error("Failed to log link event:", error);
+    console.error("Failed to process completion link request:", error);
     return NextResponse.json(
-      { success: false, message: error.message || "Failed to log event" },
+      { success: false, message: error.message || "Failed to process completion link request" },
       { status: 500 }
     );
   }

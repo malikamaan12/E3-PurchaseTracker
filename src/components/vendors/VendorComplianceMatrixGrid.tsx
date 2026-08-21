@@ -90,7 +90,11 @@ export function VendorComplianceMatrixGrid({ onSelectVendor }: VendorComplianceM
 
   const copyVendorLink = async (vendorId: number) => {
     try {
-      const res = await fetch(`/api/vendors/${vendorId}/completion-link`);
+      const res = await fetch(`/api/vendors/${vendorId}/completion-link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "generate" }),
+      });
       const resData = await res.json();
       if (resData.success && resData.completionLink) {
         await navigator.clipboard.writeText(resData.completionLink);

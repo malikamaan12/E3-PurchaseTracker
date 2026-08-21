@@ -45,7 +45,7 @@ async function createAuthToken(user: any) {
 
 async function runHttpSmokeTests() {
   console.log("================================================================================");
-  console.log(`REAL HTTP API SMOKE TEST SUITE — TARGET: ${BASE_URL}`);
+  console.log(`STAGING LOCAL HTTP API SMOKE TEST SUITE — TARGET: ${BASE_URL}`);
   console.log("================================================================================\n");
 
   const results: SmokeResult[] = [];
@@ -164,20 +164,30 @@ async function runHttpSmokeTests() {
       details: `Created Freelancer ID ${createdFreelancerVendorId}, QID Assigned: true`,
     });
 
-    // 6. GET /api/vendors/[id]/completion-link (Completion Link Generation)
+    // 6. GET & POST /api/vendors/[id]/completion-link (Clean HTTP Semantics)
     if (createdCompanyVendorId) {
-      console.log("6. Testing GET /api/vendors/[id]/completion-link...");
-      const linkRes = await fetch(`${BASE_URL}/api/vendors/${createdCompanyVendorId}/completion-link`, {
+      console.log("6. Testing GET & POST /api/vendors/[id]/completion-link...");
+      // 6.1 GET: Read-only check
+      const readMetaRes = await fetch(`${BASE_URL}/api/vendors/${createdCompanyVendorId}/completion-link`, {
         method: "GET",
         headers: authHeaders,
       });
-      const linkData = await linkRes.json();
+      const readMetaData = await readMetaRes.json();
+
+      // 6.2 POST: State-mutating generation
+      const genRes = await fetch(`${BASE_URL}/api/vendors/${createdCompanyVendorId}/completion-link`, {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify({ action: "generate" }),
+      });
+      const genData = await genRes.json();
+
       results.push({
-        test: "Completion Link Generation Endpoint",
-        endpoint: `GET /api/vendors/${createdCompanyVendorId}/completion-link`,
-        httpStatus: linkRes.status,
-        status: linkRes.status === 200 && linkData.completionLink?.includes("#token=") ? "PASS" : "FAIL",
-        details: `Generated URL: ${linkData.completionLink?.slice(0, 45)}...`,
+        test: "Completion Link Generation & HTTP Semantics",
+        endpoint: `GET & POST /api/vendors/${createdCompanyVendorId}/completion-link`,
+        httpStatus: genRes.status,
+        status: readMetaRes.status === 200 && genRes.status === 200 && genData.completionLink?.includes("#token=") ? "PASS" : "FAIL",
+        details: `GET is read-only; POST generated fresh 7-day token: ${genData.completionLink?.slice(0, 45)}...`,
       });
 
       // 7. Banking Staging & Dual-Control HTTP Endpoints
@@ -291,7 +301,7 @@ async function runHttpSmokeTests() {
   } finally {
     // Clean up test records created during HTTP smoke test to leave clean state
     console.log("\nCleaning up HTTP smoke test records...");
-    await db.update(vendors).set({ remarks: "[HTTP_SMOKE_TEST_RECORD]" }).where(like(vendors.companyName, "%HTTP-Smoke%"));
+    await db.update(vendors).set({ remarks: "[STAGING_SMOKE_TEST_RECORD]" }).where(like(vendors.companyName, "%HTTP-Smoke%"));
     if (createdPrId) {
       await db.delete(purchaseRequests).where(eq(purchaseRequests.id, createdPrId));
     }
@@ -299,7 +309,7 @@ async function runHttpSmokeTests() {
   }
 
   console.log("\n================================================================================");
-  console.log("REAL HTTP API SMOKE TEST RESULTS");
+  console.log("STAGING LOCAL HTTP API SMOKE TEST RESULTS");
   console.log("================================================================================");
   console.table(results);
 
