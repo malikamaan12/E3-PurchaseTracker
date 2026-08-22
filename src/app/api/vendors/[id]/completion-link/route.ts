@@ -104,24 +104,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     const body = await req.json().catch(() => ({}));
     const action = body.action || "generate"; // 'generate' | 'revoke' | 'log_event'
 
-    // Action 1: Generate fresh 7-day token & revoke previous active tokens
+    // Action 1: Generate fresh independent 7-day token without revoking previous active tokens
     if (action === "generate") {
       const rawToken = crypto.randomBytes(32).toString("hex");
       const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
       const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      // Revoke existing active tokens for this vendor
-      await db
-        .update(vendorOnboardingTokens)
-        .set({ status: "revoked", revokedAt: new Date(), revokedBy: user.id })
-        .where(
-          and(
-            eq(vendorOnboardingTokens.vendorId, vendorId),
-            eq(vendorOnboardingTokens.status, "active")
-          )
-        );
-
-      // Insert new active token
+      // Insert new active token (independent 7-day token; existing unexpired tokens remain valid)
       const [tokenRecord] = await db
         .insert(vendorOnboardingTokens)
         .values({
@@ -137,7 +126,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       completionUrl.hash = `token=${rawToken}`;
       const completionLink = completionUrl.toString();
 
-      // Log link generated event
+      // Log link generated event independently
       await db.insert(vendorPortalEvents).values({
         vendorId,
         tokenId: tokenRecord.id,

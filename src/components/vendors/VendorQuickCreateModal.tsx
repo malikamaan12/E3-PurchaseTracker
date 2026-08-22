@@ -122,16 +122,19 @@ export function VendorQuickCreateModal({
       setCopied(true);
       toast.success("Vendor self-service completion link copied to clipboard.");
 
-      // Log link copy event with action: log_event so token is not accidentally rotated
-      await fetch(`/api/vendors/${createdVendorResult.vendor.id}/completion-link`, {
+      // Independent telemetry logging: logging failure cannot report copy failure after clipboard copy succeeded
+      fetch(`/api/vendors/${createdVendorResult.vendor.id}/completion-link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "log_event", eventType: "LINK_COPIED" }),
+      }).catch((logErr) => {
+        console.warn("Failed to log LINK_COPIED event:", logErr);
       });
 
       setTimeout(() => setCopied(false), 3000);
     } catch (err) {
       console.error("Failed to copy link:", err);
+      toast.error("Failed to copy link to clipboard.");
     }
   };
 

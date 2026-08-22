@@ -100,11 +100,13 @@ export function VendorComplianceMatrixGrid({ onSelectVendor }: VendorComplianceM
         await navigator.clipboard.writeText(resData.completionLink);
         toast.success("Vendor self-service completion link copied to clipboard.");
 
-        // Log link copy event
-        await fetch(`/api/vendors/${vendorId}/completion-link`, {
+        // Independent telemetry logging: logging failure cannot report copy failure after clipboard copy succeeded
+        fetch(`/api/vendors/${vendorId}/completion-link`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ action: "log_event", eventType: "LINK_COPIED" }),
+        }).catch((logErr) => {
+          console.warn("Failed to log LINK_COPIED event:", logErr);
         });
       }
     } catch (err) {
