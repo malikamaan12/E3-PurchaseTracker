@@ -24,6 +24,8 @@ import {
   TrendingDown,
   TrendingUp,
   Building2,
+  Copy,
+  CheckCircle2,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -33,7 +35,7 @@ import { useAuth } from "@/context/AuthContext";
 import { getExchangeRateToQAR } from "@/lib/utils/currency";
 import RequestItemGrid, { RequestItem } from "./RequestItemGrid";
 import DocumentUploadZone from "../shared/DocumentUploadZone";
-import { VendorManagementModal } from "@/components/vendors/VendorManagementModal";
+import { VendorQuickCreateModal } from "@/components/vendors/VendorQuickCreateModal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import {
@@ -117,7 +119,9 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   const [activeTab, setActiveTab] = useState<"general" | "items" | "payments" | "approvals">("general");
   const [initialFiles, setInitialFiles] = useState<any[]>([]);
   const [exchangeRate, setExchangeRate] = useState(1);
-  const [isVendorModalOpen, setIsVendorModalOpen] = useState(false);
+  const [isVendorQuickCreateOpen, setIsVendorQuickCreateOpen] = useState(false);
+  const [isCopyingComplianceLink, setIsCopyingComplianceLink] = useState(false);
+  const [isComplianceLinkCopied, setIsComplianceLinkCopied] = useState(false);
 
   const {
     register,
@@ -293,6 +297,52 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
       toast.error("Failed to load vendors");
     } finally {
       setIsLoadingVendors(false);
+    }
+  };
+
+  const handleVendorQuickCreated = (newVendor: any) => {
+    fetchVendors();
+    if (newVendor?.id) {
+      setValue("vendorId", newVendor.id.toString(), { shouldValidate: true });
+    }
+  };
+
+  const handleCopyComplianceLink = async (targetVendorId?: number) => {
+    const vid = targetVendorId || Number(vendorId);
+    if (!vid) {
+      toast.error("Please select a vendor first");
+      return;
+    }
+
+    setIsCopyingComplianceLink(true);
+    try {
+      const res = await fetch(`/api/vendors/${vid}/completion-link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "generate" }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success || !data.completionLink) {
+        throw new Error(data.message || "Failed to generate compliance link");
+      }
+
+      await navigator.clipboard.writeText(data.completionLink);
+      setIsComplianceLinkCopied(true);
+      toast.success("Vendor self-service compliance link copied to clipboard");
+
+      // Log link copy event with action: log_event so token is not revoked
+      await fetch(`/api/vendors/${vid}/completion-link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "log_event", eventType: "LINK_COPIED" }),
+      });
+
+      setTimeout(() => setIsComplianceLinkCopied(false), 3000);
+    } catch (err: any) {
+      console.error("Failed to copy vendor compliance link:", err);
+      toast.error(err.message || "Failed to copy compliance link");
+    } finally {
+      setIsCopyingComplianceLink(false);
     }
   };
 
@@ -574,10 +624,11 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                               <label className="text-xs font-medium text-foreground block">Vendor Partnership</label>
                               <button 
                                 type="button" 
-                                onClick={() => setIsVendorModalOpen(true)} 
-                                className="text-[10px] bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded uppercase font-bold hover:bg-brand-primary/20 transition-all border border-brand-primary/20"
+                                onClick={() => setIsVendorQuickCreateOpen(true)} 
+                                className="text-[11px] bg-primary/10 text-primary hover:bg-primary/20 px-2.5 py-1 rounded-lg font-bold transition-all border border-primary/20 flex items-center gap-1 min-h-[32px] sm:min-h-[28px] touch-target"
                               >
-                                + Add New
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>Quick-Create Vendor</span>
                               </button>
                             </div>
                             {selectedVendorCompliance && (
@@ -600,13 +651,13 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                               render={({ field }) => (
                                 <Select 
                                   onValueChange={(val) => {
-                                    if (val === "add_new") {
-                                      setIsVendorModalOpen(true);
+                                    if (val === "quick_create" || val === "add_new") {
+                                      setIsVendorQuickCreateOpen(true);
                                     } else {
                                       field.onChange(val);
                                     }
                                   }} 
-                                  value={field.value?.toString() === "add_new" ? undefined : field.value?.toString()}
+                                  value={(field.value?.toString() === "quick_create" || field.value?.toString() === "add_new") ? undefined : field.value?.toString()}
                                 >
                                   <SelectTrigger className={cn(
                                     "pl-9 h-10 text-sm transition-all",
@@ -616,10 +667,10 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                                     <SelectValue placeholder="Select active vendor..." />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    <SelectItem value="add_new" className="font-medium text-primary focus:text-primary focus:bg-primary/10 mb-1 border-b border-border/50 pb-2 cursor-pointer">
+                                    <SelectItem value="quick_create" className="font-medium text-primary focus:text-primary focus:bg-primary/10 mb-1 border-b border-border/50 pb-2 cursor-pointer">
                                       <div className="flex items-center gap-2">
-                                        <Plus className="w-4 h-4" />
-                                        Create New Vendor
+                                        <Sparkles className="w-4 h-4 text-primary" />
+                                        <span>Quick-Create Vendor</span>
                                       </div>
                                     </SelectItem>
                                     {vendors
@@ -643,6 +694,44 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             />
                             {errors.vendorId?.message && typeof errors.vendorId.message === 'string' && <p className="text-xs text-rose-500 mt-1 font-medium pl-1">{errors.vendorId.message}</p>}
                           </div>
+
+                          {/* Copy Compliance Link Action for selected vendor */}
+                          {selectedVendorCompliance && (
+                            <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-secondary/40 border border-border/70 mt-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <ShieldCheck className="w-4 h-4 text-primary shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-foreground truncate">{selectedVendorCompliance.name}</p>
+                                  <p className="text-[10px] text-muted-foreground">Self-service compliance onboarding portal</p>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant={isComplianceLinkCopied ? "default" : "outline"}
+                                onClick={() => handleCopyComplianceLink()}
+                                disabled={isCopyingComplianceLink}
+                                className="shrink-0 gap-1.5 min-h-[36px] text-xs font-semibold rounded-lg"
+                              >
+                                {isCopyingComplianceLink ? (
+                                  <>
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                    <span>Generating...</span>
+                                  </>
+                                ) : isComplianceLinkCopied ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                                    <span>Link Copied!</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Copy className="w-3.5 h-3.5 text-primary" />
+                                    <span>Copy Compliance Link</span>
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          )}
                           
                           {/* Compliance Advisory Notice (Non-Blocking) */}
                           <AnimatePresence>
@@ -1210,7 +1299,11 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
           </motion.div>
         </div>
       )}
-      <VendorManagementModal open={isVendorModalOpen} onOpenChange={setIsVendorModalOpen} />
+      <VendorQuickCreateModal
+        open={isVendorQuickCreateOpen}
+        onOpenChange={setIsVendorQuickCreateOpen}
+        onVendorCreated={handleVendorQuickCreated}
+      />
     </AnimatePresence>
   );
 }

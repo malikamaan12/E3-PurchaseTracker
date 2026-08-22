@@ -99,6 +99,13 @@ export function VendorComplianceMatrixGrid({ onSelectVendor }: VendorComplianceM
       if (resData.success && resData.completionLink) {
         await navigator.clipboard.writeText(resData.completionLink);
         toast.success("Vendor self-service completion link copied to clipboard.");
+
+        // Log link copy event
+        await fetch(`/api/vendors/${vendorId}/completion-link`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "log_event", eventType: "LINK_COPIED" }),
+        });
       }
     } catch (err) {
       toast.error("Failed to generate vendor link");

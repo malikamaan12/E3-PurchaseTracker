@@ -122,11 +122,11 @@ export function VendorQuickCreateModal({
       setCopied(true);
       toast.success("Vendor self-service completion link copied to clipboard.");
 
-      // Log link copy event
+      // Log link copy event with action: log_event so token is not accidentally rotated
       await fetch(`/api/vendors/${createdVendorResult.vendor.id}/completion-link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventType: "LINK_COPIED" }),
+        body: JSON.stringify({ action: "log_event", eventType: "LINK_COPIED" }),
       });
 
       setTimeout(() => setCopied(false), 3000);
@@ -144,8 +144,8 @@ export function VendorQuickCreateModal({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-background/80 backdrop-blur-xs z-50 animate-in fade-in-0 duration-200" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-[calc(100%-2rem)] max-w-[560px] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] p-0 overflow-hidden rounded-2xl border bg-background shadow-2xl duration-200 animate-in fade-in-0 zoom-in-95">
+        <Dialog.Overlay className="fixed inset-0 bg-background/80 backdrop-blur-xs z-[200] animate-in fade-in-0 duration-200" />
+        <Dialog.Content className="fixed left-[50%] top-[50%] z-[201] grid w-[calc(100%-2rem)] max-w-[560px] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] p-0 overflow-hidden rounded-2xl border bg-background shadow-2xl duration-200 animate-in fade-in-0 zoom-in-95">
           <div className="p-4 sm:p-6 pb-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
