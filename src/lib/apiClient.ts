@@ -36,8 +36,13 @@ class ApiClient {
       // If we are on the login page, it's likely a bad password, read the actual message
       if (isAuthPage) {
         errorMessage = errorData.message || errorData.error || "Invalid email or password";
-      } else if (errorData.error && errorData.error !== "Not authenticated") {
-        errorMessage = errorData.error;
+      } else {
+        if (errorData.error && errorData.error !== "Not authenticated") {
+          errorMessage = errorData.error;
+        }
+        if (typeof window !== "undefined") {
+          window.location.href = "/login?expired=true";
+        }
       }
       
       throw new ApiError(response.status, errorMessage);
@@ -62,6 +67,7 @@ class ApiClient {
     register: (data: any) => this.request<any>("/auth/register", { method: "POST", body: JSON.stringify(data) }),
     logout: () => this.request<any>("/auth/logout", { method: "POST" }),
     getUser: () => this.request<any>("/auth/user"),
+    getMe: () => this.request<any>("/auth/me"),
   };
 
   // Requests Domain
