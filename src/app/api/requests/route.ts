@@ -46,16 +46,22 @@ export async function GET(req: NextRequest) {
 
     // Filter Logic
     if (status && status !== "all") {
-      const statusArr = status.split(",");
-      if (statusArr.includes("pending")) {
-        const expanded = Array.from(new Set([...statusArr, "partially_approved", "pending_dept_head", "variation_pending"]));
-        whereConditions.push(inArray(purchaseRequests.status, expanded));
-      } else if (statusArr.includes("approved")) {
-        const expanded = Array.from(new Set([...statusArr, "fully_paid"]));
-        whereConditions.push(inArray(purchaseRequests.status, expanded));
-      } else {
-        whereConditions.push(inArray(purchaseRequests.status, statusArr));
+      const statusArr = status.split(",").map(s => s.trim().toLowerCase());
+      const expanded: string[] = [];
+      for (const s of statusArr) {
+        if (s === "pending") {
+          expanded.push("pending", "partially_approved", "pending_dept_head", "variation_pending");
+        } else if (s === "approved") {
+          expanded.push("approved", "fully_paid");
+        } else if (s === "rejected") {
+          expanded.push("rejected", "cancelled");
+        } else if (s === "cancelled") {
+          expanded.push("cancelled");
+        } else {
+          expanded.push(s);
+        }
       }
+      whereConditions.push(inArray(purchaseRequests.status, Array.from(new Set(expanded))));
     }
 
     if (deptFilter && deptFilter !== "all") {
@@ -175,7 +181,7 @@ export async function GET(req: NextRequest) {
     const timeoutPromise = new Promise<never>((_, reject) => {
       timeoutHandle = setTimeout(
         () => reject(new Error("Database synchronization timeout")),
-        5000
+        8000
       );
     });
 
@@ -203,10 +209,23 @@ export async function GET(req: NextRequest) {
         },
         requester: {
           id: users.id,
-          username: users.username,
-          department: users.department,
+          username: sql<string>`COALESCE(${users.username}, 'Unknown Requester')`,
+          department: sql<string>`COALESCE(${users.department}, ${purchaseRequests.department}, 'General')`,
           role: users.role,
         },
+        approvals: sql<any>`COALESCE((
+          SELECT json_agg(json_build_object(
+            'id', ${approvals.id},
+            'department', ${approvals.department},
+            'status', ${approvals.status},
+            'isMandatory', ${approvals.isMandatory},
+            'approverId', ${approvals.approverId},
+            'comments', ${approvals.comments},
+            'processedAt', ${approvals.processedAt}
+          ) ORDER BY ${approvals.id})
+          FROM ${approvals}
+          WHERE ${approvals.requestId} = ${purchaseRequests.id}
+        ), '[]'::json)`,
         paidAmount: sql<number>`COALESCE((
           SELECT sum(COALESCE(${paymentInstallments.paidAmount}, ${paymentInstallments.calculatedAmountQar}, 0))
           FROM ${paymentInstallments}
@@ -232,12 +251,12 @@ export async function GET(req: NextRequest) {
         )`.mapWith(Number),
       })
       .from(purchaseRequests)
-      .innerJoin(users, eq(users.id, purchaseRequests.requesterId))
+      .leftJoin(users, eq(users.id, purchaseRequests.requesterId))
       .leftJoin(subPurposes, eq(subPurposes.id, purchaseRequests.subPurposeId))
       .leftJoin(vendors, eq(vendors.id, purchaseRequests.vendorId))
       .where(whereConditions.length > 0 ? and(...whereConditions) : undefined)
       .orderBy(desc(purchaseRequests.createdAt))
-      .limit(searchParams.has("limit") ? parseInt(searchParams.get("limit") as string, 10) : 50);
+      .limit(searchParams.has("limit") ? parseInt(searchParams.get("limit") as string, 10) : 100);
 
     // Race the query against the safety timeout
     listPromise.catch(() => {}); // Prevent unhandled promise rejection if query fails after timeout

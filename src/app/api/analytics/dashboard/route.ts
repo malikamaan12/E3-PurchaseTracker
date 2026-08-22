@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     })
     .from(paymentInstallments)
     .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-    .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+    .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
     .where(and(
       sql`${paymentInstallments.status} NOT IN ('cancelled', 'voided', 'paid')`,
       isNotNull(sql`COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate})`),
@@ -84,18 +84,18 @@ export async function GET(req: NextRequest) {
 
     // ─── AGGREGATION 2: BUDGET VS SAVINGS (HISTORICAL) ────────────────────────
     const savingsAndSpend = await db.select({
-      department: users.department,
+      department: sql`COALESCE(${purchaseRequests.department}, ${users.department})`,
       totalPaid: sql`SUM(COALESCE(${paymentInstallments.paidAmount}, 0) * COALESCE(${paymentInstallments.exchangeRate}, 1.0))`,
       totalSavings: sql`SUM(COALESCE(${paymentInstallments.savingsAmount}, 0) * COALESCE(${paymentInstallments.exchangeRate}, 1.0))`,
     })
     .from(paymentInstallments)
     .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-    .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+    .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
     .where(and(
       eq(paymentInstallments.status, 'paid'),
       baseWhere
     ))
-    .groupBy(users.department);
+    .groupBy(sql`COALESCE(${purchaseRequests.department}, ${users.department})`);
 
     // ─── AGGREGATION 3: COMPLIANCE METRICS ──────────────────────────────────
     const complianceBase = await db.select({
@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
       variedPRs: sql`SUM(CASE WHEN ${purchaseRequests.revisedTotalCost} IS NOT NULL THEN 1 ELSE 0 END)`,
     })
     .from(purchaseRequests)
-    .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+    .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
     .where(baseWhere);
 
     const onTimePayments = await db.select({
@@ -112,7 +112,7 @@ export async function GET(req: NextRequest) {
     })
     .from(paymentInstallments)
     .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-    .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+    .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
     .where(and(eq(paymentInstallments.status, 'paid'), baseWhere));
 
     const totalPRCount = Number(complianceBase[0]?.totalPRs || 0);
@@ -132,17 +132,17 @@ export async function GET(req: NextRequest) {
     // ─── AGGREGATION 4: RESOURCE UTILIZATION INDEX (RUI) ─────────────────────
     // Calculate burn rate velocity based on timeframe
     const ruiData = await db.select({
-      department: users.department,
+      department: sql`COALESCE(${purchaseRequests.department}, ${users.department})`,
       totalSpent: sql`SUM(COALESCE(${paymentInstallments.paidAmount}, 0) * COALESCE(${paymentInstallments.exchangeRate}, 1.0))`,
     })
     .from(paymentInstallments)
     .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-    .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+    .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
     .where(and(
       eq(paymentInstallments.status, 'paid'),
       baseWhere
     ))
-    .groupBy(users.department);
+    .groupBy(sql`COALESCE(${purchaseRequests.department}, ${users.department})`);
 
     // ─── AGGREGATION 5: PROCUREMENT CYCLE TIME ───────────────────────────────
     const cycleTime = await db.select({
@@ -151,7 +151,7 @@ export async function GET(req: NextRequest) {
       )) / 86400`)
     })
     .from(purchaseRequests)
-    .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+    .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
     .where(and(
       eq(purchaseRequests.status, 'approved'),
       baseWhere
@@ -163,8 +163,8 @@ export async function GET(req: NextRequest) {
       value: sql`SUM(COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0)))`
     })
     .from(purchaseRequests)
-    .innerJoin(vendors, eq(purchaseRequests.vendorId, vendors.id))
-    .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+    .leftJoin(vendors, eq(purchaseRequests.vendorId, vendors.id))
+    .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
     .where(baseWhere)
     .groupBy(vendors.companyName)
     .limit(5);
@@ -174,7 +174,7 @@ export async function GET(req: NextRequest) {
       value: sql`SUM(COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0)))`
     })
     .from(purchaseRequests)
-    .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+    .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
     .where(baseWhere)
     .groupBy(purchaseRequests.purposeType);
 

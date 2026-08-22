@@ -130,10 +130,10 @@ export class FinancialMetricsService {
         totalValue: sum(costSql)
       })
       .from(purchaseRequests)
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id));
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id));
 
     if (filterDept) {
-      prQuery.where(eq(users.department, filterDept));
+      prQuery.where(eq(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, filterDept));
     }
 
     const prRows = await prQuery.groupBy(purchaseRequests.status);
@@ -163,12 +163,12 @@ export class FinancialMetricsService {
     };
 
     const draft = getStat('draft');
-    const pending = getStat('pending');
+    const pending = getStat('pending', 'pending_dept_head');
     const changesRequested = getStat('changes_requested');
     const partiallyApproved = getStat('partially_approved');
-    const fullyApproved = getStat('approved');
+    const fullyApproved = getStat('approved', 'fully_paid');
     const variationPending = getStat('variation_pending');
-    const rejected = getStat('rejected');
+    const rejected = getStat('rejected', 'cancelled');
 
     // Requested: draft + pending + changes_requested
     const requestedAmount = draft.totalValue + pending.totalValue + changesRequested.totalValue;
@@ -190,10 +190,10 @@ export class FinancialMetricsService {
       })
       .from(paymentInstallments)
       .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(
         filterDept 
-          ? and(eq(paymentInstallments.status, 'paid'), eq(users.department, filterDept))
+          ? and(eq(paymentInstallments.status, 'paid'), eq(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, filterDept))
           : eq(paymentInstallments.status, 'paid')
       );
 
@@ -213,41 +213,41 @@ export class FinancialMetricsService {
       .select({ total: sum(remainingAmountSql) })
       .from(paymentInstallments)
       .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(
         sql`${paymentInstallments.status} NOT IN ('cancelled', 'voided', 'paid')`,
         sql`${purchaseRequests.status} IN ('partially_approved', 'approved', 'variation_pending')`,
         isNotNull(sql`COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate})`),
         sql`${effDateSql} >= ${asOfStr}::date`,
         sql`${effDateSql} <= ${date30Str}::date`,
-        filterDept ? eq(users.department, filterDept) : undefined
+        filterDept ? eq(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, filterDept) : undefined
       ));
 
     const forecast90Query = db
       .select({ total: sum(remainingAmountSql) })
       .from(paymentInstallments)
       .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(
         sql`${paymentInstallments.status} NOT IN ('cancelled', 'voided', 'paid')`,
         sql`${purchaseRequests.status} IN ('partially_approved', 'approved', 'variation_pending')`,
         isNotNull(sql`COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate})`),
         sql`${effDateSql} >= ${asOfStr}::date`,
         sql`${effDateSql} <= ${date90Str}::date`,
-        filterDept ? eq(users.department, filterDept) : undefined
+        filterDept ? eq(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, filterDept) : undefined
       ));
 
     const overdueQuery = db
       .select({ total: sum(remainingAmountSql) })
       .from(paymentInstallments)
       .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(
         sql`${paymentInstallments.status} NOT IN ('cancelled', 'voided', 'paid')`,
         sql`${purchaseRequests.status} IN ('partially_approved', 'approved', 'variation_pending')`,
         isNotNull(sql`COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate})`),
         sql`${effDateSql} < ${asOfStr}::date`,
-        filterDept ? eq(users.department, filterDept) : undefined
+        filterDept ? eq(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, filterDept) : undefined
       ));
 
     const [[row30], [row90], [rowOverdue]] = await Promise.all([forecast30Query, forecast90Query, overdueQuery]);

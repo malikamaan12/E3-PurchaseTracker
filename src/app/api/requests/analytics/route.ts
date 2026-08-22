@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
       count: count(),
       totalValue: sum(costSql)
     }).from(purchaseRequests)
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(whereClause)
       .groupBy(purchaseRequests.status);
 
@@ -100,7 +100,7 @@ export async function GET(req: NextRequest) {
       total: sum(paidSql)
     }).from(paymentInstallments)
       .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(eq(paymentInstallments.status, 'paid'), whereClause));
 
     const overview = await FinancialMetricsService.getGlobalFinancialMetrics(
@@ -113,7 +113,7 @@ export async function GET(req: NextRequest) {
       lateCount: sql`count(*) FILTER (WHERE ${paymentInstallments.actualPaymentDate} > ${paymentInstallments.dueDate} OR ${paymentInstallments.rescheduledDate} IS NOT NULL)`,
     }).from(paymentInstallments)
       .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(eq(paymentInstallments.status, 'paid'), whereClause));
 
     // ─── 3. PROCUREMENT CYCLE TIME (Line Chart Trends) ──────────────────
@@ -123,7 +123,7 @@ export async function GET(req: NextRequest) {
         (SELECT MAX(processed_at) FROM approvals WHERE request_id = ${purchaseRequests.id} AND is_mandatory = true) - ${purchaseRequests.createdAt}
       )) / 86400`)
     }).from(purchaseRequests)
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(eq(purchaseRequests.status, 'approved'), whereClause))
       .groupBy(sql`DATE_TRUNC('month', ${purchaseRequests.createdAt})`)
       .orderBy(sql`DATE_TRUNC('month', ${purchaseRequests.createdAt})`);
@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
     }).from(subPurposes)
       .innerJoin(purchaseRequests, eq(purchaseRequests.subPurposeId, subPurposes.id))
       .innerJoin(paymentInstallments, eq(paymentInstallments.requestId, purchaseRequests.id))
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(eq(paymentInstallments.status, 'paid'), whereClause))
       .groupBy(subPurposes.id, subPurposes.name, subPurposes.totalBudget);
 
@@ -151,7 +151,7 @@ export async function GET(req: NextRequest) {
       total: sum(instRemainingSql)
     }).from(paymentInstallments)
       .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(
         sql`${paymentInstallments.status} NOT IN ('cancelled', 'voided', 'paid')`,
         isNotNull(sql`COALESCE(${paymentInstallments.rescheduledDate}, ${paymentInstallments.dueDate})`),
@@ -168,7 +168,7 @@ export async function GET(req: NextRequest) {
       avgTurnaround: avg(sql`EXTRACT(EPOCH FROM (${approvals.processedAt} - ${approvals.createdAt})) / 3600`)
     }).from(approvals)
       .innerJoin(purchaseRequests, eq(approvals.requestId, purchaseRequests.id))
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(and(
         isNotNull(approvals.processedAt), 
         eq(approvals.isMandatory, true),
@@ -194,7 +194,7 @@ export async function GET(req: NextRequest) {
         total: sum(paymentInstallments.paidAmount)
       }).from(paymentInstallments)
         .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-        .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+        .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
         .where(and(
           eq(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, b.name),
           eq(paymentInstallments.status, 'paid'),

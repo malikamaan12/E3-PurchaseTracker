@@ -59,25 +59,25 @@ export async function GET(req: NextRequest) {
     // 1. Departmental Committed vs Disbursed
     const prDepts = await db
       .select({
-        department: users.department,
+        department: sql<string>`COALESCE(${purchaseRequests.department}, ${users.department}, 'General')`,
         count: sql`count(${purchaseRequests.id})::int`,
-        committedAmount: sql`sum(CASE WHEN ${purchaseRequests.status} IN ('approved', 'partially_approved', 'pending', 'variation_pending') THEN ${costSql} ELSE 0 END)::numeric`,
+        committedAmount: sql`sum(CASE WHEN ${purchaseRequests.status} IN ('approved', 'partially_approved', 'pending', 'pending_dept_head', 'variation_pending') THEN ${costSql} ELSE 0 END)::numeric`,
         totalCost: sql`sum(${costSql})::numeric`
       })
       .from(purchaseRequests)
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
-      .groupBy(users.department);
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .groupBy(sql`COALESCE(${purchaseRequests.department}, ${users.department}, 'General')`);
 
     const paidDepts = await db
       .select({
-        department: users.department,
+        department: sql<string>`COALESCE(${purchaseRequests.department}, ${users.department}, 'General')`,
         disbursedAmount: sql`sum(${paidSql})::numeric`
       })
       .from(paymentInstallments)
       .innerJoin(purchaseRequests, eq(paymentInstallments.requestId, purchaseRequests.id))
-      .innerJoin(users, eq(purchaseRequests.requesterId, users.id))
+      .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
       .where(eq(paymentInstallments.status, 'paid'))
-      .groupBy(users.department);
+      .groupBy(sql`COALESCE(${purchaseRequests.department}, ${users.department}, 'General')`);
 
     const disbursedMap = new Map<string, number>();
     for (const p of paidDepts) {

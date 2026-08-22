@@ -206,7 +206,7 @@ function RequestsDashboardContent() {
       ['approved', 'fully_paid'].includes((r.status || '').toLowerCase())
     ).length;
     const rejected = list.filter((r: any) =>
-      (r.status || '').toLowerCase() === 'rejected'
+      ['rejected', 'cancelled'].includes((r.status || '').toLowerCase())
     ).length;
     return {
       all: list.length,

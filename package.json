@@ -9,6 +9,7 @@
     "start": "next start",
     "check": "tsc",
     "test:security": "tsx tests/vendor-completion-link.test.ts",
+    "test:visibility": "tsx tests/requests-visibility-rbac.test.ts",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
