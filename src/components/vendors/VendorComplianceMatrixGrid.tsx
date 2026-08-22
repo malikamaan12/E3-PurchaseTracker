@@ -99,6 +99,15 @@ export function VendorComplianceMatrixGrid({ onSelectVendor }: VendorComplianceM
       if (resData.success && resData.completionLink) {
         await navigator.clipboard.writeText(resData.completionLink);
         toast.success("Vendor self-service completion link copied to clipboard.");
+
+        // Independent telemetry logging: logging failure cannot report copy failure after clipboard copy succeeded
+        fetch(`/api/vendors/${vendorId}/completion-link`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "log_event", eventType: "LINK_COPIED" }),
+        }).catch((logErr) => {
+          console.warn("Failed to log LINK_COPIED event:", logErr);
+        });
       }
     } catch (err) {
       toast.error("Failed to generate vendor link");
@@ -187,9 +196,9 @@ export function VendorComplianceMatrixGrid({ onSelectVendor }: VendorComplianceM
           />
         </form>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
           <Select value={vendorType} onValueChange={setVendorType}>
-            <SelectTrigger className="w-[140px] text-xs rounded-xl">
+            <SelectTrigger aria-label="Filter by entity type" className="w-full sm:w-[140px] text-xs rounded-xl">
               <SelectValue placeholder="Entity Type" />
             </SelectTrigger>
             <SelectContent>
@@ -200,7 +209,7 @@ export function VendorComplianceMatrixGrid({ onSelectVendor }: VendorComplianceM
           </Select>
 
           <Select value={complianceStatus} onValueChange={setComplianceStatus}>
-            <SelectTrigger className="w-[150px] text-xs rounded-xl">
+            <SelectTrigger aria-label="Filter by compliance status" className="w-full sm:w-[150px] text-xs rounded-xl">
               <SelectValue placeholder="Compliance Status" />
             </SelectTrigger>
             <SelectContent>
@@ -325,22 +334,23 @@ export function VendorComplianceMatrixGrid({ onSelectVendor }: VendorComplianceM
                     {data.columns.map((col) => {
                       const req = requirements[col.ruleKey];
                       return (
-                        <td
-                          key={col.id}
-                          onClick={() => {
-                            if (req) {
-                              setSelectedCell({
+                        <td key={col.id} className="p-1 text-center border-l border-border/50">
+                          {req ? (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedCell({
                                 vendorId: vendor.id,
                                 vendorName: vendor.companyName,
                                 requirement: req,
-                              });
-                            }
-                          }}
-                          className={`py-3 px-3 text-center border-l border-border/50 ${
-                            req ? "cursor-pointer hover:bg-primary/5 transition-colors" : ""
-                          }`}
-                        >
-                          {renderCellBadge(req)}
+                              })}
+                              aria-label={`Review ${col.name} for ${vendor.companyName}`}
+                              className="w-full min-h-11 px-2 py-2 rounded-lg hover:bg-primary/5 transition-colors flex items-center justify-center"
+                            >
+                              {renderCellBadge(req)}
+                            </button>
+                          ) : (
+                            <div className="min-h-11 flex items-center justify-center">{renderCellBadge(req)}</div>
+                          )}
                         </td>
                       );
                     })}
@@ -353,6 +363,7 @@ export function VendorComplianceMatrixGrid({ onSelectVendor }: VendorComplianceM
                         onClick={() => copyVendorLink(vendor.id)}
                         className="h-7 w-7 p-0 rounded-lg"
                         title="Copy Completion Link"
+                        aria-label={`Copy completion link for ${vendor.companyName}`}
                       >
                         <Copy className="w-3.5 h-3.5 text-muted-foreground hover:text-foreground" />
                       </Button>
@@ -365,7 +376,7 @@ export function VendorComplianceMatrixGrid({ onSelectVendor }: VendorComplianceM
         </div>
 
         {/* Pagination Bar */}
-        <div className="p-4 border-t flex items-center justify-between text-xs text-muted-foreground bg-muted/20">
+        <div className="p-4 border-t flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted-foreground bg-muted/20">
           <p>
             Showing {data.rows.length} of {data.pagination.totalVendors} total active vendors
           </p>

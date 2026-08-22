@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST /api/vendors/drafts/[id]/invitations
- * Generates a replacement 24-hour invitation link and revokes all previous active links.
+ * Generates a replacement 7-day invitation link and revokes all previous active links.
  */
 export async function POST(
   req: NextRequest,
@@ -34,7 +34,7 @@ export async function POST(
 
     return NextResponse.json({
       success: true,
-      message: "New 24-hour invitation link generated. All previous links invalidated.",
+      message: "New 7-day invitation link generated. All previous links invalidated.",
       ...result,
     });
   } catch (error: any) {

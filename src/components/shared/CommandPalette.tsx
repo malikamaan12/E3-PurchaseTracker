@@ -22,7 +22,8 @@ import {
   PlusCircle, 
   Settings, 
   Search,
-  CheckSquare
+  CheckSquare,
+  Sparkles
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -86,9 +87,9 @@ export function CommandPalette() {
             <PlusCircle className="mr-2 h-4 w-4 text-emerald-500" />
             <span>Create Purchase Request</span>
           </CommandItem>
-          <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/vendors/onboarding"))}>
-            <Building2 className="mr-2 h-4 w-4 text-amber-500" />
-            <span>Onboard New Vendor</span>
+          <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/vendors?quickCreate=1"))}>
+            <Sparkles className="mr-2 h-4 w-4 text-primary" />
+            <span>Quick-Create Vendor</span>
           </CommandItem>
         </CommandGroup>
 

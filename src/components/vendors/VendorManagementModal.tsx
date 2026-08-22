@@ -18,14 +18,13 @@ type VendorFormValues = z.infer<typeof vendorFormSchema>;
 interface VendorManagementModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  vendor?: any; // Passed when editing
+  vendor: any; // Required: this modal is strictly for editing existing vendors
 }
 
 export function VendorManagementModal({ open, onOpenChange, vendor }: VendorManagementModalProps) {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
   const step3EnteredAt = useRef(0);
-  const isEdit = !!vendor;
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorFormValues>({
     resolver: zodResolver(vendorFormSchema),
@@ -37,33 +36,25 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
   });
 
   useEffect(() => {
-    if (open) {
-      if (vendor) {
-        reset({
-          companyName: vendor.companyName,
-          contactPerson: vendor.contactPerson,
-          email: vendor.email,
-          contactNumber: vendor.contactNumber,
-          address: vendor.address,
-          bankName: vendor.bankName,
-          branchName: vendor.branchName,
-          accountNumber: vendor.accountNumber,
-          ibanNumber: vendor.ibanNumber,
-          taxNumber: vendor.taxNumber || "",
-          registrationNumber: vendor.registrationNumber || "",
-          remarks: vendor.remarks || "",
-          rating: vendor.rating || 0,
-          status: vendor.status || "active",
-          category: vendor.category || "general",
-          payment_currency: vendor.payment_currency || "QAR"
-        });
-      } else {
-        reset({
-          status: "active",
-          category: "general",
-          payment_currency: "QAR"
-        });
-      }
+    if (open && vendor) {
+      reset({
+        companyName: vendor.companyName || "",
+        contactPerson: vendor.contactPerson || "",
+        email: vendor.email || "",
+        contactNumber: vendor.contactNumber || "",
+        address: vendor.address || "",
+        bankName: vendor.bankName || "",
+        branchName: vendor.branchName || "",
+        accountNumber: vendor.accountNumber || "",
+        ibanNumber: vendor.ibanNumber || "",
+        taxNumber: vendor.taxNumber || "",
+        registrationNumber: vendor.registrationNumber || "",
+        remarks: vendor.remarks || "",
+        rating: vendor.rating || 0,
+        status: vendor.status || "active",
+        category: vendor.category || "general",
+        payment_currency: vendor.payment_currency || "QAR"
+      });
       setStep(1);
     }
   }, [open, vendor, reset]);
@@ -75,15 +66,14 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
   }, [step]);
 
   const mutation = useMutation({
-    mutationFn: (data: any) => 
-      isEdit ? apiClient.vendors.update(vendor.id, data) : apiClient.vendors.onboard(data),
+    mutationFn: (data: any) => apiClient.vendors.update(vendor.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_vendors"] });
       queryClient.invalidateQueries({ queryKey: ["vendors"] });
-      toast.success(isEdit ? "Vendor details updated" : "Vendor onboarded successfully");
+      toast.success("Vendor details updated successfully");
       onOpenChange(false);
     },
-    onError: (err: any) => toast.error(err.message || `Failed to ${isEdit ? 'update' : 'onboard'} vendor`),
+    onError: (err: any) => toast.error(err.message || "Failed to update vendor details"),
   });
 
   const onSubmit = (data: any) => {
@@ -96,6 +86,8 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
     }
     mutation.mutate(data);
   };
+
+  if (!vendor) return null;
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -116,10 +108,10 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                 </div>
                 <div>
                   <Dialog.Title className="text-xl md:text-2xl font-bold text-foreground tracking-tight">
-                    {isEdit ? "Modify Supplier" : "Onboard Supplier"}
+                    Modify Supplier
                   </Dialog.Title>
                   <Dialog.Description className="text-xs md:text-sm text-muted-foreground mt-1 font-medium">
-                    {isEdit ? "Update existing supplier credentials and financial data." : "Integrate a new supplier into the procurement matrix."}
+                    Update existing supplier credentials and financial data.
                   </Dialog.Description>
                 </div>
               </div>
@@ -235,7 +227,7 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span>Processing...</span>
                         </>
-                      ) : isEdit ? "Update Details" : "Finalize Onboarding"}
+                      ) : "Update Details"}
                     </button>
                   )}
                 </div>

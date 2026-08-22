@@ -104,8 +104,13 @@ export async function POST(
       return NextResponse.json({ error: "Reason for opening compliance case is required." }, { status: 400 });
     }
 
+    const parsedDeadlineDays = Number(deadlineDays);
+    if (!Number.isInteger(parsedDeadlineDays) || parsedDeadlineDays < 1 || parsedDeadlineDays > 365) {
+      return NextResponse.json({ error: "Compliance deadline must be between 1 and 365 days." }, { status: 400 });
+    }
+
     const now = new Date();
-    const deadline = new Date(now.getTime() + Number(deadlineDays) * 24 * 60 * 60 * 1000);
+    const deadline = new Date(now.getTime() + parsedDeadlineDays * 24 * 60 * 60 * 1000);
     const caseNumber = `CMP-${now.getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`;
 
     // 1. Create Compliance Case
@@ -129,16 +134,20 @@ export async function POST(
     const rawToken = crypto.randomBytes(32).toString("hex");
     const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
 
+    const tokenExpiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+
     await db.insert(vendorOnboardingTokens).values({
       vendorId,
       caseId: newCase.id,
       scope: "compliance_case",
       tokenHash,
       status: "active",
-      expiresAt: deadline,
+      expiresAt: tokenExpiresAt,
     });
 
-    const portalUrl = `${process.env.NEXT_PUBLIC_APP_URL || ""}/vendor-portal?token=${rawToken}`;
+    const portalEntryUrl = new URL("/vendor/onboard", req.nextUrl.origin);
+    portalEntryUrl.hash = `token=${rawToken}`;
+    const portalUrl = portalEntryUrl.toString();
 
     // 3. Record Audit Log
     await db.insert(auditLogs).values({
@@ -159,7 +168,6 @@ export async function POST(
       success: true,
       case: newCase,
       portalUrl,
-      rawToken,
       message: `Compliance case #${caseNumber} opened successfully.`,
     });
   } catch (error: any) {

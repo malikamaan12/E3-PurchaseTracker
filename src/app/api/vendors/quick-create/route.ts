@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
         contactPerson: data.contactPerson,
         contactNumber: data.contactNumber,
         email: data.email,
-        address: data.address || "Doha, Qatar",
+        address: data.address,
         vendorType: data.vendorType,
         engagementType: data.engagementType,
         complianceStatus: "unassessed",
@@ -90,9 +90,9 @@ export async function POST(req: NextRequest) {
       })
       .returning();
 
-    const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || "localhost:3000";
-    const proto = req.headers.get("x-forwarded-proto") || "http";
-    const completionLink = `${proto}://${host}/vendor/onboard#token=${rawToken}`;
+    const completionUrl = new URL("/vendor/onboard", req.nextUrl.origin);
+    completionUrl.hash = `token=${rawToken}`;
+    const completionLink = completionUrl.toString();
 
     // 4. Log portal event
     await db.insert(vendorPortalEvents).values({
@@ -123,7 +123,6 @@ export async function POST(req: NextRequest) {
       success: true,
       vendor: newVendor,
       assignedRequirements,
-      token: rawToken,
       completionLink,
     });
   } catch (error: any) {

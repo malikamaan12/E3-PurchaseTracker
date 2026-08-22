@@ -120,6 +120,10 @@ class ApiClient {
     },
     getCompletionLink: (vendorId: number) =>
       this.request<any>(`/vendors/${vendorId}/completion-link`),
+    generateCompletionLink: (vendorId: number) =>
+      this.request<any>(`/vendors/${vendorId}/completion-link`, { method: "POST", body: JSON.stringify({ action: "generate" }) }),
+    logCompletionLinkEvent: (vendorId: number, eventType: string = "LINK_COPIED", metadata?: any) =>
+      this.request<any>(`/vendors/${vendorId}/completion-link`, { method: "POST", body: JSON.stringify({ action: "log_event", eventType, metadata }) }),
     onboard: (data: any) => this.request<any>("/vendors", { method: "POST", body: JSON.stringify(data) }),
     update: (id: number, data: any) => this.request<any>(`/vendors/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     rate: (id: number, rating: number) => 

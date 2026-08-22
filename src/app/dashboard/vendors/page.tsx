@@ -22,7 +22,6 @@ import {
   Clock
 } from "lucide-react";
 import { toast } from "sonner";
-import { VendorManagementModal } from "@/components/vendors/VendorManagementModal";
 import { VendorDocumentsModal } from "@/components/vendors/VendorDocumentsModal";
 import { VendorInviteModal } from "@/components/vendors/VendorInviteModal";
 import { VendorDraftReviewDrawer } from "@/components/vendors/VendorDraftReviewDrawer";
@@ -32,7 +31,7 @@ import { VendorOnboardingBadge } from "@/components/vendors/VendorOnboardingBadg
 import { VendorQuickCreateModal } from "@/components/vendors/VendorQuickCreateModal";
 import { VendorRuleMatrixModal } from "@/components/vendors/VendorRuleMatrixModal";
 import { VendorComplianceMatrixGrid } from "@/components/vendors/VendorComplianceMatrixGrid";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { StarRating } from "@/components/shared/StarRating";
 import { VendorListView } from "@/components/vendors/VendorListView";
@@ -50,7 +49,6 @@ export default function VendorsDashboard() {
   const queryClient = useQueryClient();
   const { isAdmin, user } = useAuth();
   const isSuperAdmin = user?.role === "super_admin";
-  const [isOnboarding, setIsOnboarding] = useState(false);
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
   const [isRuleMatrixOpen, setIsRuleMatrixOpen] = useState(false);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
@@ -58,6 +56,20 @@ export default function VendorsDashboard() {
   const [activeTab, setActiveTab] = useState<"approved" | "matrix" | "drafts">("approved");
   const [searchQuery, setSearchQuery] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+
+  // Auto-trigger Quick-Create modal if navigated with ?quickCreate=1
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("quickCreate") === "1" || params.get("quickCreate") === "true") {
+        setIsQuickCreateOpen(true);
+        params.delete("quickCreate");
+        const newQuery = params.toString();
+        const newUrl = window.location.pathname + (newQuery ? `?${newQuery}` : "");
+        window.history.replaceState({}, "", newUrl);
+      }
+    }
+  }, []);
 
   const [statusFilter, setStatusFilter] = useState("All");
 
@@ -151,20 +163,18 @@ export default function VendorsDashboard() {
             </button>
           </div>
 
-          {/* Quick-Create Vendor (Universal - any employee) */}
-          {featureFlags.FF_QUICK_VENDOR_CREATE && (
-            <button
-              onClick={() => setIsQuickCreateOpen(true)}
-              className="flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground hover:opacity-95 font-bold px-4 py-2.5 rounded-xl shadow-md shadow-primary/20 transition-all shrink-0 min-h-[44px] touch-target text-sm"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Quick Add Vendor</span>
-            </button>
-          )}
+          {/* Quick-Create Vendor (Universal - every authenticated employee) */}
+          <button
+            onClick={() => setIsQuickCreateOpen(true)}
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-primary to-primary/90 text-primary-foreground hover:opacity-95 font-bold px-4 py-2.5 rounded-xl shadow-md shadow-primary/20 transition-all shrink-0 min-h-[44px] touch-target text-sm"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Quick-Create Vendor</span>
+          </button>
 
           {isAdmin && (
             <div className="flex items-center gap-2">
-              {featureFlags.FF_DYNAMIC_COMPLIANCE_ENGINE && (
+              {isSuperAdmin && featureFlags.FF_DYNAMIC_COMPLIANCE_ENGINE && (
                 <button
                   onClick={() => setIsRuleMatrixOpen(true)}
                   className="flex items-center justify-center gap-1.5 bg-secondary text-foreground hover:bg-secondary/80 border border-border font-semibold px-3.5 py-2.5 rounded-xl transition-all shrink-0 min-h-[44px] touch-target text-sm"
@@ -181,14 +191,6 @@ export default function VendorsDashboard() {
               >
                 <Mail className="w-4 h-4 text-primary" />
                 <span className="hidden sm:inline">Invite</span>
-              </button>
-
-              <button
-                onClick={() => setIsOnboarding(true)}
-                className="flex items-center justify-center gap-2 bg-secondary text-foreground hover:bg-secondary/80 border border-border font-bold px-4 py-2.5 rounded-xl transition-all shrink-0 min-h-[44px] touch-target text-sm"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Full Supplier</span>
               </button>
             </div>
           )}
@@ -324,8 +326,6 @@ export default function VendorsDashboard() {
               ))}
             </div>
           </section>
-
-          <VendorManagementModal open={isOnboarding} onOpenChange={setIsOnboarding} />
 
           {isError ? (
             <div className="py-16 border-2 border-dashed border-destructive/30 bg-destructive/5 rounded-3xl flex flex-col items-center justify-center text-center p-6 text-destructive">

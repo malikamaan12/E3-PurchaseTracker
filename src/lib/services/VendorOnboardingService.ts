@@ -20,6 +20,8 @@ import { ComplianceService } from "./ComplianceService";
 import { ComplianceEvaluationService } from "./ComplianceEvaluationService";
 import { notificationService } from "./NotificationService";
 
+const VENDOR_INVITATION_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000;
+
 export class ConflictError extends Error {
   public statusCode = 409;
   constructor(message: string) {
@@ -275,8 +277,8 @@ export class VendorOnboardingService {
       `Please use the secure link below to submit your company details, banking information, and required compliance documents:\n\n` +
       `${invitationUrl}\n\n` +
       `Important Notice:\n` +
-      `• This link is valid for exactly 24 hours (Expires: ${expiryStr}).\n` +
-      `• You can save and resume your progress at any time within this 24-hour window.\n` +
+      `• This link is valid for 7 days (Expires: ${expiryStr}).\n` +
+      `• You can save and resume your progress at any time within this 7-day window.\n` +
       `• Once you submit your profile, the link will be finalized.\n\n` +
       `Thank you,\nE3 Procurement & Finance Team`
     );
@@ -285,7 +287,7 @@ export class VendorOnboardingService {
   }
 
   /**
-   * Creates a vendor onboarding draft and issues a 24-hour invitation link
+   * Creates a vendor onboarding draft and issues a 7-day invitation link
    */
   public async createDraftAndInvitation({
     data,
@@ -315,7 +317,7 @@ export class VendorOnboardingService {
 
     const rawToken = this.generateRawToken();
     const tokenHash = this.hashToken(rawToken);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + VENDOR_INVITATION_VALIDITY_MS);
 
     const result = await db.transaction(async (tx) => {
       // 2. Insert draft
@@ -331,7 +333,7 @@ export class VendorOnboardingService {
           payment_currency: data.payment_currency || "QAR",
           requiredDocumentTypes: data.requiredDocumentTypes || [
             { type: "Commercial Registration", mandatory: true, description: "Valid CR with expiry date" },
-            { type: "Tax Certificate", mandatory: true, description: "Tax identification certificate" },
+            { type: "Tax Certificate", mandatory: false, description: "Optional tax identification certificate" },
             { type: "Establishment Card", mandatory: false, description: "Computer card / Municipality license" },
           ],
           onboardingStatus: "invited",
@@ -342,7 +344,7 @@ export class VendorOnboardingService {
         .returning();
       const draft = (insertedDrafts as any[])[0];
 
-      // 3. Insert 24-hour token
+      // 3. Insert 7-day token
       const insertedTokens = await tx
         .insert(vendorOnboardingTokens)
         .values({
@@ -390,7 +392,7 @@ export class VendorOnboardingService {
   }
 
   /**
-   * Regenerates a new 24-hour invitation link and revokes all previous active links
+   * Regenerates a new 7-day invitation link and revokes all previous active links
    */
   public async regenerateInvitation({
     draftId,
@@ -409,7 +411,7 @@ export class VendorOnboardingService {
 
     const rawToken = this.generateRawToken();
     const tokenHash = this.hashToken(rawToken);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + VENDOR_INVITATION_VALIDITY_MS);
 
     const result = await db.transaction(async (tx) => {
       // 1. Revoke existing active tokens
@@ -583,7 +585,7 @@ export class VendorOnboardingService {
       throw new UnauthorizedError("This invitation link has already been completed and approved.");
     }
 
-    // Check expiration (strict 24-hour boundary)
+    // Check the stored expiration timestamp (7-day invitations by default).
     const now = new Date();
     if (now > new Date(tokenRecord.expiresAt)) {
       // Mark token expired if not already
@@ -593,7 +595,7 @@ export class VendorOnboardingService {
           .set({ status: "expired" })
           .where(eq(vendorOnboardingTokens.id, tokenRecord.id));
       }
-      throw new UnauthorizedError("This invitation link expired after 24 hours. Please request a new link.");
+      throw new UnauthorizedError("This invitation link has expired. Please request a new 7-day link.");
     }
 
     // Fetch associated draft or vendor
@@ -847,7 +849,7 @@ export class VendorOnboardingService {
   }
 
   /**
-   * Request corrections from the vendor and issue a new 24-hour invitation link
+   * Request corrections from the vendor and issue a new 7-day invitation link
    */
   public async requestChanges({
     draftId,
@@ -876,7 +878,7 @@ export class VendorOnboardingService {
 
     const rawToken = this.generateRawToken();
     const tokenHash = this.hashToken(rawToken);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + VENDOR_INVITATION_VALIDITY_MS);
 
     await db.transaction(async (tx) => {
       // Revoke all usable tokens for this draft before issuing a replacement.

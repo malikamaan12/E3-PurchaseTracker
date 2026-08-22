@@ -44,13 +44,13 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
 
   const COMPANY_CHECKLIST = [
     { type: "Commercial Registration", mandatory: true, description: "Official CR with valid expiry" },
-    { type: "Tax Certificate", mandatory: true, description: "Tax / VAT identification certificate" },
+    { type: "Tax Certificate", mandatory: false, description: "Optional tax / VAT identification certificate" },
     { type: "Establishment Card", mandatory: false, description: "Computer card / Municipality license" },
   ];
 
   const FREELANCER_CHECKLIST = [
     { type: "Qatar ID (QID) / Passport", mandatory: true, description: "Valid personal identity document" },
-    { type: "Freelance Permit / Tax Card", mandatory: true, description: "Official freelance work license or tax ID" },
+    { type: "Freelance Permit / Tax Card", mandatory: false, description: "Optional freelance work license or tax ID" },
     { type: "Bank Account Confirmation", mandatory: false, description: "Optional bank confirmation (not required for cash/cheque payments)" },
   ];
 
@@ -195,7 +195,7 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
             </div>
             <div>
               <h2 className="text-base font-bold text-foreground">Invite Vendor (Self-Service)</h2>
-              <p className="text-xs text-muted-foreground">Generate a secure 24-hour self-service onboarding link</p>
+              <p className="text-xs text-muted-foreground">Generate a secure 7-day self-service onboarding link</p>
             </div>
           </div>
           <button
@@ -219,7 +219,7 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
               <div>
                 <h3 className="text-lg font-bold text-foreground">Invitation Link Ready</h3>
                 <p className="text-xs text-muted-foreground mt-1 max-w-md mx-auto">
-                  A secure 24-hour self-service link has been created for{" "}
+                  A secure 7-day self-service link has been created for{" "}
                   <strong className="text-foreground font-semibold">{companyName}</strong>.
                 </p>
               </div>
@@ -537,7 +537,7 @@ export function VendorInviteModal({ isOpen, onClose, onSuccess }: VendorInviteMo
                   ) : (
                     <Send className="w-4 h-4" />
                   )}
-                  <span>Generate 24h Invitation Link</span>
+                  <span>Generate 7-Day Invitation Link</span>
                 </button>
               </div>
             </form>

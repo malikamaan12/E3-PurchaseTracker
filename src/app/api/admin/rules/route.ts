@@ -40,9 +40,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    if (user.role !== "super_admin" && user.role !== "admin") {
+    if (user.role !== "super_admin") {
       return NextResponse.json(
-        { success: false, message: "Only Admins and Super Admins can configure compliance rules." },
+        { success: false, message: "Only Super Admins can configure compliance rules." },
         { status: 403 }
       );
     }

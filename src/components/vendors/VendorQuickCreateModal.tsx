@@ -48,7 +48,7 @@ export function VendorQuickCreateModal({
   const [contactPerson, setContactPerson] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [email, setEmail] = useState("");
-  const [address, setAddress] = useState("Doha, Qatar");
+  const [address, setAddress] = useState("");
   const [vendorType, setVendorType] = useState<"company" | "freelancer">("company");
   const [engagementType, setEngagementType] = useState<"permanent" | "temporary">("permanent");
   const [deadlineOption, setDeadlineOption] = useState<"7" | "14" | "30" | "custom">("30");
@@ -59,7 +59,7 @@ export function VendorQuickCreateModal({
     setContactPerson("");
     setContactNumber("");
     setEmail("");
-    setAddress("Doha, Qatar");
+    setAddress("");
     setVendorType("company");
     setEngagementType("permanent");
     setDeadlineOption("30");
@@ -70,7 +70,7 @@ export function VendorQuickCreateModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!companyName || !contactPerson || !contactNumber || !email) {
+    if (!companyName.trim() || !contactPerson.trim() || !contactNumber.trim() || !email.trim() || !address.trim()) {
       toast.error("Please fill in all required contact fields.");
       return;
     }
@@ -122,16 +122,19 @@ export function VendorQuickCreateModal({
       setCopied(true);
       toast.success("Vendor self-service completion link copied to clipboard.");
 
-      // Log link copy event
-      await fetch(`/api/vendors/${createdVendorResult.vendor.id}/completion-link`, {
+      // Independent telemetry logging: logging failure cannot report copy failure after clipboard copy succeeded
+      fetch(`/api/vendors/${createdVendorResult.vendor.id}/completion-link`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ eventType: "LINK_COPIED" }),
+        body: JSON.stringify({ action: "log_event", eventType: "LINK_COPIED" }),
+      }).catch((logErr) => {
+        console.warn("Failed to log LINK_COPIED event:", logErr);
       });
 
       setTimeout(() => setCopied(false), 3000);
     } catch (err) {
       console.error("Failed to copy link:", err);
+      toast.error("Failed to copy link to clipboard.");
     }
   };
 
@@ -144,9 +147,9 @@ export function VendorQuickCreateModal({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 bg-background/80 backdrop-blur-xs z-50 animate-in fade-in-0 duration-200" />
-        <Dialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-[560px] translate-x-[-50%] translate-y-[-50%] p-0 overflow-hidden rounded-2xl border bg-background shadow-2xl duration-200 animate-in fade-in-0 zoom-in-95">
-          <div className="p-6 pb-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b flex items-start justify-between">
+        <Dialog.Overlay className="fixed inset-0 bg-background/80 backdrop-blur-xs z-[200] animate-in fade-in-0 duration-200" />
+        <Dialog.Content className="fixed left-[50%] top-[50%] z-[201] grid w-[calc(100%-2rem)] max-w-[560px] max-h-[90vh] translate-x-[-50%] translate-y-[-50%] p-0 overflow-hidden rounded-2xl border bg-background shadow-2xl duration-200 animate-in fade-in-0 zoom-in-95">
+          <div className="p-4 sm:p-6 pb-4 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-b flex items-start justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary">
                 <Sparkles className="w-5 h-5" />
@@ -163,14 +166,14 @@ export function VendorQuickCreateModal({
               </div>
             </div>
             <Dialog.Close asChild>
-              <button className="text-muted-foreground hover:text-foreground p-1.5 rounded-lg hover:bg-muted/50 transition-colors">
+              <button aria-label="Close quick-create vendor dialog" className="text-muted-foreground hover:text-foreground p-2 rounded-lg hover:bg-muted/50 transition-colors touch-target">
                 <X className="w-4 h-4" />
               </button>
             </Dialog.Close>
           </div>
 
           {createdVendorResult ? (
-            <div className="p-6 space-y-5">
+            <div className="p-4 sm:p-6 space-y-5 overflow-y-auto">
               <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
                 <div>
@@ -184,11 +187,12 @@ export function VendorQuickCreateModal({
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-semibold text-foreground uppercase tracking-wider block">
+                <label htmlFor="vendor-completion-link" className="text-xs font-semibold text-foreground uppercase tracking-wider block">
                   Vendor Self-Service Completion Link (7-Day Token)
                 </label>
                 <div className="flex items-center gap-2">
                   <Input
+                    id="vendor-completion-link"
                     readOnly
                     value={createdVendorResult.completionLink}
                     className="text-xs font-mono bg-muted/50 select-all"
@@ -218,25 +222,28 @@ export function VendorQuickCreateModal({
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t">
                 <Button
-                  variant="outline"
+                  variant="default"
                   onClick={() => {
                     resetForm();
                     onOpenChange(false);
                   }}
                 >
-                  Close
+                  Select Vendor & Return to PR
                 </Button>
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5 col-span-2">
-                  <label className="text-xs font-semibold block">
+            <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1.5 col-span-full">
+                  <label htmlFor="quick-vendor-name" className="text-xs font-semibold block">
                     Company / Freelancer Name <span className="text-rose-500">*</span>
                   </label>
                   <Input
+                    id="quick-vendor-name"
+                    name="companyName"
                     required
+                    autoComplete="organization"
                     placeholder="e.g. Al-Rawabi Logistics W.L.L."
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
@@ -245,14 +252,14 @@ export function VendorQuickCreateModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold block">
+                  <label id="quick-vendor-type-label" className="text-xs font-semibold block">
                     Entity Type <span className="text-rose-500">*</span>
                   </label>
                   <Select
                     value={vendorType}
                     onValueChange={(val: "company" | "freelancer") => setVendorType(val)}
                   >
-                    <SelectTrigger className="rounded-xl">
+                    <SelectTrigger aria-labelledby="quick-vendor-type-label" className="rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -271,12 +278,12 @@ export function VendorQuickCreateModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold block">Engagement Type</label>
+                  <label id="quick-engagement-type-label" className="text-xs font-semibold block">Engagement Type</label>
                   <Select
                     value={engagementType}
                     onValueChange={(val: "permanent" | "temporary") => setEngagementType(val)}
                   >
-                    <SelectTrigger className="rounded-xl">
+                    <SelectTrigger aria-labelledby="quick-engagement-type-label" className="rounded-xl">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -287,11 +294,14 @@ export function VendorQuickCreateModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold block">
+                  <label htmlFor="quick-contact-person" className="text-xs font-semibold block">
                     Contact Person <span className="text-rose-500">*</span>
                   </label>
                   <Input
+                    id="quick-contact-person"
+                    name="contactPerson"
                     required
+                    autoComplete="name"
                     placeholder="e.g. Ahmed Al-Mansoori"
                     value={contactPerson}
                     onChange={(e) => setContactPerson(e.target.value)}
@@ -300,11 +310,15 @@ export function VendorQuickCreateModal({
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold block">
+                  <label htmlFor="quick-contact-number" className="text-xs font-semibold block">
                     Mobile Number <span className="text-rose-500">*</span>
                   </label>
                   <Input
+                    id="quick-contact-number"
+                    name="contactNumber"
+                    type="tel"
                     required
+                    autoComplete="tel"
                     placeholder="+974 5500 1234"
                     value={contactNumber}
                     onChange={(e) => setContactNumber(e.target.value)}
@@ -312,13 +326,16 @@ export function VendorQuickCreateModal({
                   />
                 </div>
 
-                <div className="space-y-1.5 col-span-2">
-                  <label className="text-xs font-semibold block">
+                <div className="space-y-1.5 col-span-full">
+                  <label htmlFor="quick-vendor-email" className="text-xs font-semibold block">
                     Email Address <span className="text-rose-500">*</span>
                   </label>
                   <Input
+                    id="quick-vendor-email"
+                    name="email"
                     required
                     type="email"
+                    autoComplete="email"
                     placeholder="billing@vendor.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -326,11 +343,27 @@ export function VendorQuickCreateModal({
                   />
                 </div>
 
-                <div className="space-y-1.5 col-span-2">
-                  <label className="text-xs font-semibold block">
-                    Compliance Deadline <span className="text-rose-500">*</span>
+                <div className="space-y-1.5 col-span-full">
+                  <label htmlFor="quick-vendor-address" className="text-xs font-semibold block">
+                    Address <span className="text-rose-500">*</span>
                   </label>
-                  <div className="grid grid-cols-4 gap-2">
+                  <Input
+                    id="quick-vendor-address"
+                    name="address"
+                    required
+                    autoComplete="street-address"
+                    placeholder="e.g. Zone 56, Street 340, Doha, Qatar"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    className="rounded-xl"
+                  />
+                </div>
+
+                <fieldset className="space-y-1.5 col-span-full">
+                  <legend className="text-xs font-semibold block">
+                    Compliance Deadline <span className="text-rose-500">*</span>
+                  </legend>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     {[
                       { label: "7 Days", val: "7" },
                       { label: "14 Days", val: "14" },
@@ -351,6 +384,7 @@ export function VendorQuickCreateModal({
 
                   {deadlineOption === "custom" && (
                     <Input
+                      aria-label="Custom compliance deadline"
                       type="date"
                       required
                       value={customDeadline}
@@ -358,7 +392,7 @@ export function VendorQuickCreateModal({
                       className="mt-2 rounded-xl text-xs"
                     />
                   )}
-                </div>
+                </fieldset>
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t">

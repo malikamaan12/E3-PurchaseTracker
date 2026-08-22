@@ -78,7 +78,7 @@ export default function VendorOnboardEntryPage() {
             </div>
             <h2 className="text-lg font-semibold text-white">Establishing Secure Session...</h2>
             <p className="text-xs text-slate-400 max-w-xs mx-auto leading-relaxed">
-              Verifying your encrypted 24-hour invitation credentials and preparing your vendor onboarding environment.
+              Verifying your secure 7-day invitation and preparing your vendor onboarding environment.
             </p>
           </div>
         )}
@@ -105,7 +105,7 @@ export default function VendorOnboardEntryPage() {
               <p className="text-xs text-rose-300 font-medium">{errorMessage}</p>
             </div>
             <p className="text-[11px] text-slate-400 leading-relaxed">
-              For your protection, onboarding invitation links expire automatically after 24 hours. Please contact your E3 procurement representative to request a new link.
+              For your protection, onboarding invitation links expire automatically after 7 days. Please contact your procurement representative to request a new link.
             </p>
           </div>
         )}

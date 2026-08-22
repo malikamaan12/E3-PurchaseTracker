@@ -34,7 +34,6 @@ function LoginContent() {
 
   useEffect(() => {
     setMounted(true);
-    console.log("[Login] Hydrated Successfully.");
   }, []);
 
   useEffect(() => {
@@ -77,9 +76,9 @@ function LoginContent() {
 
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-black flex flex-col items-center justify-center p-6 relative overflow-hidden transition-colors duration-500">
+    <div className="min-h-screen bg-gray-50 dark:bg-black flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden transition-colors duration-500">
       {/* Theme Toggle Positioned Top Right */}
-      <div className="absolute top-8 right-8 z-50">
+      <div className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50">
         <ThemeToggle />
       </div>
 
@@ -91,10 +90,7 @@ function LoginContent() {
         <div className="absolute bottom-[20%] left-[10%] w-[30%] h-[30%] bg-[#A78BFA]/10 dark:bg-[#A78BFA]/15 rounded-full blur-[100px]" />
       </div>
 
-      <div 
-        className="w-full max-w-md z-10 animate-fade-in-up"
-        style={{ opacity: 0 }} /* Standard CSS animation will handle the fade in */
-      >
+      <div className="w-full max-w-md z-10 animate-fade-in-up">
         {/* Logo Section */}
         <div className="flex flex-col items-center mb-8 text-center">
           <div className="mb-6 relative flex justify-center h-16 w-full">
@@ -110,12 +106,12 @@ function LoginContent() {
           <div className="absolute -top-[150%] -left-[150%] w-[400%] h-[400%] bg-white/5 dark:bg-white/[0.02] transform rotate-12 pointer-events-none group-hover:duration-1000 transition-transform duration-500" />
           
           <div className="flex gap-4 mb-10 p-1 bg-white/5 dark:bg-white/[0.02] rounded-[var(--radius-md)] border border-white/10">
-            <div className="flex-1 py-3 rounded-[var(--radius-sm)] text-[10px] font-bold tracking-[0.2em] flex items-center justify-center gap-2 bg-brand-gradient text-white shadow-lg">
+            <div className="flex-1 py-3 rounded-[var(--radius-sm)] text-xs font-bold tracking-[0.16em] flex items-center justify-center gap-2 bg-brand-gradient text-white shadow-lg">
               <LogIn className="w-3.5 h-3.5" /> LOGIN
             </div>
             <Link 
               href="/signup"
-              className="flex-1 py-3 rounded-[var(--radius-sm)] text-[10px] font-bold tracking-[0.2em] flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-all"
+              className="flex-1 py-3 rounded-[var(--radius-sm)] text-xs font-bold tracking-[0.16em] flex items-center justify-center gap-2 text-muted-foreground hover:text-foreground transition-all"
             >
               SIGN UP
             </Link>
@@ -130,6 +126,7 @@ function LoginContent() {
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
                   className="bg-rose-500/10 border border-rose-500/20 p-3 rounded-lg flex items-center gap-3 text-rose-500 text-xs font-semibold"
+                  role="alert"
                 >
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   {error}
@@ -164,7 +161,7 @@ function LoginContent() {
             <button 
               type="submit"
               disabled={isLoading}
-              className="w-full py-4 bg-brand-gradient text-white hover:opacity-90 rounded-[var(--radius-md)] font-bold tracking-[0.2em] text-[10px] mt-6 flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-xl disabled:opacity-50"
+              className="w-full min-h-12 py-3.5 bg-brand-gradient text-white hover:opacity-90 rounded-[var(--radius-md)] font-bold tracking-[0.16em] text-xs mt-6 flex items-center justify-center gap-2 transition-all active:scale-[0.97] shadow-xl disabled:opacity-50"
             >
               {isLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -177,7 +174,7 @@ function LoginContent() {
             </button>
           </form>
 
-          <p className="mt-8 text-center text-zinc-400 dark:text-zinc-600 text-[10px] italic">
+          <p className="mt-8 text-center text-muted-foreground text-xs italic">
             Enterprise system. Access is monitored and logged.
           </p>
         </div>
@@ -199,9 +196,11 @@ export default function LoginPage() {
 }
 
 function AuthInput({ label, icon, ...props }: any) {
+  const inputId = props.id || `login-${props.name}`;
+
   return (
     <div className="space-y-2">
-      <label className="text-[9px] uppercase font-bold text-muted-foreground tracking-[0.2em] flex items-center gap-2 opacity-60">
+      <label htmlFor={inputId} className="text-xs uppercase font-bold text-muted-foreground tracking-[0.14em] flex items-center gap-2">
         {label}
       </label>
       <div className="relative group/input">
@@ -212,6 +211,7 @@ function AuthInput({ label, icon, ...props }: any) {
         )}
         <input 
           {...props}
+          id={inputId}
           className={`glass-input shadow-inner ${icon ? '!pl-11' : 'px-4'}`}
           placeholder={`Enter ${label.toLowerCase()}...`}
         />
