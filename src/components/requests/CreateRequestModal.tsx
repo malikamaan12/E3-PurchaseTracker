@@ -159,7 +159,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   const paymentStructure = useWatch({ control, name: "paymentStructure" });
   const installments = useWatch({ control, name: "installments" }) || [];
   const totalEstimatedCost = useWatch({ control, name: "totalEstimatedCost" }) || 0;
-  const vendorId = watch("vendorId");
+  const vendorId = useWatch({ control, name: "vendorId" });
   const freightAmount = useWatch({ control, name: "freightAmount" }) || 0;
   const formCurrency = useWatch({ control, name: "currency" }) || "QAR";
 
