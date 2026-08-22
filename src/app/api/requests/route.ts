@@ -133,13 +133,14 @@ export async function GET(req: NextRequest) {
     }
 
     // Role-based visibility
-    const isSuperAdmin = user.role === 'super_admin';
-    const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+    const normalizedRole = user.role?.toLowerCase() || '';
+    const isSuperAdmin = normalizedRole === 'super_admin' || normalizedRole === 'superadmin';
+    const isAdmin = isSuperAdmin || normalizedRole === 'admin';
     const userDepts = (user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean);
 
     // Calculate which departments this user is authorized to APPROVE for
     const approverDepts: string[] = [];
-    if (user.role === 'approver' && user.department) {
+    if (normalizedRole === 'approver' && user.department) {
       approverDepts.push(user.department);
     }
     const normalizedAssignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);

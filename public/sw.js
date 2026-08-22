@@ -1,22 +1,29 @@
-const CACHE_NAME = 'purchase-tracker-v1';
+const CACHE_NAME = 'purchase-tracker-v2-stable';
 const ASSETS_TO_CACHE = [
-  '/',
   '/manifest.json',
+  '/favicon.ico',
+  '/favicon-32x32.png',
+  '/favicon-16x16.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
   '/logo-color.png',
   '/logo-white.png',
 ];
 
-// Install Event
+// Install Event: Cache immutable visual shell assets
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
+      return cache.addAll(ASSETS_TO_CACHE).catch((err) => {
+        console.warn('[SW] Cache addAll skipped non-critical assets:', err);
+      });
     })
   );
   self.skipWaiting();
 });
 
-// Activate Event
+// Activate Event: Clear older caches immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
@@ -28,86 +35,111 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch Event
+// Fetch Event: Optimized routing to prevent worker thread deadlocks & UI freezing
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
-  const url = new URL(event.request.url);
+  let url;
+  try {
+    url = new URL(event.request.url);
+  } catch {
+    return;
+  }
 
-  // --- SECURITY & STABILITY HARDENING: Bypass cache for API, AUTH and Next.js internal chunks ---
-  // API/Auth: Prevents sensitive financial JSON and identity data from being cached.
-  // _next: Prevents ChunkLoadError and stale RSC payloads by ensuring Next.js assets are ALWAYS fresh.
+  // Only handle standard http/https schemes
+  if (!url.protocol.startsWith('http')) return;
+
+  // --- PASS-THROUGH: Dynamic APIs, Next.js internal chunks, RSC streams, and Auth routes ---
+  // Completely bypass Service Worker interception to guarantee instant Next.js streaming & zero hydration stall
   if (
     url.pathname.startsWith('/api/') || 
     url.pathname.includes('/auth/') ||
     url.pathname.startsWith('/_next/') ||
-    event.request.headers.get('RSC') === '1'
+    event.request.headers.get('RSC') === '1' ||
+    event.request.headers.get('Next-Router-State-Tree') ||
+    event.request.headers.get('Next-Url')
   ) {
-    return; // Network Only (let Next.js handle its own caching)
+    return;
   }
 
-  // Network First strategy for page navigations (HTML)
-  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
+  // Navigation requests: Network-First with safe fallback
+  if (event.request.mode === 'navigate') {
     event.respondWith(
-      fetch(event.request)
-        .then((response) => {
-          const cacheCopy = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(event.request, cacheCopy));
-          return response;
-        })
-        .catch(() => {
-          return caches.match(event.request);
-        })
+      fetch(event.request).catch(async () => {
+        const cache = await caches.open(CACHE_NAME);
+        const cached = await cache.match(event.request);
+        if (cached) return cached;
+        return new Response('Offline - Please reconnect to access PurchaseTracker.', {
+          status: 503,
+          statusText: 'Offline',
+          headers: { 'Content-Type': 'text/plain' }
+        });
+      })
     );
     return;
   }
 
-  // Stale-while-revalidate for other static assets (images, icons)
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const networked = fetch(event.request)
-        .then((response) => {
-          if (url.protocol.startsWith('http')) {
-            const cacheCopy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, cacheCopy);
-            });
-          }
-          return response;
-        })
-        .catch(() => cached);
+  // Static assets (images, icons, fonts, manifest)
+  if (url.pathname.match(/\.(png|jpg|jpeg|svg|ico|webp|woff2?|json)$/i)) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then(async (cache) => {
+        const cached = await cache.match(event.request);
+        const networkFetch = fetch(event.request)
+          .then((res) => {
+            if (res && res.status === 200 && res.type === 'basic') {
+              cache.put(event.request, res.clone()).catch(() => {});
+            }
+            return res;
+          })
+          .catch(() => cached);
 
-      return cached || networked;
-    })
-  );
+        return cached || networkFetch;
+      })
+    );
+    return;
+  }
 });
 
 // PUSH EVENT: Native System Alerts
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : { 
-    title: 'Intelligence Alert', 
-    body: 'New procurement update received.' 
-  };
+  try {
+    const data = event.data ? event.data.json() : { 
+      title: 'Procurement Alert', 
+      body: 'New procurement update received.' 
+    };
 
-  const options = {
-    body: data.body,
-    icon: '/icon-512.png',
-    badge: '/logo-color.png',
-    vibrate: [100, 50, 100],
-    data: {
-      url: data.url || '/dashboard/requests'
-    }
-  };
+    const options = {
+      body: data.body,
+      icon: '/icon-512.png',
+      badge: '/logo-color.png',
+      vibrate: [100, 50, 100],
+      data: {
+        url: data.url || '/dashboard/requests'
+      }
+    };
 
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+    event.waitUntil(
+      self.registration.showNotification(data.title, options)
+    );
+  } catch (err) {
+    console.error('[SW] Push notification error:', err);
+  }
 });
 
 // Notification Click Event
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
+  const targetUrl = event.notification.data?.url || '/dashboard/requests';
   event.waitUntil(
-    clients.openWindow(event.notification.data.url)
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url.includes('/dashboard') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
   );
 });

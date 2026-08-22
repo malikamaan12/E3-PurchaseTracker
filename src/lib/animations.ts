@@ -102,22 +102,25 @@ export const initGlow = (el: HTMLElement, glowEl: HTMLElement) => {
 
 /**
  * Sequential Entry Animation
- * Replaces GSAP stagger with a lightweight CSS-driven variant.
+ * Lightweight CSS-driven variant with strict single-execution guard.
  */
 export const pageLoad = (selector: string) => {
+  if (typeof document === "undefined") return;
   const elements = document.querySelectorAll(selector);
   elements.forEach((el: any, index: number) => {
-    // Safety check: Skip if already animated/visible to prevent flickering on same-path navigation
-    if (el.getAttribute('data-animated') === 'true' && el.style.opacity === "1") return;
-
-    // Set initial state
-    el.style.opacity = "0";
-    el.style.transform = "translate3d(0, 30px, 0)";
-    el.style.transition = "opacity 0.8s ease-out, transform 0.8s cubic-bezier(0.23, 1, 0.32, 1)";
-    el.style.transitionDelay = `${0.2 + (index * 0.1)}s`;
+    // Skip if already animated
+    if (el.getAttribute('data-animated') === 'true') return;
     el.setAttribute('data-animated', 'true');
 
-    // Trigger animation
+    // Only apply animation if element is initially hidden or newly mounted
+    const currentOpacity = window.getComputedStyle(el).opacity;
+    if (currentOpacity === "1") return;
+
+    el.style.opacity = "0";
+    el.style.transform = "translate3d(0, 16px, 0)";
+    el.style.transition = "opacity 0.4s ease-out, transform 0.4s cubic-bezier(0.23, 1, 0.32, 1)";
+    el.style.transitionDelay = `${0.03 + (Math.min(index, 6) * 0.04)}s`;
+
     window.requestAnimationFrame(() => {
       el.style.opacity = "1";
       el.style.transform = "translate3d(0, 0, 0)";
