@@ -1,10 +1,11 @@
 export const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const IS_BUILD_PHASE = process.env.NEXT_PHASE === "phase-production-build";
 
 export function getServerSecret(name: string, developmentFallback: string): string {
   const configuredValue = process.env[name]?.trim();
   if (configuredValue) return configuredValue;
 
-  if (IS_PRODUCTION) {
+  if (IS_PRODUCTION && !IS_BUILD_PHASE) {
     throw new Error(`${name} must be configured in the production environment.`);
   }
 
