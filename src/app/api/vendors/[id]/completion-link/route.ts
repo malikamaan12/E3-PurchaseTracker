@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { vendors, vendorOnboardingTokens, vendorPortalEvents, auditLogs } from "@db/schema";
-import { db } from "@db";
+import { db, transactionDb } from "@db";
 import { eq, and, desc, gt } from "drizzle-orm";
 import crypto from "crypto";
+import { durableRateLimiter } from "@/lib/services/DurableRateLimitService";
+
+const ALLOWED_CLIENT_EVENTS = ["LINK_COPIED", "LINK_SENT_EMAIL", "REMINDER_SENT"] as const;
+const MAX_ACTIVE_TOKENS_PER_VENDOR = 5;
 
 /**
  * GET /api/vendors/[id]/completion-link
@@ -106,35 +110,69 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
 
     // Action 1: Generate fresh independent 7-day token without revoking previous active tokens
     if (action === "generate") {
+      // Per-user/vendor rate limiting (10 link generations per 60s window)
+      const rateLimitKey = `link-gen:u:${user.id}:v:${vendorId}`;
+      const rateCheck = await durableRateLimiter.consume(rateLimitKey, 10, 60, 1);
+      if (!rateCheck.allowed) {
+        return NextResponse.json(
+          { success: false, message: "Rate limit exceeded. Please wait before generating another link." },
+          { status: 429 }
+        );
+      }
+
       const rawToken = crypto.randomBytes(32).toString("hex");
       const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
       const tokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-      // Insert new active token (independent 7-day token; existing unexpired tokens remain valid)
-      const [tokenRecord] = await db
-        .insert(vendorOnboardingTokens)
-        .values({
+      // Execute token insertion, active-token limit enforcement, and event logging in one transaction
+      await transactionDb.transaction(async (tx) => {
+        // Enforce active token limit per vendor
+        const activeTokens = await tx
+          .select({ id: vendorOnboardingTokens.id })
+          .from(vendorOnboardingTokens)
+          .where(
+            and(
+              eq(vendorOnboardingTokens.vendorId, vendorId),
+              eq(vendorOnboardingTokens.status, "active"),
+              gt(vendorOnboardingTokens.expiresAt, new Date())
+            )
+          )
+          .orderBy(vendorOnboardingTokens.createdAt);
+
+        if (activeTokens.length >= MAX_ACTIVE_TOKENS_PER_VENDOR) {
+          const oldestToken = activeTokens[0];
+          await tx
+            .update(vendorOnboardingTokens)
+            .set({ status: "expired" })
+            .where(eq(vendorOnboardingTokens.id, oldestToken.id));
+        }
+
+        // Insert new active token
+        const [tokenRecord] = await tx
+          .insert(vendorOnboardingTokens)
+          .values({
+            vendorId,
+            scope: "onboarding",
+            tokenHash,
+            status: "active",
+            expiresAt: tokenExpiresAt,
+          })
+          .returning();
+
+        // Insert LINK_GENERATED event within same atomic transaction
+        await tx.insert(vendorPortalEvents).values({
           vendorId,
-          scope: "onboarding",
-          tokenHash,
-          status: "active",
-          expiresAt: tokenExpiresAt,
-        })
-        .returning();
+          tokenId: tokenRecord.id,
+          eventType: "LINK_GENERATED",
+          actorId: user.id,
+          actorType: "user",
+          metadata: { rawTokenExpiresAt: tokenExpiresAt.toISOString() },
+        });
+      });
 
       const completionUrl = new URL("/vendor/onboard", req.nextUrl.origin);
       completionUrl.hash = `token=${rawToken}`;
       const completionLink = completionUrl.toString();
-
-      // Log link generated event independently
-      await db.insert(vendorPortalEvents).values({
-        vendorId,
-        tokenId: tokenRecord.id,
-        eventType: "LINK_GENERATED",
-        actorId: user.id,
-        actorType: "user",
-        metadata: { rawTokenExpiresAt: tokenExpiresAt.toISOString() },
-      });
 
       return NextResponse.json({
         success: true,
@@ -144,32 +182,51 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
       });
     }
 
-    // Action 2: Revoke active link tokens
+    // Action 2: Revoke active link tokens (Strictly restricted to super_admin)
     if (action === "revoke") {
-      await db
-        .update(vendorOnboardingTokens)
-        .set({ status: "revoked", revokedAt: new Date(), revokedBy: user.id })
-        .where(
-          and(
-            eq(vendorOnboardingTokens.vendorId, vendorId),
-            eq(vendorOnboardingTokens.status, "active")
-          )
+      if (user.role !== "super_admin") {
+        return NextResponse.json(
+          { success: false, message: "Forbidden: Only administrators can revoke active completion links." },
+          { status: 403 }
         );
+      }
 
-      await db.insert(vendorPortalEvents).values({
-        vendorId,
-        eventType: "LINK_REVOKED",
-        actorId: user.id,
-        actorType: "user",
-        metadata: { reason: body.reason || "Manual revocation by user" },
+      await transactionDb.transaction(async (tx) => {
+        await tx
+          .update(vendorOnboardingTokens)
+          .set({ status: "revoked", revokedAt: new Date(), revokedBy: user.id })
+          .where(
+            and(
+              eq(vendorOnboardingTokens.vendorId, vendorId),
+              eq(vendorOnboardingTokens.status, "active")
+            )
+          );
+
+        await tx.insert(vendorPortalEvents).values({
+          vendorId,
+          eventType: "LINK_REVOKED",
+          actorId: user.id,
+          actorType: "user",
+          metadata: { reason: body.reason || "Manual revocation by administrator" },
+        });
       });
 
       return NextResponse.json({ success: true, message: "Active completion links revoked." });
     }
 
-    // Action 3: Log user interaction event (e.g. LINK_COPIED, LINK_SENT_EMAIL)
+    // Action 3: Log user interaction event (Restricted to whitelisted client events)
     if (action === "log_event") {
-      const eventType = body.eventType || "LINK_COPIED";
+      const eventType = body.eventType;
+      if (!eventType || !(ALLOWED_CLIENT_EVENTS as readonly string[]).includes(eventType)) {
+        return NextResponse.json(
+          {
+            success: false,
+            message: `Invalid or unauthorized client event type. Allowed events: ${ALLOWED_CLIENT_EVENTS.join(", ")}`,
+          },
+          { status: 400 }
+        );
+      }
+
       await db.insert(vendorPortalEvents).values({
         vendorId,
         eventType,
