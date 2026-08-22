@@ -18,3 +18,4 @@ strix/
 .vercel
 .env*
 !.env.example
+.uat_credentials.json

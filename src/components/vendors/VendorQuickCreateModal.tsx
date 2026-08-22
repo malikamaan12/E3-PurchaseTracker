@@ -224,9 +224,6 @@ export function VendorQuickCreateModal({
                 <Button
                   variant="default"
                   onClick={() => {
-                    if (onVendorCreated && createdVendorResult?.vendor) {
-                      onVendorCreated(createdVendorResult.vendor);
-                    }
                     resetForm();
                     onOpenChange(false);
                   }}
