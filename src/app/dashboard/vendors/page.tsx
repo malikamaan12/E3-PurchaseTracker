@@ -81,8 +81,9 @@ export default function VendorsDashboard() {
     queryKey: ["vendor_drafts"],
     queryFn: async () => {
       const res = await fetch("/api/vendors/drafts");
+      if (!res.ok) return [];
       const j = await res.json();
-      return j.drafts || [];
+      return Array.isArray(j?.drafts) ? j.drafts : [];
     },
     enabled: !!isAdmin,
   });

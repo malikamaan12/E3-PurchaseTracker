@@ -15,8 +15,10 @@ export async function GET(req: NextRequest) {
   try {
     // 1. Auth Guard (Super Admin, Admin, Approver)
     const user = await getAuthenticatedUser(req);
+    const role = user?.role?.toLowerCase() || "";
+    const isAllowed = role === "admin" || role === "super_admin" || role === "superadmin" || role === "approver";
 
-    if (!user || (user.role !== "admin" && user.role !== "super_admin" && user.role !== "approver")) {
+    if (!user || !isAllowed) {
       return NextResponse.json({ error: "Unauthorized access to compliance vault" }, { status: 403 });
     }
 

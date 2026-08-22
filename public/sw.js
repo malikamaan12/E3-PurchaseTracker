@@ -126,6 +126,13 @@ self.addEventListener('push', (event) => {
   }
 });
 
+// Message Listener: Handle SKIP_WAITING from client for seamless updates
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Notification Click Event
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();

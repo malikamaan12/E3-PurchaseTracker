@@ -50,7 +50,8 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    if (user.role !== "super_admin") {
+    const role = user.role?.toLowerCase() || "";
+    if (role !== "super_admin" && role !== "superadmin") {
       return NextResponse.json({ success: false, message: "Only Super Admins can modify global compliance settings." }, { status: 403 });
     }
 

@@ -18,11 +18,13 @@ import {
   ShieldAlert, 
   ChevronRight,
   ExternalLink,
-  Laptop
+  Laptop,
+  RotateCw
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "next-themes";
 import { usePerformance } from "@/context/PerformanceContext";
+import { usePWA } from "@/context/PWAContext";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -37,6 +39,7 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
   const { setTheme, resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
   const { highPerformanceMode, setHighPerformanceMode } = usePerformance();
+  const { refreshAppAndData, isSyncing } = usePWA();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -152,6 +155,28 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
             <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-2">
               Preferences & Settings
             </span>
+
+            {/* Sync & Refresh Button */}
+            <button
+              onClick={() => {
+                refreshAppAndData();
+                onClose();
+              }}
+              disabled={isSyncing}
+              aria-label="Refresh and sync data"
+              className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-card border border-border text-foreground hover:bg-secondary transition-all touch-target"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                  <RotateCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold">Sync & Refresh</p>
+                  <p className="text-xs text-muted-foreground">Reload latest records & check updates</p>
+                </div>
+              </div>
+              <span className="text-xs font-bold text-primary">{isSyncing ? "Syncing..." : "Sync"}</span>
+            </button>
 
             {/* Theme Toggle Button */}
             <button

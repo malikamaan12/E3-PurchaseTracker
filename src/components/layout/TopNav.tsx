@@ -27,7 +27,8 @@ import {
   Users2,
   PieChart,
   LayoutDashboard,
-  ShieldAlert
+  ShieldAlert,
+  RotateCw
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState, useRef, useEffect } from "react";
@@ -59,7 +60,7 @@ const NAV_ITEMS = [
 ];
 
 export default function TopNav() {
-  const { unreadCount } = usePWA();
+  const { unreadCount, isSyncing, refreshAppAndData, hasUpdate } = usePWA();
   const { highPerformanceMode, setHighPerformanceMode } = usePerformance();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -236,6 +237,23 @@ export default function TopNav() {
           <Search className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
           <span className="hidden md:inline font-medium">Search...</span>
           <kbd className="hidden sm:inline-block px-1.5 py-0.5 text-[10px] font-bold bg-background rounded-md border border-border text-foreground font-mono">⌘K</kbd>
+        </button>
+
+        {/* PWA & Data Sync / Refresh Button */}
+        <button
+          onClick={refreshAppAndData}
+          disabled={isSyncing}
+          aria-label="Refresh and sync data"
+          className={cn(
+            "p-2 sm:p-2.5 rounded-xl border border-border bg-secondary/40 transition-all relative group hover:bg-secondary hover:text-foreground flex items-center justify-center min-h-[38px] min-w-[38px] shadow-sm touch-target",
+            isSyncing ? "opacity-75 cursor-wait" : ""
+          )}
+          title="Refresh Data & Check for Updates"
+        >
+          <RotateCw className={cn("w-4 h-4 text-muted-foreground group-hover:text-foreground transition-all", isSyncing && "animate-spin text-primary")} />
+          {hasUpdate && (
+            <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-background animate-pulse" title="Update Available" />
+          )}
         </button>
 
         {/* Notifications */}
