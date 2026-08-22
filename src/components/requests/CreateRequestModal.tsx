@@ -301,10 +301,11 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   };
 
   const handleVendorQuickCreated = (newVendor: any) => {
-    fetchVendors();
     if (newVendor?.id) {
+      setVendors((prev) => [newVendor, ...(Array.isArray(prev) ? prev.filter((v: any) => v.id !== newVendor.id) : [])]);
       setValue("vendorId", newVendor.id.toString(), { shouldValidate: true });
     }
+    fetchVendors();
   };
 
   const handleCopyComplianceLink = async (targetVendorId?: number) => {
