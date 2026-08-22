@@ -222,13 +222,16 @@ export function VendorQuickCreateModal({
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t">
                 <Button
-                  variant="outline"
+                  variant="default"
                   onClick={() => {
+                    if (onVendorCreated && createdVendorResult?.vendor) {
+                      onVendorCreated(createdVendorResult.vendor);
+                    }
                     resetForm();
                     onOpenChange(false);
                   }}
                 >
-                  Close
+                  Select Vendor & Return to PR
                 </Button>
               </div>
             </div>

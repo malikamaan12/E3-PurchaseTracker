@@ -300,12 +300,26 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     }
   };
 
-  const handleVendorQuickCreated = (newVendor: any) => {
+  const handleVendorQuickCreated = async (newVendor: any) => {
     if (newVendor?.id) {
       setVendors((prev) => [newVendor, ...(Array.isArray(prev) ? prev.filter((v: any) => v.id !== newVendor.id) : [])]);
-      setValue("vendorId", newVendor.id.toString(), { shouldValidate: true });
+      setValue("vendorId", newVendor.id.toString(), { shouldValidate: true, shouldDirty: true, shouldTouch: true });
     }
-    fetchVendors();
+    try {
+      const data = await apiClient.vendors.list();
+      if (Array.isArray(data) && data.length > 0) {
+        if (newVendor?.id && !data.some((v: any) => v.id === newVendor.id)) {
+          setVendors([newVendor, ...data]);
+        } else {
+          setVendors(data);
+        }
+        if (newVendor?.id) {
+          setValue("vendorId", newVendor.id.toString(), { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+        }
+      }
+    } catch (e) {
+      console.error("Failed to refresh vendors list:", e);
+    }
   };
 
   const handleCopyComplianceLink = async (targetVendorId?: number) => {
