@@ -379,7 +379,7 @@ function RequestsDashboardContent() {
                 return (
                   <div key={req.id} className="relative">
                     {awaitingMyApproval && (
-                      <div className="absolute -top-2 left-3 z-10 flex items-center gap-1 bg-amber-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-sm">
+                      <div className="absolute -top-2.5 left-3 z-10 flex items-center gap-1.5 bg-amber-500 text-white text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md">
                         <span>⏳</span> Awaiting Your Approval
                       </div>
                     )}
@@ -839,46 +839,48 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
   );
 
   return (
-    <div className={`bg-card rounded-2xl border p-4 shadow-sm transition-all relative ${isSelected ? 'border-brand-primary/50 bg-brand-primary/5' : 'border-border hover:border-brand-primary/20'}`}>
+    <div className={`bg-card rounded-2xl border p-4 sm:p-5 shadow-sm transition-all relative ${isSelected ? 'border-primary/50 bg-primary/5' : 'border-border hover:border-primary/20'}`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-        <div className="flex items-start gap-3 min-w-0">
-          <input
-            type="checkbox"
-            aria-label={`Select request ${request.requestNumber}`}
-            className="w-5 h-5 rounded-md border-border bg-secondary text-brand-primary focus:ring-brand-primary cursor-pointer mt-0.5 shrink-0"
-            checked={isSelected}
-            onChange={(e) => onSelect(e.target.checked)}
-          />
+        <div className="flex items-center gap-3 min-w-0">
+          <label className="min-h-[44px] min-w-[44px] -m-2 flex items-center justify-center cursor-pointer shrink-0" title={`Select request ${request.requestNumber}`}>
+            <input
+              type="checkbox"
+              aria-label={`Select request ${request.requestNumber}`}
+              className="w-5 h-5 rounded-md border-border bg-secondary text-primary focus:ring-primary cursor-pointer shrink-0"
+              checked={isSelected}
+              onChange={(e) => onSelect(e.target.checked)}
+            />
+          </label>
           <div className="min-w-0">
-            <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-lg border border-primary/20 break-all inline-block">
+            <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20 break-all inline-block">
               {request.requestNumber}
             </span>
-            <div className="text-xs text-muted-foreground mt-1 truncate">
+            <div className="text-xs text-muted-foreground font-medium mt-1 truncate">
               {request.requester?.username} • {request.requester?.department}
               {request.vendor?.name && ` • ${request.vendor.name}`}
             </div>
           </div>
         </div>
-        <div className="self-start sm:self-auto pl-8 sm:pl-0">
+        <div className="self-start sm:self-auto pl-9 sm:pl-0">
           <StatusBadge status={request.status} />
         </div>
       </div>
 
-      <div className="my-3 pl-8">
-        <h4 className="font-semibold text-foreground text-sm leading-snug">
+      <div className="my-3 pl-9 sm:pl-9">
+        <h4 className="font-bold text-foreground text-sm sm:text-base leading-snug">
           {request.title}
         </h4>
         {request.subPurpose?.name && (
-          <p className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1.5">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-brand-primary shrink-0" />
+          <p className="text-xs text-muted-foreground font-medium mt-1.5 flex items-center gap-1.5">
+            <span className="inline-block w-2 h-2 rounded-full bg-primary shrink-0" />
             <span className="truncate">{request.subPurpose.name}</span>
           </p>
         )}
       </div>
 
-      <div className="flex items-center justify-between pt-3 border-t border-border mt-3 pl-8">
+      <div className="flex items-center justify-between pt-3 border-t border-border mt-3 pl-9 sm:pl-9">
         <div>
-          <span className="text-[11px] font-semibold text-muted-foreground block">Estimated</span>
+          <span className="text-xs font-semibold text-muted-foreground block">Estimated</span>
           <AmountWithPaymentHover
             totalAmount={request.totalEstimatedCost}
             paidAmount={request.paidAmount}
@@ -975,14 +977,14 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
     )
   );
 
-  const rowClassName = `group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 ${isSelected ? 'bg-brand-primary/10' : ''}`;
+  const rowClassName = `group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 ${isSelected ? 'bg-primary/10' : ''}`;
 
   const renderCells = () => (
     <>
       <td className="px-6 py-5">
         <input
           type="checkbox"
-          className="rounded border-border bg-secondary text-brand-primary focus:ring-brand-primary cursor-pointer transition-colors"
+          className="rounded border-border bg-secondary text-primary focus:ring-primary cursor-pointer transition-colors"
           checked={isSelected}
           onChange={(e) => onSelect(e.target.checked)}
         />
@@ -1258,7 +1260,7 @@ function LoadingState() {
   return (
     <div className="flex flex-col gap-4 p-8 w-full h-[60vh] justify-center items-center">
       <div
-        className="w-12 h-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin"
+        className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"
       />
       <p className="text-muted-foreground animate-pulse font-mono tracking-widest text-xs font-bold uppercase transition-colors">Loading Grid...</p>
     </div>

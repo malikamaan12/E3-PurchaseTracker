@@ -189,13 +189,13 @@ export default function AdminBackupsPage() {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <div className="w-8 h-8 rounded-lg bg-brand-primary/10 flex items-center justify-center border border-brand-primary/20">
-              <Database className="w-4 h-4 text-brand-primary" />
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/20">
+              <Database className="w-4 h-4 text-primary" />
             </div>
-            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-brand-primary">Institutional Core</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-primary">Institutional Core</span>
           </div>
-          <h1 className="text-4xl font-serif font-black text-foreground tracking-tight">Enterprise Backup Vault</h1>
-          <p className="text-muted-foreground mt-2 max-w-xl text-sm leading-relaxed">
+          <h1 className="text-3xl sm:text-4xl font-serif font-black text-foreground tracking-tight">Enterprise Backup Vault</h1>
+          <p className="text-muted-foreground mt-2 max-w-xl text-sm leading-relaxed font-medium">
             Automated multi-cloud synchronization for PurchaseTracker's institutional data.
             Redundant snapshots are distributed across Cloudflare R2 and Google Drive primary/secondary folders.
           </p>
@@ -204,7 +204,7 @@ export default function AdminBackupsPage() {
         <Button
           onClick={triggerManualBackup}
           disabled={isTriggering}
-          className="bg-brand-primary hover:bg-brand-primary/90 text-white px-8 h-14 rounded-2xl shadow-2xl shadow-brand-primary/20 flex items-center gap-4 group"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 h-14 rounded-2xl shadow-lg flex items-center gap-4 group font-bold"
         >
           <AnimatePresence mode="wait">
             {isTriggering ? (
@@ -213,7 +213,7 @@ export default function AdminBackupsPage() {
               <Archive className="w-5 h-5 group-hover:scale-110 transition-transform" />
             )}
           </AnimatePresence>
-          <span className="text-xs font-black uppercase tracking-widest">Generate Manual Snapshot</span>
+          <span className="text-xs font-bold uppercase tracking-wider">Generate Manual Snapshot</span>
         </Button>
       </div>
 
@@ -482,19 +482,19 @@ export default function AdminBackupsPage() {
                         </span>
                       </td>
                       <td className="px-8 py-6">
-                        <div className="flex items-center gap-2 px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20 w-fit">
-                          <ShieldCheck className="w-3 h-3 text-emerald-500" />
-                          <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Verified</span>
+                        <div className="flex items-center gap-2 px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/20 w-fit">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                          <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider">Verified</span>
                         </div>
                       </td>
                       <td className="px-8 py-6">
                         <Button
                           variant="secondary"
                           onClick={() => handleDownload(backup.key)}
-                          className="h-9 px-4 rounded-lg bg-secondary/80 hover:bg-brand-primary hover:text-white transition-all group/btn min-h-[36px]"
+                          className="h-9 px-4 rounded-lg bg-secondary/80 hover:bg-primary hover:text-primary-foreground transition-all group/btn min-h-[36px]"
                         >
                           <Download className="w-3.5 h-3.5 mr-2 group-hover/btn:scale-110 transition-transform" />
-                          <span className="text-[10px] font-black uppercase tracking-wider">Download</span>
+                          <span className="text-xs font-bold uppercase tracking-wider">Download</span>
                         </Button>
                       </td>
                     </motion.tr>
@@ -507,8 +507,8 @@ export default function AdminBackupsPage() {
 
         {isLoading && (
           <div className="p-20 flex flex-col items-center justify-center gap-4">
-            <RefreshCw className="w-8 h-8 text-brand-primary animate-spin" />
-            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Synchronizing Registry...</p>
+            <RefreshCw className="w-8 h-8 text-primary animate-spin" />
+            <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Synchronizing Registry...</p>
           </div>
         )}
       </div>

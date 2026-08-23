@@ -103,38 +103,38 @@ export function PWASettings() {
           {deferredPrompt && (
             <button 
               onClick={handleInstall}
-              className="w-full p-3 mb-2 rounded-xl bg-brand-primary text-white flex items-center justify-between group active-scale"
+              className="w-full p-3 mb-2 rounded-xl bg-primary text-primary-foreground flex items-center justify-between group active-scale"
             >
               <div className="flex items-center gap-3">
                 <Download className="w-4 h-4" />
                 <div className="text-left">
-                  <p className="text-xs font-black uppercase tracking-tight">Install Platform</p>
-                  <p className="text-[9px] opacity-80 font-bold">Add to OS Home Screen</p>
+                  <p className="text-xs font-bold uppercase tracking-tight">Install Platform</p>
+                  <p className="text-[11px] opacity-90 font-medium">Add to OS Home Screen</p>
                 </div>
               </div>
-              <ChevronRight className="w-4 h-4 opacity-50" />
+              <ChevronRight className="w-4 h-4 opacity-70" />
             </button>
           )}
 
           {/* Notification Toggle */}
-          <div className="p-3 rounded-lg hover:bg-white/5 transition-colors flex items-center justify-between group">
+          <div className="p-3 rounded-lg hover:bg-secondary/40 transition-colors flex items-center justify-between group">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-brand-primary/10 text-brand-primary">
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
                 <Bell className="w-4 h-4" />
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-tight">System Push</p>
-                <p className="text-[9px] text-muted-foreground">Native OS Alerts</p>
+                <p className="text-[11px] text-muted-foreground font-medium">Native OS Alerts</p>
               </div>
             </div>
             {notifPermission === "granted" ? (
-              <div className="flex items-center gap-1 text-[9px] font-bold text-brand-secondary bg-brand-secondary/10 px-2 py-0.5 rounded-full">
+              <div className="flex items-center gap-1 text-[11px] font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-full border border-primary/20">
                 <Check className="w-3 h-3" /> ACTIVE
               </div>
             ) : (
               <button 
                 onClick={requestNotifications}
-                className="text-[9px] font-bold bg-brand-primary text-white px-2 py-1 rounded-md hover:scale-105 transition-transform"
+                className="text-xs font-bold bg-primary text-primary-foreground px-2.5 py-1 rounded-md hover:opacity-90 transition-opacity"
               >
                 ENABLE
               </button>
@@ -142,7 +142,7 @@ export function PWASettings() {
           </div>
 
           {/* Badge Toggle */}
-          <div className="p-3 rounded-lg hover:bg-white/5 transition-colors flex items-center justify-between group">
+          <div className="p-3 rounded-lg hover:bg-secondary/40 transition-colors flex items-center justify-between group">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-amber-500/10 text-amber-500">
                 <div className="relative">
@@ -152,35 +152,35 @@ export function PWASettings() {
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-tight">App Badge</p>
-                <p className="text-[9px] text-muted-foreground">Unread Dot on Taskbar</p>
+                <p className="text-[11px] text-muted-foreground font-medium">Unread Dot on Taskbar</p>
               </div>
             </div>
             <Switch checked={isBadgeEnabled} onCheckedChange={toggleBadge} />
           </div>
 
           {/* Startup Launch (Informational) */}
-          <div className="p-3 rounded-lg hover:bg-white/5 transition-colors flex items-center justify-between group opacity-70">
+          <div className="p-3 rounded-lg hover:bg-secondary/40 transition-colors flex items-center justify-between group opacity-80">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
                 <Zap className="w-4 h-4" />
               </div>
               <div>
                 <p className="text-xs font-bold uppercase tracking-tight">Auto-Startup</p>
-                <p className="text-[9px] text-muted-foreground">Run on System Login</p>
+                <p className="text-[11px] text-muted-foreground font-medium">Run on System Login</p>
               </div>
             </div>
-            <div className="text-[9px] font-bold text-muted-foreground uppercase opacity-40">MANIFEST</div>
+            <div className="text-[10px] font-bold text-muted-foreground uppercase opacity-60">MANIFEST</div>
           </div>
         </div>
 
         <div className="p-3 bg-secondary/30 flex items-center justify-between">
           <div className="flex items-center gap-1.5">
             <div className={cn("w-1.5 h-1.5 rounded-full animate-pulse", isInstalled ? "bg-emerald-500" : "bg-zinc-500")} />
-            <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
               {isInstalled ? "Premium Standalone Mode" : "Web Preview Mode"}
             </span>
           </div>
-          <ChevronRight className="w-3 h-3 text-muted-foreground/30" />
+          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/50" />
         </div>
       </PopoverContent>
     </Popover>

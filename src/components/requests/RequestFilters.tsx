@@ -146,7 +146,7 @@ export function RequestFilters({ filters, setFilters, metadata, counts }: Reques
       {/* Search and Basic Status */}
       <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between w-full">
         <div className="flex-1 w-full max-w-xl relative group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-brand-primary transition-colors z-10" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors z-10" />
           <Input 
             placeholder="Search by title, PR #, vendor, department, requester, purpose..."
             value={localSearch}
@@ -198,7 +198,7 @@ export function RequestFilters({ filters, setFilters, metadata, counts }: Reques
             <Filter className="w-4 h-4" />
             <span className="text-xs font-semibold">Filters</span>
             {activeFilterCount > 0 && (
-              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-brand-primary text-white text-[11px] font-bold">
+              <span className="flex items-center justify-center w-5 h-5 rounded-full bg-primary text-primary-foreground text-[11px] font-bold">
                 {activeFilterCount}
               </span>
             )}

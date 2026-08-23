@@ -81,15 +81,15 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
         {/* Handle / Header */}
         <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/30 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center text-brand-primary shrink-0">
+            <div className="w-10 h-10 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shrink-0">
               <User className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <h2 id="nav-sheet-title" className="text-sm font-bold text-foreground truncate">
                 {user?.username || "Guest User"}
               </h2>
-              <p className="text-xs text-muted-foreground truncate">
-                {user?.department || "General Access"} • <span className="capitalize font-semibold text-brand-primary">{user?.role?.replace('_', ' ')}</span>
+              <p className="text-xs text-muted-foreground font-medium truncate">
+                {user?.department || "General Access"} • <span className="capitalize font-bold text-primary">{user?.role?.replace('_', ' ')}</span>
               </p>
             </div>
           </div>
@@ -112,8 +112,8 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
             className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-secondary/60 border border-border text-foreground hover:bg-secondary transition-all touch-target"
           >
             <div className="flex items-center gap-3">
-              <Search className="w-5 h-5 text-brand-primary" />
-              <span className="text-sm font-medium">Quick Search...</span>
+              <Search className="w-5 h-5 text-primary" />
+              <span className="text-sm font-semibold text-foreground">Quick Search...</span>
             </div>
             <kbd className="px-2 py-0.5 text-xs font-mono font-bold bg-background rounded-md border border-border text-muted-foreground">
               ⌘K
@@ -123,7 +123,7 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
           {/* Admin Navigation (When Permitted) */}
           {isAdmin && (
             <div className="space-y-1.5">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-2">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2">
                 Administration
               </span>
               <Link
@@ -141,8 +141,8 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
                     <ShieldCheck className="w-4 h-4" />
                   </div>
                   <div className="text-left">
-                    <p className="text-sm font-bold">Admin Console</p>
-                    <p className="text-xs text-muted-foreground">System Governance, Users & Config</p>
+                    <p className="text-sm font-bold text-foreground">Admin Console</p>
+                    <p className="text-xs text-muted-foreground font-medium">System Governance, Users & Config</p>
                   </div>
                 </div>
                 <ChevronRight className="w-5 h-5 text-muted-foreground" />
@@ -152,7 +152,7 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
 
           {/* Device & System Preferences */}
           <div className="space-y-2">
-            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-2">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-2">
               Preferences & Settings
             </span>
 
@@ -171,8 +171,8 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
                   <RotateCw className={cn("w-4 h-4", isSyncing && "animate-spin")} />
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-semibold">Sync & Refresh</p>
-                  <p className="text-xs text-muted-foreground">Reload latest records & check updates</p>
+                  <p className="text-sm font-semibold text-foreground">Sync & Refresh</p>
+                  <p className="text-xs text-muted-foreground font-medium">Reload latest records & check updates</p>
                 </div>
               </div>
               <span className="text-xs font-bold text-primary">{isSyncing ? "Syncing..." : "Sync"}</span>
@@ -189,11 +189,11 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
                   {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
                 </div>
                 <div className="text-left">
-                  <p className="text-sm font-semibold">Appearance Theme</p>
-                  <p className="text-xs text-muted-foreground">Current: {isDark ? "Dark Mode" : "Light Mode"}</p>
+                  <p className="text-sm font-semibold text-foreground">Appearance Theme</p>
+                  <p className="text-xs text-muted-foreground font-medium">Current: {isDark ? "Dark Mode" : "Light Mode"}</p>
                 </div>
               </div>
-              <span className="text-xs font-bold text-brand-primary">Toggle</span>
+              <span className="text-xs font-bold text-primary">Toggle</span>
             </button>
 
             {/* Performance Mode Toggle */}

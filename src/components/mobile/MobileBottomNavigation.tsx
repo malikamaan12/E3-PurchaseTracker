@@ -44,20 +44,20 @@ export function MobileBottomNavigation() {
                 className={cn(
                   "flex flex-col items-center justify-center gap-1 rounded-xl transition-all touch-target h-12",
                   isActive
-                    ? "text-brand-primary font-bold"
-                    : "text-muted-foreground hover:text-foreground"
+                    ? "text-primary font-bold"
+                    : "text-muted-foreground hover:text-foreground font-medium"
                 )}
               >
                 <div className={cn(
-                  "p-1 rounded-lg transition-colors relative",
-                  isActive && "bg-brand-primary/10 text-brand-primary"
+                  "p-1.5 rounded-xl transition-colors relative",
+                  isActive && "bg-primary/10 text-primary"
                 )}>
                   <Icon className="w-5 h-5" />
                   {isActive && (
-                    <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-brand-primary" />
+                    <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-primary" />
                   )}
                 </div>
-                <span className="text-[10px] tracking-tight leading-none font-medium truncate max-w-[56px]">
+                <span className="text-[11px] tracking-tight leading-none font-semibold truncate max-w-[64px]">
                   {item.name}
                 </span>
               </Link>
@@ -72,20 +72,20 @@ export function MobileBottomNavigation() {
             className={cn(
               "flex flex-col items-center justify-center gap-1 rounded-xl transition-all touch-target h-12",
               isMoreSheetOpen || pathname.startsWith("/dashboard/admin")
-                ? "text-brand-primary font-bold"
-                : "text-muted-foreground hover:text-foreground"
+                ? "text-primary font-bold"
+                : "text-muted-foreground hover:text-foreground font-medium"
             )}
           >
             <div className={cn(
-              "p-1 rounded-lg transition-colors relative",
-              (isMoreSheetOpen || pathname.startsWith("/dashboard/admin")) && "bg-brand-primary/10 text-brand-primary"
+              "p-1.5 rounded-xl transition-colors relative",
+              (isMoreSheetOpen || pathname.startsWith("/dashboard/admin")) && "bg-primary/10 text-primary"
             )}>
               <Menu className="w-5 h-5" />
               {pathname.startsWith("/dashboard/admin") && (
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-brand-primary" />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-primary" />
               )}
             </div>
-            <span className="text-[10px] tracking-tight leading-none font-medium">
+            <span className="text-[11px] tracking-tight leading-none font-semibold">
               More
             </span>
           </button>

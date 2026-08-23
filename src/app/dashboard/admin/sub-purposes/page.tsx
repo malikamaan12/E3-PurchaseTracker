@@ -112,7 +112,7 @@ export default function ProjectManagementPage() {
   if (loadingProjects || loadingCategories || loadingDepts) {
     return (
       <div className="flex h-64 items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-primary"></div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -121,24 +121,24 @@ export default function ProjectManagementPage() {
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
       <div className="flex flex-col md:flex-row md:justify-between md:items-end gap-4">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-primary/10 text-brand-primary text-xs font-bold mb-2 uppercase tracking-wider border border-brand-primary/20">
-            <Briefcase className="w-3 h-3" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-2 uppercase tracking-wider border border-primary/20">
+            <Briefcase className="w-3.5 h-3.5" />
             Project Lifecycle
           </div>
-          <h1 className="text-3xl font-serif font-bold text-foreground tracking-tight">Project Financial Controller</h1>
-          <p className="text-sm text-muted-foreground mt-1 font-medium italic">Manage project-specific allocations and departmental budget caps.</p>
+          <h1 className="text-2xl sm:text-3xl font-serif font-bold text-foreground tracking-tight">Project Financial Controller</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1 font-medium">Manage project-specific allocations and departmental budget caps.</p>
         </div>
 
         <button
           onClick={() => setIsAdding(true)}
-          className="bg-brand-primary hover:brightness-110 text-white px-8 py-3 rounded-2xl transition-all shadow-[0_10px_30px_rgba(111,42,230,0.3)] font-bold flex items-center gap-2 active:scale-95 group"
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-6 sm:px-8 py-3 rounded-2xl transition-all shadow-md font-bold flex items-center justify-center gap-2 min-h-[44px] active:scale-95 group touch-target"
         >
           <Plus className="w-5 h-5 transition-transform group-hover:rotate-90 duration-300" />
           Launch New Project
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
          <StatsCard
             label="Active Projects"
             value={projects.filter((p: any) => p.status === 'active').length}
@@ -147,7 +147,7 @@ export default function ProjectManagementPage() {
           <StatsCard
             label="Total Exposure"
             value={`QAR ${projects.reduce((sum: number, p: any) => sum + (p.totalBudget || 0), 0).toLocaleString()}`}
-            icon={<Wallet className="w-5 h-5 text-brand-primary" />}
+            icon={<Wallet className="w-5 h-5 text-primary" />}
           />
           <StatsCard
             label="Frozen Assets"
@@ -166,7 +166,7 @@ export default function ProjectManagementPage() {
         {projects.length === 0 ? (
           <div className="p-12 text-center bg-card rounded-2xl border border-border">
             <Projector className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
-            <h3 className="text-base font-serif font-bold italic opacity-40">No Projects Found</h3>
+            <h3 className="text-base font-serif font-bold opacity-40">No Projects Found</h3>
             <p className="text-xs text-muted-foreground mt-1">Launch your first procurement project to begin tracking expenditures.</p>
           </div>
         ) : (
@@ -187,9 +187,9 @@ export default function ProjectManagementPage() {
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <h3 className="text-base font-black text-foreground truncate">{proj.name}</h3>
-                    <p className="text-[11px] text-muted-foreground font-bold uppercase tracking-tight flex items-center gap-1 mt-1">
-                      <FolderTreeIcon className="w-3.5 h-3.5 text-brand-primary" />
+                    <h3 className="text-base font-bold text-foreground truncate">{proj.name}</h3>
+                    <p className="text-xs text-muted-foreground font-semibold uppercase tracking-tight flex items-center gap-1 mt-1">
+                      <FolderTreeIcon className="w-3.5 h-3.5 text-primary" />
                       {categoryName}
                     </p>
                   </div>
@@ -322,7 +322,7 @@ export default function ProjectManagementPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground font-medium">Action:</span>
-                <span className="font-bold capitalize text-brand-primary">{projectToFreeze?.status === "frozen" ? "Restore to Active" : "Halt Expenditures (Freeze)"}</span>
+                <span className="font-bold capitalize text-primary">{projectToFreeze?.status === "frozen" ? "Restore to Active" : "Halt Expenditures (Freeze)"}</span>
               </div>
             </div>
           </div>
@@ -356,7 +356,7 @@ export default function ProjectManagementPage() {
 
       {/* Desktop Project Table (>= md) */}
       <div className="hidden md:block bg-card rounded-[2.5rem] border border-border overflow-x-auto custom-scrollbar shadow-2xl relative">
-        <div className="absolute inset-x-0 h-1 top-0 bg-gradient-to-r from-brand-primary via-brand-secondary to-brand-primary opacity-50" />
+        <div className="absolute inset-x-0 h-1 top-0 bg-gradient-to-r from-primary via-primary/50 to-primary opacity-50" />
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="border-b border-border bg-secondary/20">
@@ -484,7 +484,7 @@ export default function ProjectManagementPage() {
                        <input
                           type="text"
                           placeholder="Project Alpha..."
-                          className="w-full bg-secondary/50 border border-border rounded-2xl px-5 py-4 outline-none focus:ring-4 focus:ring-brand-primary/10 transition-all font-black text-lg"
+                          className="w-full bg-secondary/50 border border-border rounded-2xl px-5 py-4 outline-none focus:ring-4 focus:ring-primary/10 transition-all font-black text-lg"
                           value={formData.name}
                           onChange={(e) => setFormData(s => ({ ...s, name: e.target.value }))}
                        />
@@ -509,7 +509,7 @@ export default function ProjectManagementPage() {
                            <span className="absolute left-4 top-1/2 -translate-y-1/2 font-sans font-bold text-xs text-muted-foreground">QAR</span>
                            <input
                               type="number"
-                              className="w-full bg-secondary/50 border border-border rounded-2xl pl-14 pr-5 py-4 outline-none font-serif text-xl font-black text-brand-primary"
+                              className="w-full bg-secondary/50 border border-border rounded-2xl pl-14 pr-5 py-4 outline-none font-serif text-xl font-black text-primary"
                               value={formData.totalBudget}
                               onChange={(e) => setFormData(s => ({ ...s, totalBudget: Number(e.target.value) }))}
                            />
@@ -538,14 +538,14 @@ export default function ProjectManagementPage() {
                      <div className="flex justify-between items-center">
                         <div>
                           <h4 className="font-black text-sm uppercase tracking-wider flex items-center gap-2">
-                             <Users className="w-4 h-4 text-brand-primary" />
+                             <Users className="w-4 h-4 text-primary" />
                              Departmental Allocations
                           </h4>
-                          <p className="text-[10px] text-muted-foreground font-bold mt-1">Define specific budget caps for each participating department.</p>
+                          <p className="text-xs text-muted-foreground font-semibold mt-1">Define specific budget caps for each participating department.</p>
                         </div>
                         <button
                            onClick={addBudgetSplit}
-                           className="text-[10px] font-black uppercase tracking-widest text-brand-primary hover:bg-brand-primary/10 px-3 py-1.5 rounded-lg transition-all"
+                           className="text-xs font-bold uppercase tracking-wider text-primary hover:bg-primary/10 px-3 py-1.5 rounded-lg transition-all"
                         >
                            + Add Split
                         </button>
@@ -617,7 +617,7 @@ export default function ProjectManagementPage() {
                   <button
                     onClick={() => createMutation.mutate(formData)}
                     disabled={createMutation.isPending || isOverBudget || !formData.name || !formData.purposeCategoryId}
-                    className="flex-[2] bg-brand-primary text-white py-4 rounded-2xl font-bold shadow-xl shadow-brand-primary/30 transition-all active:scale-95 disabled:opacity-50"
+                    className="flex-[2] bg-primary text-primary-foreground py-4 rounded-2xl font-bold shadow-xl shadow-primary/30 transition-all active:scale-95 disabled:opacity-50"
                   >
                     {createMutation.isPending ? "Commissioning Project..." : "Authorize & Launch"}
                   </button>
@@ -664,78 +664,51 @@ function DeleteSubPurposeModal({
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => {
-        if (Number(project?.committedAmount || 0) > 0) {
-          freezeRef.current?.focus();
-        } else {
-          cancelRef.current?.focus();
-        }
+        cancelRef.current?.focus();
       }, 50);
     }
-  }, [isOpen, project]);
+  }, [isOpen]);
 
   if (!isOpen || !project) return null;
 
-  const usedAmount = Number(project.committedAmount || 0);
-  const hasUsedAmount = usedAmount > 0;
-
-  // Keyboard navigation & Focus trapping (Tab / Shift+Tab / Esc)
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      onClose();
-      return;
-    }
-
-    if (e.key === "Tab") {
-      const focusables = [
-        cancelRef.current,
-        hasUsedAmount ? freezeRef.current : deleteRef.current,
-      ].filter(Boolean) as HTMLElement[];
-
-      if (focusables.length === 0) return;
-
-      const currentIndex = focusables.indexOf(document.activeElement as HTMLElement);
-      if (e.shiftKey) {
-        if (currentIndex <= 0) {
-          e.preventDefault();
-          focusables[focusables.length - 1].focus();
-        }
-      } else {
-        if (currentIndex === focusables.length - 1) {
-          e.preventDefault();
-          focusables[0].focus();
-        }
-      }
-    }
-  };
+  const hasUsedAmount = Number(project.committedAmount || 0) > 0;
 
   return (
-    <div
-      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xl animate-in fade-in duration-200"
-      onKeyDown={handleKeyDown}
-    >
-      <div className="bg-card border border-border w-full max-w-lg rounded-[2.5rem] shadow-2xl p-8 overflow-hidden relative animate-in zoom-in-95 duration-200">
-        <div className="flex items-center gap-4 mb-6">
-          <div className={`p-4 rounded-2xl ${hasUsedAmount ? "bg-cyan-500/10 text-cyan-500 border border-cyan-500/20" : "bg-rose-500/10 text-rose-500 border border-rose-500/20"}`}>
-            {hasUsedAmount ? <Snowflake className="w-7 h-7 animate-pulse" /> : <Trash2 className="w-7 h-7" />}
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+      <div className="bg-card border border-border w-full max-w-lg rounded-[2.5rem] p-8 shadow-2xl space-y-6 relative overflow-hidden animate-in zoom-in-95 duration-300">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${hasUsedAmount ? 'bg-amber-500/10 text-amber-500' : 'bg-rose-500/10 text-rose-500'}`}>
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <h3 className="text-xl font-serif font-black text-foreground">
+                {hasUsedAmount ? "Active Project Safeguard" : "Confirm Project Removal"}
+              </h3>
+              <p className="text-xs text-muted-foreground font-bold uppercase tracking-wider">
+                {hasUsedAmount ? "Expenditures Detected" : "Zero-Commitment Safety"}
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-xl font-serif font-black tracking-tight text-foreground">
-              {hasUsedAmount ? "Project Can Only Be Frozen" : "Delete Strategic Project"}
-            </h3>
-            <p className="text-xs font-mono font-bold text-muted-foreground mt-0.5 uppercase tracking-wider">{project.name}</p>
-          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {hasUsedAmount ? (
-          <div className="bg-cyan-500/10 border border-cyan-500/30 p-5 rounded-2xl mb-6 space-y-2">
-            <div className="flex items-center gap-2 text-cyan-600 dark:text-cyan-400 font-bold text-xs uppercase tracking-wider">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              <span>Financial Spending Detected</span>
-            </div>
-            <p className="text-xs text-foreground/80 leading-relaxed font-medium">
-              This project has committed/used funds of <span className="font-mono font-bold text-cyan-600 dark:text-cyan-400">QAR {usedAmount.toLocaleString()}</span>. Under governance rules, projects with spent funds <span className="font-bold underline">cannot be deleted</span>. You can freeze this project to restrict future requests while preserving audit logs.
+          <div className="space-y-4">
+            <p className="text-sm text-foreground leading-relaxed font-medium">
+              The project <span className="font-bold text-primary">"{project.name}"</span> has already committed or spent <span className="font-bold text-foreground">QAR {Number(project.committedAmount || 0).toLocaleString()}</span>.
             </p>
+            <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex gap-3 text-xs text-amber-600 dark:text-amber-400 font-semibold leading-normal">
+              <ShieldAlert className="w-5 h-5 shrink-0 text-amber-500" />
+              <span>
+                To preserve historical audit ledgers, institutional policy requires freezing this project instead of deleting it. Freezing prevents future purchase requests from charging against this budget cap.
+              </span>
+            </div>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground leading-relaxed mb-6 font-medium">
@@ -749,7 +722,7 @@ function DeleteSubPurposeModal({
             type="button"
             tabIndex={0}
             onClick={onClose}
-            className="px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:bg-secondary border border-border/50 focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all cursor-pointer"
+            className="px-6 py-3.5 rounded-2xl text-xs font-black uppercase tracking-widest text-muted-foreground hover:bg-secondary border border-border/50 focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer"
           >
             Cancel
           </button>
@@ -785,9 +758,9 @@ function DeleteSubPurposeModal({
 
 function StatsCard({ label, value, icon }: { label: string; value: any; icon: React.ReactNode }) {
   return (
-    <div className="bg-card p-6 rounded-[2rem] border border-border flex items-center justify-between shadow-xl group hover:border-brand-primary/30 transition-all">
+    <div className="bg-card p-6 rounded-[2rem] border border-border flex items-center justify-between shadow-xl group hover:border-primary/30 transition-all">
       <div>
-        <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground block mb-1">{label}</span>
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground block mb-1">{label}</span>
         <span className="text-2xl font-serif font-black text-foreground">{value}</span>
       </div>
       <div className="bg-secondary p-4 rounded-2xl group-hover:scale-110 transition-transform">

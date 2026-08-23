@@ -322,8 +322,8 @@ export default function TopNav() {
                           </div>
                           <div className="flex-1 min-w-0">
                              <p className="text-xs font-bold text-foreground truncate">{formatNotificationTitle(notif)}</p>
-                             <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{formatNotificationMessage(notif)}</p>
-                             <p className="text-[10px] font-mono text-muted-foreground/60 mt-1">
+                             <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5 font-normal">{formatNotificationMessage(notif)}</p>
+                             <p className="text-[11px] font-mono text-muted-foreground font-medium mt-1">
                                {formatNotificationTime(notif.createdAt)}
                              </p>
                           </div>

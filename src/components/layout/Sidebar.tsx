@@ -10,7 +10,8 @@ import {
   ShieldCheck, 
   Settings,
   ChevronRight,
-  Zap
+  Zap,
+  X
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuth } from "@/context/AuthContext"
@@ -35,14 +36,29 @@ export function Sidebar({ className, onItemClick, ...props }: SidebarProps) {
 
   return (
     <div className={cn("flex flex-col h-full bg-card border-r border-border/50 shadow-2xl transition-all duration-300", className)} {...props}>
-      <div className="flex flex-col flex-1 gap-4 p-6">
-        {/* Brand Header (Desktop Only, hidden on drawer) */}
-        {!onItemClick && (
-          <div className="mb-8 px-2">
+      <div className="flex flex-col flex-1 gap-4 p-5 sm:p-6">
+        {/* Brand Header */}
+        {!onItemClick ? (
+          <div className="mb-6 px-2">
             <Link href="/dashboard" className="flex items-center group">
               <img src="/logo-color.png" alt="E3" className="h-8 w-auto dark:hidden transition-transform group-hover:scale-105" />
               <img src="/logo-white.png" alt="E3" className="h-8 w-auto hidden dark:block transition-transform group-hover:scale-105" />
             </Link>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between pb-4 mb-2 border-b border-border/60">
+            <Link href="/dashboard" onClick={onItemClick} className="flex items-center">
+              <img src="/logo-color.png" alt="E3" className="h-7 w-auto dark:hidden" />
+              <img src="/logo-white.png" alt="E3" className="h-7 w-auto hidden dark:block" />
+            </Link>
+            <button
+              type="button"
+              onClick={onItemClick}
+              aria-label="Close navigation menu"
+              className="w-10 h-10 rounded-xl bg-secondary/80 hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors touch-target"
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
         )}
 
@@ -58,28 +74,28 @@ export function Sidebar({ className, onItemClick, ...props }: SidebarProps) {
                 className="block"
               >
                 <div className={cn(
-                  "group relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 min-h-[44px] touch-target w-full",
+                  "group relative flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 min-h-[48px] touch-target w-full",
                   isActive
-                    ? "bg-brand-primary/10 text-brand-primary font-bold shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]"
-                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground"
+                    ? "bg-primary/10 text-primary font-bold shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]"
+                    : "text-muted-foreground hover:bg-secondary/50 hover:text-foreground font-medium"
                 )}>
                   {/* Active Indicator Bar */}
                   {isActive && (
                     <div
-                      className="absolute left-0 w-1 h-6 bg-brand-primary rounded-r-full"
+                      className="absolute left-0 w-1.5 h-6 bg-primary rounded-r-full"
                     />
                   )}
                   
                   <div className={cn(
                     "transition-transform duration-200 group-hover:scale-105 shrink-0",
-                    isActive ? "text-brand-primary" : "text-muted-foreground group-hover:text-foreground"
+                    isActive ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
                   )}>
                     {item.icon}
                   </div>
                   
                   <span className="flex-1 text-sm font-semibold tracking-tight">{item.name}</span>
                   
-                  {isActive && <ChevronRight className="w-4 h-4 opacity-50 shrink-0" />}
+                  {isActive && <ChevronRight className="w-4 h-4 opacity-70 shrink-0" />}
                 </div>
               </Link>
             );

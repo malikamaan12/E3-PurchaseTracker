@@ -58,7 +58,7 @@ export function CommandPalette() {
 
         <CommandGroup heading="Quick Navigation">
           <CommandItem onSelect={() => runCommand(() => router.push("/dashboard"))}>
-            <LayoutDashboard className="mr-2 h-4 w-4 text-brand-primary" />
+            <LayoutDashboard className="mr-2 h-4 w-4 text-primary" />
             <span>Dashboard Overview</span>
           </CommandItem>
           <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/requests"))}>
@@ -105,7 +105,7 @@ export function CommandPalette() {
                 <span>User & Access Management</span>
               </CommandItem>
               <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/admin/sub-purposes"))}>
-                <Briefcase className="mr-2 h-4 w-4 text-brand-primary" />
+                <Briefcase className="mr-2 h-4 w-4 text-primary" />
                 <span>Project Financial Controller</span>
               </CommandItem>
               <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/admin/departments"))}>

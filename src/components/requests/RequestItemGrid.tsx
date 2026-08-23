@@ -95,10 +95,10 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-            <Package className="w-4 h-4 text-brand-primary" />
+            <Package className="w-4 h-4 text-primary" />
             Purchase Items
           </h3>
-          <p className="text-xs text-muted-foreground mt-1">Itemized Budget Breakdown</p>
+          <p className="text-xs text-muted-foreground mt-1 font-medium">Itemized Budget Breakdown</p>
         </div>
         <Button
           variant="secondary"
@@ -119,7 +119,9 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
           return (
             <div key={`mobile-item-${index}`} className={`p-4 rounded-2xl border bg-card space-y-3 shadow-sm ${rowError ? 'border-rose-500 bg-rose-500/5' : 'border-border'}`}>
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Item #{index + 1}</span>
+                <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-0.5 rounded-lg border border-primary/20">
+                  Item #{index + 1}
+                </span>
                 {items.length > 1 && (
                   <button
                     type="button"
@@ -183,13 +185,19 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
 
               <div className="flex justify-between items-center pt-2 border-t border-border/60 text-xs">
                 <span className="text-muted-foreground font-medium">Subtotal (QAR):</span>
-                <span className="font-bold text-sm text-foreground">
+                <span className="font-mono font-bold text-sm text-foreground">
                   {(item.quantity * item.estimatedCost * exchangeRate).toLocaleString()} QAR
                 </span>
               </div>
             </div>
           );
         })}
+        {items.length === 0 && (
+          <div className="p-8 rounded-2xl border border-dashed border-border text-center space-y-2">
+            <Hash className="w-8 h-8 text-muted-foreground/40 mx-auto" />
+            <p className="text-xs text-muted-foreground font-medium italic">No items added yet. Tap "Add Item" above.</p>
+          </div>
+        )}
       </div>
 
       {/* Desktop Item Table (>= md) */}
@@ -257,7 +265,7 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
                     </div>
                   </td>
                   <td className="px-4 py-3 text-right align-top pt-5">
-                    <span className="text-sm font-bold text-foreground tracking-tight">
+                    <span className="text-sm font-bold text-foreground tracking-tight font-mono">
                       {(item.quantity * item.estimatedCost * exchangeRate).toLocaleString()}
                     </span>
                   </td>
@@ -288,18 +296,20 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
             )}
           </tbody>
         </table>
+      </div>
 
-        {/* Items Subtotal & Freight */}
-        <div className="bg-card px-6 py-4 border-t border-border flex items-center justify-between">
-          <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Line Items Subtotal (QAR)</span>
-          <span className="text-sm font-bold text-foreground transition-colors">{(itemsTotal * exchangeRate).toLocaleString()}</span>
+      {/* Items Subtotal, Freight & Grand Total (Responsive - Visible on all viewports) */}
+      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden divide-y divide-border">
+        <div className="px-4 sm:px-6 py-3.5 flex items-center justify-between bg-secondary/20">
+          <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Line Items Subtotal (QAR)</span>
+          <span className="text-sm font-bold font-mono text-foreground">{(itemsTotal * exchangeRate).toLocaleString()}</span>
         </div>
-        <div className="bg-card px-6 py-4 border-t border-border flex items-center justify-between relative group">
+        <div className="px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 relative group bg-secondary/10">
           <div className="flex items-center gap-2">
-            <Truck className="w-4 h-4 text-brand-primary" />
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest group-focus-within:text-brand-primary transition-colors">Freight Amount</span>
+            <Truck className="w-4 h-4 text-primary" />
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider group-focus-within:text-primary transition-colors">Freight Amount</span>
           </div>
-          <div className="flex items-center gap-2 bg-background border border-input shadow-sm rounded-md px-3 h-10 focus-within:ring-1 focus-within:ring-ring transition-shadow">
+          <div className="flex items-center gap-2 bg-background border border-input shadow-sm rounded-xl px-3 min-h-[44px] sm:h-10 focus-within:ring-1 focus-within:ring-ring transition-shadow self-end sm:self-auto">
              <span className="text-muted-foreground font-bold text-xs shrink-0">{currency}</span>
              <Input
                type="number"
@@ -307,25 +317,25 @@ export default function RequestItemGrid({ items, errors, onChange, currency, exc
                value={freightAmount || ''}
                onChange={(e) => onFreightChange(parseFloat(e.target.value) || 0)}
                onWheel={(e) => (e.target as HTMLInputElement).blur()}
-               className="w-24 bg-transparent border-none p-0 text-right text-sm font-semibold text-foreground focus-visible:ring-0 shadow-none h-full"
+               className="w-28 sm:w-24 bg-transparent border-none p-0 text-right text-sm font-semibold text-foreground focus-visible:ring-0 shadow-none h-full"
              />
           </div>
         </div>
 
-        {/* Footer / Grand Total */}
-        <div className="bg-card px-6 py-5 flex items-center justify-between border-t border-primary/20">
+        {/* Grand Total Footer */}
+        <div className="px-4 sm:px-6 py-4 flex items-center justify-between bg-primary/5 border-t border-primary/20">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center border border-primary/30">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center border border-primary/30">
               <Calculator className="w-5 h-5 text-primary" />
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Cumulative Budget</p>
-              <p className="text-sm font-bold text-foreground transition-colors">Grand Total Estimate</p>
+              <p className="text-xs text-muted-foreground font-medium">Cumulative Budget</p>
+              <p className="text-sm font-bold text-foreground">Grand Total Estimate</p>
             </div>
           </div>
           <div className="text-right">
-            <span className="text-xs font-medium text-muted-foreground block mb-1">Total ({currency})</span>
-            <span className="text-lg font-semibold text-foreground transition-colors">
+            <span className="text-xs font-medium text-muted-foreground block mb-0.5">Total ({currency})</span>
+            <span className="text-lg font-bold font-mono text-foreground">
               {grandTotal.toLocaleString()}
             </span>
           </div>

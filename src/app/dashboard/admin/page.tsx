@@ -11,7 +11,8 @@ import {
   Calendar,
   AlertCircle,
   Archive,
-  ArrowRight
+  ArrowRight,
+  Briefcase
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -51,8 +52,8 @@ export default function AdminOverviewPage() {
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary"></div>
-        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.3em] animate-pulse">Syncing Command Center...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-[0.3em] animate-pulse">Syncing Command Center...</p>
       </div>
     );
   }
@@ -119,7 +120,7 @@ export default function AdminOverviewPage() {
             label: "Total Projects",
             value: analytics?.totalActiveProjects ?? analytics?.projects?.length ?? 0,
             sub: "Active Validated",
-            icon: <BarChart3 className="w-5 h-5 text-brand-primary" />,
+            icon: <BarChart3 className="w-5 h-5 text-primary" />,
             trend: "+12%"
           },
           {
@@ -140,30 +141,30 @@ export default function AdminOverviewPage() {
             label: "System Health",
             value: "100%",
             sub: "Serverless Native",
-            icon: <Globe className="w-5 h-5 text-cyan-500" />,
+            icon: <Globe className="w-5 h-5 text-primary" />,
             trend: "Stable"
           },
         ].map((stat, i) => (
           <motion.div
             variants={item}
             key={i}
-            className="glass p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-border/40 shadow-xl hover:shadow-brand-primary/10 transition-all group relative overflow-hidden"
+            className="glass p-5 sm:p-6 rounded-2xl sm:rounded-3xl border border-border/40 shadow-xl hover:shadow-primary/10 transition-all group relative overflow-hidden"
           >
-             <div className="absolute top-0 right-0 w-24 h-24 bg-brand-primary/5 blur-3xl rounded-full -mr-12 -mt-12 group-hover:bg-brand-primary/10 transition-colors" />
+             <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 blur-3xl rounded-full -mr-12 -mt-12 group-hover:bg-primary/10 transition-colors" />
              <div className="flex justify-between items-start relative">
-                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-secondary/50 flex items-center justify-center group-hover:bg-brand-primary/10 transition-colors border border-border/50">
+                <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-secondary/50 flex items-center justify-center group-hover:bg-primary/10 transition-colors border border-border/50">
                   {stat.icon}
                 </div>
                 <div className="flex flex-col items-end">
-                  <span className="text-[10px] font-black text-emerald-500 uppercase tracking-tighter">{stat.trend}</span>
+                  <span className="text-[11px] font-bold text-emerald-500 uppercase tracking-tighter">{stat.trend}</span>
                   <TrendingUp className="w-4 h-4 text-emerald-500 opacity-20 group-hover:opacity-100 transition-opacity" />
                 </div>
              </div>
             <div className="mt-4 sm:mt-6">
               <p className="text-3xl sm:text-4xl font-serif font-black text-foreground tracking-tight group-hover:translate-x-1 transition-transform">{stat.value}</p>
               <div className="flex justify-between items-end mt-2">
-                <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">{stat.label}</p>
-                <p className="text-[9px] text-brand-primary font-black uppercase tracking-tighter opacity-70">{stat.sub}</p>
+                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">{stat.label}</p>
+                <p className="text-[11px] text-primary font-bold uppercase tracking-tight">{stat.sub}</p>
               </div>
             </div>
           </motion.div>
@@ -232,7 +233,7 @@ export default function AdminOverviewPage() {
               sub: "Cloud Vault & Orchestration",
               path: "/dashboard/admin/backups",
               icon: <Archive className="w-5 h-5" />,
-              color: "brand-primary"
+              colorClass: "bg-primary/10 border-primary/20 text-primary"
             },
             {
               title: "Identity Controls",
@@ -250,11 +251,11 @@ export default function AdminOverviewPage() {
               colorClass: "bg-primary/10 border-primary/20 text-primary"
             },
             {
-              title: "Project Portfolio",
-              sub: "Budgets & Project Splits",
+              title: "Project Budgets",
+              sub: "Budget & Allocation Management",
               path: "/dashboard/admin/sub-purposes",
-              icon: <FolderKanban className="w-5 h-5" />,
-              colorClass: "bg-blue-500/10 border-blue-500/20 text-blue-500"
+              icon: <Briefcase className="w-5 h-5" />,
+              colorClass: "bg-purple-500/10 border-purple-500/20 text-purple-500"
             },
           ]),
           {
@@ -282,10 +283,10 @@ export default function AdminOverviewPage() {
                </div>
                <div>
                   <h4 className="text-sm font-black text-foreground group-hover:text-primary transition-colors">{tool.title}</h4>
-                  <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">{tool.sub}</p>
+                  <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider mt-1">{tool.sub}</p>
                </div>
-               <div className="flex items-center gap-2 mt-2 text-[9px] font-black text-primary uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
-                  Access Protocol <ArrowRight className="w-3 h-3" />
+               <div className="flex items-center gap-2 mt-2 text-xs font-bold text-primary uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
+                  Access Protocol <ArrowRight className="w-3.5 h-3.5" />
                </div>
             </div>
           </Link>
@@ -298,14 +299,14 @@ export default function AdminOverviewPage() {
         initial="hidden"
         whileInView="show"
         viewport={{ once: true }}
-        className="glass p-10 rounded-[2.5rem] border border-border/40 shadow-2xl relative overflow-hidden"
+        className="glass p-6 sm:p-10 rounded-[2.5rem] border border-border/40 shadow-2xl relative overflow-hidden"
       >
-         <div className="absolute bottom-0 right-0 w-96 h-96 bg-brand-primary/5 blur-[100px] rounded-full -mr-48 -mb-48" />
+         <div className="absolute bottom-0 right-0 w-96 h-96 bg-primary/5 blur-[100px] rounded-full -mr-48 -mb-48" />
 
-         <div className="flex justify-between items-center mb-10 relative">
+         <div className="flex justify-between items-center mb-8 sm:mb-10 relative">
             <div>
-              <h3 className="text-2xl font-serif font-black text-foreground tracking-tight">Departmental Breakdown</h3>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] mt-1">Cross-Functional Capital Allocation</p>
+              <h3 className="text-xl sm:text-2xl font-serif font-black text-foreground tracking-tight">Departmental Breakdown</h3>
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mt-1">Cross-Functional Capital Allocation</p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
                <TrendingUp className="w-6 h-6 text-emerald-500" />
@@ -316,26 +317,26 @@ export default function AdminOverviewPage() {
                <div key={i} className="flex flex-col gap-4 p-6 bg-secondary/20 hover:bg-secondary/40 rounded-[2rem] border border-border/50 transition-all group cursor-default">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                       <div className="w-10 h-10 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary font-black text-sm border border-brand-primary/20 group-hover:scale-110 transition-transform">
+                       <div className="w-10 h-10 rounded-2xl bg-primary/10 flex items-center justify-center text-primary font-black text-sm border border-primary/20 group-hover:scale-110 transition-transform">
                           {dept.department.charAt(0)}
                        </div>
                        <div>
-                          <p className="text-xs font-black uppercase tracking-widest text-foreground group-hover:text-brand-primary transition-colors">{dept.department}</p>
-                          <p className="text-[9px] text-muted-foreground font-black uppercase tracking-tighter">{dept.count} Validated Requests</p>
+                          <p className="text-xs font-black uppercase tracking-widest text-foreground group-hover:text-primary transition-colors">{dept.department}</p>
+                          <p className="text-xs text-muted-foreground font-semibold tracking-tight">{dept.count} Validated Requests</p>
                        </div>
                     </div>
                   </div>
                   <div className="space-y-2 mt-2">
                      <div className="flex justify-between items-end">
                         <p className="text-xl font-serif font-black text-foreground">QAR {dept.totalCost.toLocaleString()}</p>
-                        <span className="text-[9px] font-black text-emerald-500 uppercase">Active</span>
+                        <span className="text-[10px] font-bold text-emerald-500 uppercase px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20">Active</span>
                      </div>
-                     <div className="h-1.5 bg-secondary/50 rounded-full overflow-hidden">
+                     <div className="h-2 bg-secondary/50 rounded-full overflow-hidden border border-border/40">
                         <motion.div
                           initial={{ width: 0 }}
                           whileInView={{ width: '65%' }}
                           transition={{ duration: 1, delay: i * 0.05 }}
-                          className="h-full bg-brand-primary rounded-full relative shadow-[0_0_10px_rgba(111,42,230,0.3)]"
+                          className="h-full bg-primary rounded-full relative shadow-[0_0_10px_rgba(111,42,230,0.3)]"
                         >
                           <div className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent" />
                         </motion.div>
