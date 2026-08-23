@@ -206,7 +206,7 @@ export default function DashboardCharts({ data }: DashboardChartsProps) {
             const percent = b.allocated > 0 ? (b.actual / b.allocated) * 100 : 0;
             const isCritical = percent > 90;
             return (
-              <div key={i} className="space-y-3 p-4 bg-white/5 rounded-2xl border border-white/5">
+              <div key={i} className="space-y-3 p-4 bg-secondary/30 rounded-2xl border border-border">
                 <div className="flex justify-between items-baseline">
                   <span className="text-sm font-black text-foreground uppercase tracking-tight">{b.name}</span>
                   <span className={`text-xs font-mono font-black ${isCritical ? "text-rose-500" : "text-[#2FB7B2]"}`}>

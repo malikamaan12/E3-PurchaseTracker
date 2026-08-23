@@ -92,9 +92,9 @@ export function ExportDropdown({ requestId, requestNumber }: ExportDropdownProps
     <Popover open={isOpen} onOpenChange={setIsOpen}>
       <PopoverTrigger asChild>
         <button
-          className="flex items-center gap-2 bg-secondary/50 hover:bg-white/10 border border-border px-4 py-2 rounded-xl transition-all font-bold text-xs text-foreground group"
+          className="flex items-center gap-2 bg-secondary/50 hover:bg-secondary border border-border px-4 py-2 rounded-xl transition-all font-bold text-xs text-foreground group"
         >
-          <Download className="w-4 h-4 text-brand-primary group-hover:scale-110 transition-transform" />
+          <Download className="w-4 h-4 text-primary group-hover:scale-110 transition-transform" />
           <span>Document Export</span>
           <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} />
         </button>
@@ -113,9 +113,9 @@ export function ExportDropdown({ requestId, requestNumber }: ExportDropdownProps
               key={opt.id}
               onClick={() => handleExport(opt.id as any)}
               disabled={loadingType !== null}
-              className="flex items-start gap-4 p-3 rounded-xl hover:bg-white/5 transition-all text-left group disabled:opacity-50"
+              className="flex items-start gap-4 p-3 rounded-xl hover:bg-secondary/60 transition-all text-left group disabled:opacity-50"
             >
-              <div className="w-9 h-9 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0 border border-border group-hover:border-white/20">
+              <div className="w-9 h-9 rounded-lg bg-secondary/80 flex items-center justify-center shrink-0 border border-border group-hover:border-border/80">
                 {loadingType === opt.id ? (
                   <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                 ) : opt.icon}
@@ -129,7 +129,7 @@ export function ExportDropdown({ requestId, requestNumber }: ExportDropdownProps
         </div>
         
         <div className="px-5 py-3 bg-secondary/30 border-t border-border mt-1">
-           <p className="text-[8px] text-zinc-600 font-bold uppercase tracking-widest text-center">
+           <p className="text-[8px] text-muted-foreground/70 font-bold uppercase tracking-widest text-center">
              Institutional Governance Mode Active
            </p>
         </div>

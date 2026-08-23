@@ -126,4 +126,27 @@ describe("Application Audit Remediations & Security Test Suite", () => {
     assert.strictEqual(shouldSkipApproval("pending_dept_head", true, "super_admin"), false, "Super admin can bypass Stage 1 in bulk");
     assert.strictEqual(shouldSkipApproval("pending", true, "admin"), false, "Normal pending request can be approved");
   });
+
+  // Test 8: Tailwind Theme Colors Alpha-Value Syntax
+  it("Tailwind config includes / <alpha-value> across all semantic color tokens", async () => {
+    const fs = await import("fs");
+    const tailwindConfigPath = path.resolve(process.cwd(), "tailwind.config.ts");
+    const content = fs.readFileSync(tailwindConfigPath, "utf-8");
+
+    assert.ok(content.includes('DEFAULT: "hsl(var(--primary) / <alpha-value>)"'), "primary must have <alpha-value>");
+    assert.ok(content.includes('DEFAULT: "hsl(var(--secondary) / <alpha-value>)"'), "secondary must have <alpha-value>");
+    assert.ok(content.includes('DEFAULT: "hsl(var(--card) / <alpha-value>)"'), "card must have <alpha-value>");
+    assert.ok(content.includes('DEFAULT: "hsl(var(--popover) / <alpha-value>)"'), "popover must have <alpha-value>");
+    assert.ok(content.includes('border: "hsl(var(--border) / <alpha-value>)"'), "border must have <alpha-value>");
+  });
+
+  // Test 9: Popover Primitive Theme Class Tokens
+  it("Popover primitive adopts semantic popover tokens without hardcoded black/white borders", async () => {
+    const fs = await import("fs");
+    const popoverPath = path.resolve(process.cwd(), "src/components/ui/Popover.tsx");
+    const content = fs.readFileSync(popoverPath, "utf-8");
+
+    assert.ok(content.includes("border-border bg-popover"), "Popover must use semantic border and background tokens");
+    assert.ok(!content.includes("border-black/5 dark:border-white/10"), "Popover must not have hardcoded black/white borders");
+  });
 });

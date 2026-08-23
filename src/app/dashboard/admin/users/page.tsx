@@ -1115,14 +1115,14 @@ export default function UserManagementPage() {
                 <button
                   onClick={() => setEditTargetUser(u)}
                   aria-label={`Edit ${u.username}`}
-                  className="flex-1 min-h-[44px] px-3 py-2 text-xs font-semibold text-zinc-300 bg-secondary rounded-xl hover:bg-secondary/80 flex items-center justify-center gap-1.5 touch-target"
+                  className="flex-1 min-h-[44px] px-3 py-2 text-xs font-semibold text-foreground bg-secondary rounded-xl hover:bg-secondary/80 flex items-center justify-center gap-1.5 touch-target"
                 >
-                  <UserCog className="w-3.5 h-3.5 text-brand-primary" /> Edit
+                  <UserCog className="w-3.5 h-3.5 text-primary" /> Edit
                 </button>
                 <button
                   onClick={() => setDeptTargetUser(u)}
                   aria-label={`Manage departments for ${u.username}`}
-                  className="flex-1 min-h-[44px] px-3 py-2 text-xs font-semibold text-zinc-300 bg-secondary rounded-xl hover:bg-secondary/80 flex items-center justify-center gap-1.5 touch-target"
+                  className="flex-1 min-h-[44px] px-3 py-2 text-xs font-semibold text-foreground bg-secondary rounded-xl hover:bg-secondary/80 flex items-center justify-center gap-1.5 touch-target"
                 >
                   <Building2 className="w-3.5 h-3.5 text-blue-400" /> Depts
                 </button>
@@ -1290,8 +1290,8 @@ export default function UserManagementPage() {
                         onClick={() => updateMutation.mutate({ id: u.id, data: { canManageVendors: !u.canManageVendors } })}
                         className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border transition-all ${
                           u.canManageVendors
-                            ? 'bg-amber-500/20 text-amber-500 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.2)]'
-                            : 'bg-zinc-800/50 text-zinc-500 border-white/5 opacity-50 hover:opacity-80'
+                            ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30'
+                            : 'bg-secondary text-muted-foreground border-border hover:bg-secondary/80'
                         }`}
                       >
                         {u.canManageVendors ? 'Vendor Manager' : 'No Extra Rights'}

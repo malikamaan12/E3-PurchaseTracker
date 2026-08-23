@@ -50,13 +50,13 @@ export default function AnalyticsFilters({ filters, setFilters, isAdmin }: Analy
       <div className="glass-card p-4 pointer-events-auto shadow-2xl shadow-purple-500/5 border-purple-500/10">
         <div className="flex flex-wrap items-center gap-4">
           
-          <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 rounded-xl border border-white/5 focus-within:border-purple-500/40 transition-all">
+          <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 rounded-xl border border-border focus-within:border-primary/40 transition-all">
             <Calendar className="w-4 h-4 text-[#2FB7B2]" />
             <input 
               type="date" 
               value={filters.startDate}
               onChange={(e) => handleChange("startDate", e.target.value)}
-              className="bg-transparent text-xs font-bold text-foreground outline-none w-28 [color-scheme:dark]"
+              className="bg-transparent text-xs font-bold text-foreground outline-none w-28"
               placeholder="From"
             />
             <span className="text-muted-foreground">→</span>
@@ -64,53 +64,53 @@ export default function AnalyticsFilters({ filters, setFilters, isAdmin }: Analy
               type="date" 
               value={filters.endDate}
               onChange={(e) => handleChange("endDate", e.target.value)}
-              className="bg-transparent text-xs font-bold text-foreground outline-none w-28 [color-scheme:dark]"
+              className="bg-transparent text-xs font-bold text-foreground outline-none w-28"
               placeholder="To"
             />
           </div>
 
           {isAdmin && (
-            <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 rounded-xl border border-white/5 focus-within:border-purple-500/40 transition-all">
+            <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 rounded-xl border border-border focus-within:border-primary/40 transition-all">
               <Building2 className="w-4 h-4 text-purple-400" />
               <select 
                 value={filters.departmentId}
                 onChange={(e) => handleChange("departmentId", e.target.value)}
-                className="bg-transparent text-xs font-bold text-foreground outline-none min-w-[120px] [color-scheme:dark]"
+                className="bg-transparent text-xs font-bold text-foreground outline-none min-w-[120px]"
               >
-                <option value="" className="bg-slate-900 text-white">All Departments</option>
+                <option value="" className="bg-card text-foreground">All Departments</option>
                 {depts.map(d => (
-                  <option key={d.id} value={d.name} className="bg-slate-900 text-white">{d.name}</option>
+                  <option key={d.id} value={d.name} className="bg-card text-foreground">{d.name}</option>
                 ))}
               </select>
             </div>
           )}
 
-          <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 rounded-xl border border-white/5 focus-within:border-purple-500/40 transition-all">
+          <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 rounded-xl border border-border focus-within:border-primary/40 transition-all">
             <UserCircle className="w-4 h-4 text-sky-400" />
             <select 
               value={filters.vendorId}
               onChange={(e) => handleChange("vendorId", e.target.value)}
-              className="bg-transparent text-xs font-bold text-foreground outline-none min-w-[120px] [color-scheme:dark]"
+              className="bg-transparent text-xs font-bold text-foreground outline-none min-w-[120px]"
             >
-              <option value="" className="bg-slate-900 text-white">All Vendors</option>
+              <option value="" className="bg-card text-foreground">All Vendors</option>
               {vendorsList.map(v => (
-                <option key={v.id} value={v.id} className="bg-slate-900 text-white">{v.companyName}</option>
+                <option key={v.id} value={v.id} className="bg-card text-foreground">{v.companyName}</option>
               ))}
             </select>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 rounded-xl border border-white/5 focus-within:border-purple-500/40 transition-all">
+          <div className="flex items-center gap-2 px-3 py-2 bg-secondary/30 rounded-xl border border-border focus-within:border-primary/40 transition-all">
             <Tag className="w-4 h-4 text-emerald-400" />
             <select 
               value={filters.status}
               onChange={(e) => handleChange("status", e.target.value)}
-              className="bg-transparent text-xs font-bold text-foreground outline-none min-w-[100px] [color-scheme:dark]"
+              className="bg-transparent text-xs font-bold text-foreground outline-none min-w-[100px]"
             >
-              <option value="" className="bg-slate-900 text-white">Any Status</option>
-              <option value="pending" className="bg-slate-900 text-white">Pending</option>
-              <option value="approved" className="bg-slate-900 text-white">Approved</option>
-              <option value="rejected" className="bg-slate-900 text-white">Rejected</option>
-              <option value="variation_pending" className="bg-slate-900 text-white">Variation</option>
+              <option value="" className="bg-card text-foreground">Any Status</option>
+              <option value="pending" className="bg-card text-foreground">Pending</option>
+              <option value="approved" className="bg-card text-foreground">Approved</option>
+              <option value="rejected" className="bg-card text-foreground">Rejected</option>
+              <option value="variation_pending" className="bg-card text-foreground">Variation</option>
             </select>
           </div>
 

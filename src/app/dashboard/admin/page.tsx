@@ -239,7 +239,7 @@ export default function AdminOverviewPage() {
               sub: "User Access & Permissions",
               path: "/dashboard/admin/users",
               icon: <Users className="w-5 h-5" />,
-              color: "blue-500"
+              colorClass: "bg-blue-500/10 border-blue-500/20 text-blue-500"
             },
           ] : [
             {
@@ -247,14 +247,14 @@ export default function AdminOverviewPage() {
               sub: "Organization & Structure",
               path: "/dashboard/admin/departments",
               icon: <Building2 className="w-5 h-5" />,
-              color: "brand-primary"
+              colorClass: "bg-primary/10 border-primary/20 text-primary"
             },
             {
               title: "Project Portfolio",
               sub: "Budgets & Project Splits",
               path: "/dashboard/admin/sub-purposes",
               icon: <FolderKanban className="w-5 h-5" />,
-              color: "blue-500"
+              colorClass: "bg-blue-500/10 border-blue-500/20 text-blue-500"
             },
           ]),
           {
@@ -262,29 +262,29 @@ export default function AdminOverviewPage() {
             sub: "Purpose & Category Matrix",
             path: "/dashboard/admin/purposes",
             icon: <BarChart3 className="w-5 h-5" />,
-            color: "emerald-500"
+            colorClass: "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
           },
           {
             title: "System Diagnostics",
             sub: "Heuristic & Audit Logs",
             path: "/dashboard/admin/diagnostics",
             icon: <AlertCircle className="w-5 h-5" />,
-            color: "amber-500"
+            colorClass: "bg-amber-500/10 border-amber-500/20 text-amber-500"
           }
         ].map((tool, i) => (
           <Link key={i} href={tool.path}>
-            <div className="glass-card p-6 border-white/5 hover:border-brand-primary/30 transition-all group flex flex-col gap-4">
+            <div className="glass-card p-6 border-border hover:border-primary/40 transition-all group flex flex-col gap-4">
                <div className={cn(
                  "w-12 h-12 rounded-2xl flex items-center justify-center border transition-colors group-hover:scale-110",
-                 `bg-${tool.color}/10 border-${tool.color}/20 text-${tool.color}`
+                 tool.colorClass
                )}>
                   {tool.icon}
                </div>
                <div>
-                  <h4 className="text-sm font-black text-foreground group-hover:text-brand-primary transition-colors">{tool.title}</h4>
+                  <h4 className="text-sm font-black text-foreground group-hover:text-primary transition-colors">{tool.title}</h4>
                   <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-1">{tool.sub}</p>
                </div>
-               <div className="flex items-center gap-2 mt-2 text-[9px] font-black text-brand-primary uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
+               <div className="flex items-center gap-2 mt-2 text-[9px] font-black text-primary uppercase opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
                   Access Protocol <ArrowRight className="w-3 h-3" />
                </div>
             </div>

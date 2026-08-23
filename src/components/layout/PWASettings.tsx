@@ -90,9 +90,9 @@ export function PWASettings() {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0 overflow-hidden glass-card border-white/10" align="end">
-        <div className="p-4 border-b border-white/5 bg-brand-primary/5">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-brand-primary flex items-center gap-2">
+      <PopoverContent className="w-80 p-0 overflow-hidden glass-card border-border" align="end">
+        <div className="p-4 border-b border-border bg-primary/5">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2">
             <Settings2 className="w-3.5 h-3.5" /> PWA Native Settings
           </h3>
           <p className="text-[10px] text-muted-foreground mt-1">Configure OS-level app integration</p>

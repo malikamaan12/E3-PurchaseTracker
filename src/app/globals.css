@@ -149,11 +149,6 @@
     }
   }
 
-  .dark .glass {
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-  }
-
   .glass-input {
     @apply w-full rounded-[var(--radius-md)] px-4 py-2.5 text-sm outline-none bg-background border border-border;
     transition: all 0.2s ease;

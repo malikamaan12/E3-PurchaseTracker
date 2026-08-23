@@ -360,9 +360,9 @@ function ComplianceCell({ doc }: { doc: ComplianceDoc }) {
         <div className="flex justify-center group/icon">
           <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center text-rose-500/80 group-hover/icon:bg-rose-500/20 group-hover/icon:text-rose-500 transition-all duration-300 cursor-help relative hover:scale-110 shadow-sm">
             <AlertCircle className="w-4 h-4" />
-            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-32 bg-gray-900 dark:bg-black p-2.5 rounded-xl opacity-0 group-hover/icon:opacity-100 transition-all duration-300 pointer-events-none text-[9px] font-black uppercase tracking-widest text-white border border-white/10 shadow-2xl z-50 scale-95 group-hover/icon:scale-100 origin-bottom">
+            <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-36 bg-popover text-popover-foreground p-2.5 rounded-xl opacity-0 group-hover/icon:opacity-100 transition-all duration-300 pointer-events-none text-[9px] font-black uppercase tracking-widest border border-border shadow-2xl z-50 scale-95 group-hover/icon:scale-100 origin-bottom">
               Missing Documentation
-              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 dark:bg-black rotate-45 border-r border-b border-white/10"></div>
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-popover rotate-45 border-r border-b border-border"></div>
             </div>
           </div>
         </div>
@@ -380,11 +380,11 @@ function ComplianceCell({ doc }: { doc: ComplianceDoc }) {
           className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 group-hover/icon:bg-emerald-500/20 group-hover/icon:text-emerald-500 transition-all duration-300 relative hover:scale-110 shadow-sm"
         >
           <CheckCircle2 className="w-4 h-4" />
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 bg-gray-900 dark:bg-black p-3 rounded-xl opacity-0 group-hover/icon:opacity-100 transition-all duration-300 pointer-events-none text-left border border-white/10 shadow-2xl z-50 scale-95 group-hover/icon:scale-100 origin-bottom">
-            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-400 mb-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Authenticated</p>
-            <p className="text-xs font-bold text-white truncate max-w-full leading-tight">{doc.file?.name}</p>
-            <p className="text-[9px] text-white/50 mt-1.5 uppercase font-bold tracking-wider">Uploaded {doc.file?.date ? new Date(doc.file.date).toLocaleDateString() : 'N/A'}</p>
-            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-gray-900 dark:bg-black rotate-45 border-r border-b border-white/10"></div>
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 w-48 bg-popover text-popover-foreground p-3 rounded-xl opacity-0 group-hover/icon:opacity-100 transition-all duration-300 pointer-events-none text-left border border-border shadow-2xl z-50 scale-95 group-hover/icon:scale-100 origin-bottom">
+            <p className="text-[8px] font-black uppercase tracking-[0.2em] text-emerald-600 dark:text-emerald-400 mb-1 flex items-center gap-1"><CheckCircle2 className="w-3 h-3"/> Authenticated</p>
+            <p className="text-xs font-bold text-foreground truncate max-w-full leading-tight">{doc.file?.name}</p>
+            <p className="text-[9px] text-muted-foreground mt-1.5 uppercase font-bold tracking-wider">Uploaded {doc.file?.date ? new Date(doc.file.date).toLocaleDateString() : 'N/A'}</p>
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-popover rotate-45 border-r border-b border-border"></div>
           </div>
         </button>
       </div>

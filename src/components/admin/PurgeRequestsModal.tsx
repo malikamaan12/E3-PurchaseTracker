@@ -117,7 +117,7 @@ export function PurgeRequestsModal({ trigger }: PurgeRequestsModalProps) {
                     placeholder="Enter your administrative password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="h-12 bg-white/5 border-white/10 focus:border-[#5B4B8A] transition-all rounded-xl text-xs font-bold"
+                    className="h-12 bg-background border-border focus:border-primary transition-all rounded-xl text-xs font-bold"
                     autoFocus
                   />
                 </div>
@@ -151,7 +151,7 @@ export function PurgeRequestsModal({ trigger }: PurgeRequestsModalProps) {
             </div>
             
             {/* BRAND FOOTER */}
-            <div className="p-4 bg-secondary/30 flex items-center justify-center border-t border-white/5">
+            <div className="p-4 bg-secondary/30 flex items-center justify-center border-t border-border">
               <span className="text-[9px] font-black uppercase tracking-[0.3em] text-[#5B4B8A] opacity-40">
                 PurchaseTracker Institutional Governance
               </span>

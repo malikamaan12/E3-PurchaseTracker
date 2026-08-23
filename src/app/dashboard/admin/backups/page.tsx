@@ -259,10 +259,10 @@ export default function AdminBackupsPage() {
           })();
 
           return (
-            <div key={i} className="glass-card p-6 border-white/5 relative overflow-hidden group">
+            <div key={i} className="glass-card p-6 border-border relative overflow-hidden group">
               <div className="flex items-start justify-between">
                 <div className="space-y-4">
-                  <div className="p-3 rounded-xl bg-white/5 border border-white/10 w-fit">
+                  <div className="p-3 rounded-xl bg-secondary/60 border border-border w-fit">
                     {stat.icon}
                   </div>
                   <div>
@@ -275,7 +275,7 @@ export default function AdminBackupsPage() {
                   <span className={`text-[9px] font-black uppercase tracking-wider ${badge.text}`}>{stat.status}</span>
                 </div>
               </div>
-              <p className="text-[10px] text-muted-foreground font-medium mt-4 group-hover:text-brand-primary transition-colors">{stat.sub}</p>
+              <p className="text-[10px] text-muted-foreground font-medium mt-4 group-hover:text-primary transition-colors">{stat.sub}</p>
             </div>
           );
         })}
@@ -285,20 +285,20 @@ export default function AdminBackupsPage() {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="glass-card p-8 border-white/5 space-y-8"
+        className="glass-card p-8 border-border space-y-8"
       >
-        <div className="flex items-center justify-between border-b border-white/5 pb-6">
+        <div className="flex items-center justify-between border-b border-border pb-6">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-brand-primary/10 flex items-center justify-center border border-brand-primary/20">
-              <Settings2 className="w-6 h-6 text-brand-primary" />
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center border border-primary/20">
+              <Settings2 className="w-6 h-6 text-primary" />
             </div>
             <div>
               <h2 className="text-xl font-black text-foreground tracking-tight">Vault Configuration</h2>
               <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold mt-1">Google Drive Redundancy Matrix</p>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-[10px] font-black text-muted-foreground uppercase tracking-tighter">
-            <ShieldCheck className="w-3 h-3 text-brand-primary" />
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-secondary border border-border text-[10px] font-black text-muted-foreground uppercase tracking-tighter">
+            <ShieldCheck className="w-3.5 h-3.5 text-primary" />
             Governance Mode Active
           </div>
         </div>
@@ -308,16 +308,16 @@ export default function AdminBackupsPage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Primary Destination Link / ID</label>
-              <span className="text-[9px] font-mono text-brand-primary/60">Auto-Extract Enabled</span>
+              <span className="text-[9px] font-mono text-primary/70">Auto-Extract Enabled</span>
             </div>
             <div className="relative group">
               <Input
                 placeholder="Paste Folder ID or full Google Drive Link"
                 value={vaultConfig.primary}
                 onChange={(e) => setVaultConfig(prev => ({ ...prev, primary: e.target.value }))}
-                className="h-14 bg-white/5 border-white/10 focus:border-brand-primary/50 text-xs font-bold pl-12 rounded-xl transition-all"
+                className="h-14 bg-background border-border focus:border-primary/50 text-xs font-bold pl-12 rounded-xl transition-all"
               />
-              <LucideHardDrive className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-brand-primary transition-colors" />
+              <LucideHardDrive className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
             </div>
             <p className="text-[9px] text-muted-foreground italic pl-1">Target folder for the primary institutional archive.</p>
           </div>
@@ -326,14 +326,14 @@ export default function AdminBackupsPage() {
           <div className="space-y-4">
              <div className="flex items-center justify-between">
               <label className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Secondary Fallback Link / ID</label>
-              <span className="text-[9px] font-mono text-emerald-500/60 font-bold">Redundancy Layer</span>
+              <span className="text-[9px] font-mono text-emerald-500/80 font-bold">Redundancy Layer</span>
             </div>
             <div className="relative group">
               <Input
                 placeholder="Paste Backup Folder ID or Link"
                 value={vaultConfig.secondary}
                 onChange={(e) => setVaultConfig(prev => ({ ...prev, secondary: e.target.value }))}
-                className="h-14 bg-white/5 border-white/10 focus:border-emerald-500/30 text-xs font-bold pl-12 rounded-xl transition-all"
+                className="h-14 bg-background border-border focus:border-emerald-500/50 text-xs font-bold pl-12 rounded-xl transition-all"
               />
               <Cloud className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground group-focus-within:text-emerald-500 transition-colors" />
             </div>
@@ -341,8 +341,8 @@ export default function AdminBackupsPage() {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-4 border-t border-white/5">
-           <div className="flex items-center gap-3 text-amber-500 bg-amber-500/5 px-4 py-2 rounded-xl border border-amber-500/10">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-6 pt-4 border-t border-border">
+           <div className="flex items-center gap-3 text-amber-500 bg-amber-500/10 px-4 py-2 rounded-xl border border-amber-500/20">
               <AlertCircle className="w-4 h-4" />
               <p className="text-[9px] font-black uppercase tracking-widest leading-none">Database Overrides Environment Variables Once Saved</p>
            </div>
@@ -350,7 +350,7 @@ export default function AdminBackupsPage() {
            <Button
             onClick={saveVaultConfig}
             disabled={isSavingConfig}
-            className="w-full md:w-auto bg-[#5B4B8A] hover:bg-[#4A3B72] text-white px-10 h-14 rounded-2xl shadow-xl shadow-[#5B4B8A]/20 flex items-center gap-3 transition-all active:scale-[0.98]"
+            className="w-full md:w-auto bg-primary hover:bg-primary/90 text-primary-foreground px-10 h-14 rounded-2xl shadow-xl shadow-primary/20 flex items-center gap-3 transition-all active:scale-[0.98]"
            >
              {isSavingConfig ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
              <span className="text-xs font-black uppercase tracking-widest">Secure Vault Configuration</span>
@@ -359,8 +359,8 @@ export default function AdminBackupsPage() {
       </motion.div>
 
       {/* Backup History Table */}
-      <div className="glass-card border-white/5 overflow-hidden rounded-2xl sm:rounded-3xl">
-        <div className="p-5 sm:p-8 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+      <div className="glass-card border-border overflow-hidden rounded-2xl sm:rounded-3xl">
+        <div className="p-5 sm:p-8 border-b border-border flex items-center justify-between bg-secondary/30">
           <div className="flex items-center gap-3.5">
             <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0">
               <History className="w-5 h-5 text-muted-foreground" />
@@ -384,7 +384,7 @@ export default function AdminBackupsPage() {
             </div>
           ) : (
             backups.map((backup) => (
-              <div key={backup.key} className="p-4 rounded-2xl border border-white/10 bg-white/[0.02] space-y-3 shadow-sm">
+              <div key={backup.key} className="p-4 rounded-2xl border border-border bg-secondary/20 space-y-3 shadow-sm">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-foreground font-mono truncate">{backup.name}</p>
@@ -398,7 +398,7 @@ export default function AdminBackupsPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center justify-between pt-2 border-t border-white/5">
+                <div className="flex items-center justify-between pt-2 border-t border-border">
                   <span className="text-xs font-bold text-muted-foreground">
                     {(backup.size / 1024 / 1024).toFixed(2)} MB
                   </span>
@@ -406,7 +406,7 @@ export default function AdminBackupsPage() {
                     variant="secondary"
                     onClick={() => handleDownload(backup.key)}
                     aria-label={`Download ${backup.name}`}
-                    className="min-h-[44px] px-4 rounded-xl bg-secondary/80 hover:bg-brand-primary hover:text-white transition-all touch-target text-xs font-bold"
+                    className="min-h-[44px] px-4 rounded-xl bg-secondary hover:bg-primary hover:text-primary-foreground transition-all touch-target text-xs font-bold"
                   >
                     <Download className="w-3.5 h-3.5 mr-1.5" /> Download
                   </Button>
@@ -420,7 +420,7 @@ export default function AdminBackupsPage() {
         <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-white/[0.01]">
+              <tr className="bg-secondary/40 border-b border-border">
                 {["Reference Name", "Timestamp", "Archive Size", "Integrity", "Action"].map((h) => (
                   <th key={h} className="px-8 py-5 text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em]">
                     {h}
@@ -428,7 +428,7 @@ export default function AdminBackupsPage() {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-border">
               <AnimatePresence>
                 {backups.length === 0 && !isLoading ? (
                   <tr>
@@ -446,11 +446,11 @@ export default function AdminBackupsPage() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.05 }}
-                      className="hover:bg-white/[0.02] transition-colors group"
+                      className="hover:bg-secondary/30 transition-colors group"
                     >
                       <td className="px-8 py-6">
                         <div className="flex items-center gap-3">
-                          <Archive className="w-4 h-4 text-brand-primary opacity-40 group-hover:opacity-100 transition-opacity" />
+                          <Archive className="w-4 h-4 text-primary opacity-40 group-hover:opacity-100 transition-opacity" />
                           <span className="text-xs font-bold text-foreground font-mono">{backup.name}</span>
                         </div>
                       </td>

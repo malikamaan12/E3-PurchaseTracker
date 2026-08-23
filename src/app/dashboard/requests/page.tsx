@@ -405,7 +405,7 @@ function RequestsDashboardContent() {
                       <input
                         type="checkbox"
                         aria-label="Select all requests"
-                        className="w-4 h-4 rounded-md border-white/20 bg-white/5 text-brand-primary focus:ring-brand-primary cursor-pointer transition-all"
+                        className="w-4 h-4 rounded-md border border-input bg-background text-primary focus:ring-primary cursor-pointer transition-all"
                         checked={selectedIds.length === requests?.length && requests?.length > 0}
                         onChange={(e) => handleSelectAll(e.target.checked)}
                       />

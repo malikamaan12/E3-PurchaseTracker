@@ -208,7 +208,7 @@ export default function ProjectManagementPage() {
                       QAR {committed.toLocaleString()}
                     </span>
                   </div>
-                  <div className="w-full h-2 bg-secondary rounded-full overflow-hidden border border-white/5">
+                  <div className="w-full h-2 bg-secondary rounded-full overflow-hidden border border-border/60">
                     <div
                       className={`h-full transition-all duration-500 rounded-full ${
                         isOver ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
@@ -404,7 +404,7 @@ export default function ProjectManagementPage() {
                           QAR {committed.toLocaleString()}
                         </span>
                       </div>
-                      <div className="w-full h-2 bg-secondary rounded-full overflow-hidden border border-white/5">
+                      <div className="w-full h-2 bg-secondary rounded-full overflow-hidden border border-border/60">
                         <div
                           className={`h-full transition-all duration-500 rounded-full ${
                             isOver ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500'
@@ -435,7 +435,7 @@ export default function ProjectManagementPage() {
                         className={`w-11 h-11 inline-flex items-center justify-center rounded-2xl transition-all shadow-none hover:shadow-xl active:scale-95 ${
                           proj.status === 'frozen'
                             ? 'bg-cyan-500/20 text-cyan-500 border border-cyan-500/30'
-                            : 'hover:bg-white text-muted-foreground hover:text-cyan-500'
+                            : 'hover:bg-secondary text-muted-foreground hover:text-cyan-500'
                         }`}
                         title={proj.status === 'frozen' ? "Unfreeze Project" : "Freeze Project"}
                       >

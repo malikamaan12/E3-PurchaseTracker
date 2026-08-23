@@ -31,11 +31,11 @@ export default function ComplianceLoading() {
       </div>
 
       {/* Table skeleton */}
-      <div className="glass p-1 rounded-3xl">
-        <div className="bg-white/40 dark:bg-white/[0.02] rounded-[22px] overflow-hidden">
-          <div className="h-16 bg-white/5 dark:bg-white/[0.02] border-b border-white/5" />
+      <div className="glass-card p-1 rounded-3xl border border-border">
+        <div className="bg-secondary/20 rounded-[22px] overflow-hidden">
+          <div className="h-16 bg-secondary/40 border-b border-border/40" />
           {[1, 2, 3, 4, 5].map(i => (
-            <div key={i} className="flex items-center gap-8 px-6 py-6 border-b border-white/5">
+            <div key={i} className="flex items-center gap-8 px-6 py-6 border-b border-border/40">
               <div className="flex-1 space-y-2">
                 <div className="h-4 w-40 bg-white/10 dark:bg-white/5 rounded" />
                 <div className="h-3 w-56 bg-white/10 dark:bg-white/5 rounded" />

@@ -59,7 +59,7 @@ export function DeleteRequestDialog({
 
                   <div className="mt-10 flex gap-4 justify-center">
                     <AlertDialog.Cancel asChild>
-                      <button className="flex-1 px-6 py-3 rounded-2xl text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-white/20 transition-all border border-transparent hover:border-white/10">
+                      <button className="flex-1 px-6 py-3 rounded-2xl text-xs font-bold text-muted-foreground hover:text-foreground bg-secondary/50 hover:bg-secondary transition-all border border-border">
                         Dismiss
                       </button>
                     </AlertDialog.Cancel>
