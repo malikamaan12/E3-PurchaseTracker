@@ -276,6 +276,15 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     }
   }, [formSubPurposeId, subPurposes]);
 
+  useEffect(() => {
+    if (vendorId && vendors.length > 0) {
+      const selected = vendors.find((v: any) => v.id === Number(vendorId));
+      if (selected?.payment_currency) {
+        setValue("currency", selected.payment_currency);
+      }
+    }
+  }, [vendorId, vendors, setValue]);
+
   const fetchSubPurposes = async (categoryId: number) => {
     setIsLoadingSubPurposes(true);
     try {

@@ -18,15 +18,35 @@ export async function GET(req: NextRequest) {
       documents = await db
         .select()
         .from(vendorDocuments)
-        .where(eq(vendorDocuments.draftId, session.draft.id))
+        .where(
+          or(
+            eq(vendorDocuments.draftId, session.draft.id),
+            eq(vendorDocuments.invitationId, session.tokenRecord.id)
+          )
+        )
         .orderBy(desc(vendorDocuments.uploadedAt));
     } else if (session.vendor) {
       documents = await db
         .select()
         .from(vendorDocuments)
-        .where(eq(vendorDocuments.vendorId, session.vendor.id))
+        .where(
+          or(
+            eq(vendorDocuments.vendorId, session.vendor.id),
+            eq(vendorDocuments.invitationId, session.tokenRecord.id)
+          )
+        )
         .orderBy(desc(vendorDocuments.uploadedAt));
     }
+
+    const formattedDocuments = documents.map((d) => ({
+      id: d.id,
+      documentType: d.documentType,
+      documentName: d.documentName,
+      fileUrl: d.fileUrl,
+      expiryDate: d.expiryDate ? new Date(d.expiryDate).toISOString() : null,
+      uploadedAt: d.uploadedAt ? new Date(d.uploadedAt).toISOString() : new Date().toISOString(),
+      reviewStatus: d.reviewStatus || "approved",
+    }));
 
     const standardRequiredDocs = [
       { type: "Commercial Registration", mandatory: true, description: "Valid CR with expiry date" },
@@ -37,7 +57,7 @@ export async function GET(req: NextRequest) {
 
     const draftData = session.draft || (session.vendor ? {
       id: 0,
-      companyName: session.vendor.companyName,
+      companyName: session.vendor.companyName || "",
       contactPerson: session.vendor.contactPerson || "",
       contactNumber: session.vendor.contactNumber || "",
       email: session.vendor.email || "",
@@ -50,6 +70,7 @@ export async function GET(req: NextRequest) {
       ibanNumber: session.vendor.ibanNumber || "",
       category: session.vendor.category || "general",
       payment_currency: session.vendor.payment_currency || "QAR",
+      vendorType: session.vendor.vendorType || "company",
       onboardingStatus: "in_progress",
       version: 1,
     } : null);
@@ -72,11 +93,16 @@ export async function GET(req: NextRequest) {
               address: session.vendor.address,
               taxNumber: session.vendor.taxNumber,
               registrationNumber: session.vendor.registrationNumber,
+              bankName: session.vendor.bankName,
+              branchName: session.vendor.branchName,
+              accountNumber: session.vendor.accountNumber,
+              ibanNumber: session.vendor.ibanNumber,
               category: session.vendor.category,
               payment_currency: session.vendor.payment_currency,
+              vendorType: session.vendor.vendorType,
             }
           : null,
-        documents,
+        documents: formattedDocuments,
         requiredDocumentTypes: requiredDocs,
         onboardingStatus: session.draft?.onboardingStatus || (session.vendor ? "in_progress" : "invited"),
         onboardingNotes: session.draft?.onboardingNotes || null,
