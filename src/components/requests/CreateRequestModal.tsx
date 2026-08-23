@@ -117,7 +117,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
   const [isLoadingVendors, setIsLoadingVendors] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<"general" | "items" | "payments" | "approvals">("general");
-  const [initialFiles, setInitialFiles] = useState<any[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
   const [exchangeRate, setExchangeRate] = useState(1);
   const [isVendorQuickCreateOpen, setIsVendorQuickCreateOpen] = useState(false);
   const [isCopyingComplianceLink, setIsCopyingComplianceLink] = useState(false);
@@ -187,13 +187,14 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
         try {
           const reqData = await apiClient.requests.get(requestId);
           
-          setInitialFiles(Array.isArray(reqData.attachments) ? reqData.attachments.map((a: any) => ({
+          const files = Array.isArray(reqData.attachments) ? reqData.attachments.map((a: any) => ({
             id: a.id,
             fileName: a.fileName,
             fileType: a.fileType,
             fileSize: a.fileSize,
             fileUrl: a.fileUrl
-          })) : []);
+          })) : [];
+          setUploadedFiles(files);
 
           reset({
             title: reqData.title || "",
@@ -209,7 +210,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
             freightAmount: reqData.freightAmount || 0,
             items: Array.isArray(reqData.items) ? reqData.items : [{ name: "", quantity: 1, estimatedCost: 0, description: "" }],
             additionalApprovers: Array.isArray(reqData.additionalApprovers) ? reqData.additionalApprovers : [],
-            attachmentIds: Array.isArray(reqData.attachments) ? reqData.attachments.map((a: any) => a.id) : [],
+            attachmentIds: files.map((a: any) => a.id),
             paymentStructure: reqData.paymentStructure || "POST_PROJECT",
             installments: Array.isArray(reqData.paymentInstallments) ? reqData.paymentInstallments.map((inst: any) => ({
               ...inst,
@@ -246,7 +247,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
           paymentStructure: "POST_PROJECT",
           installments: [],
         });
-        setInitialFiles([]);
+        setUploadedFiles([]);
       }
     }
     if (isOpen) fetchVendors();
@@ -576,12 +577,9 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                 className="flex-1 flex flex-col min-h-0"
               >
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-5">
-                  <AnimatePresence mode="wait">
-
-                    {/* ── Tab 1: General Details ── */}
-                    {activeTab === "general" && (
-                      <motion.div key="general" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div className="md:col-span-2 space-y-1.5">
+                  {/* ── Tab 1: General Details ── */}
+                  <div className={cn("grid grid-cols-1 md:grid-cols-2 gap-5", activeTab !== "general" && "hidden")}>
+                    <div className="md:col-span-2 space-y-1.5">
                           <label className="text-xs font-medium text-foreground mb-1 block">Request Title</label>
                           <div className="relative group">
                             <Layout className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/40 group-focus-within:text-primary transition-colors z-10" />
@@ -905,35 +903,31 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             {errors.description && <p className="text-xs text-rose-500 mt-1 font-medium pl-1">{errors.description.message}</p>}
                           </div>
                         </div>
-                      </motion.div>
-                    )}
+                      </div>
 
                     {/* ── Tab 2: Items ── */}
-                    {activeTab === "items" && (
-                      <motion.div key="items" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}>
-                        <Controller
-                          control={control}
-                          name="items"
-                          render={({ field }) => (
-                            <RequestItemGrid
-                              items={field.value}
-                              errors={errors.items}
-                              onChange={field.onChange}
-                              currency={watch("currency")}
-                              exchangeRate={exchangeRate}
-                              freightAmount={watch("freightAmount")}
-                              onFreightChange={(val) => setValue("freightAmount", val)}
-                              onTotalsChange={(val) => setValue("totalEstimatedCost", val)}
-                            />
-                          )}
-                        />
-                        {errors.items && <p className="text-[10px] text-rose-500 mt-4 font-bold uppercase tracking-wider pl-1">{errors.items.message}</p>}
-                      </motion.div>
-                    )}
+                    <div className={cn("space-y-6", activeTab !== "items" && "hidden")}>
+                      <Controller
+                        control={control}
+                        name="items"
+                        render={({ field }) => (
+                          <RequestItemGrid
+                            items={field.value}
+                            errors={errors.items}
+                            onChange={field.onChange}
+                            currency={watch("currency")}
+                            exchangeRate={exchangeRate}
+                            freightAmount={watch("freightAmount")}
+                            onFreightChange={(val) => setValue("freightAmount", val)}
+                            onTotalsChange={(val) => setValue("totalEstimatedCost", val)}
+                          />
+                        )}
+                      />
+                      {errors.items && <p className="text-[10px] text-rose-500 mt-4 font-bold uppercase tracking-wider pl-1">{errors.items.message}</p>}
+                    </div>
 
                     {/* ── Tab 3: Payment ── */}
-                    {activeTab === "payments" && (
-                      <motion.div key="payments" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-8">
+                    <div className={cn("space-y-8", activeTab !== "payments" && "hidden")}>
                         {/* Payment Structure Card Picker */}
                         <div className="space-y-4">
                           <div>
@@ -1128,86 +1122,83 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                             </div>
                           </motion.div>
                         )}
-                      </motion.div>
-                    )}
+                      </div>
 
                     {/* ── Tab 4: Files & Approvals ── */}
-                    {activeTab === "approvals" && (
-                      <motion.div key="approvals" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="space-y-12">
-                        <DocumentUploadZone
-                          initialFiles={initialFiles}
-                          onUploadComplete={(files) => {
-                            setValue("attachmentIds", files.map((f) => f.id).filter((id) => id !== undefined) as number[]);
-                          }}
-                        />
+                    <div className={cn("space-y-12", activeTab !== "approvals" && "hidden")}>
+                      <DocumentUploadZone
+                        initialFiles={uploadedFiles}
+                        onUploadComplete={(files) => {
+                          setUploadedFiles(files);
+                          const validIds = files.map((f) => f.id).filter((id): id is number => typeof id === "number");
+                          setValue("attachmentIds", validIds, { shouldDirty: true, shouldValidate: true });
+                        }}
+                      />
 
-                        <div className="space-y-8">
-                          {/* Mandatory (read-only) */}
+                      <div className="space-y-8">
+                        {/* Mandatory (read-only) */}
+                        <div>
+                          <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                            <ShieldCheck className="w-4 h-4 text-primary" />
+                            Mandatory Approvers
+                          </h3>
+                          <p className="text-xs text-muted-foreground mt-1">System-Assigned Executives</p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+                            {MANDATORY_DEPTS.map((dept) => (
+                              <div key={dept} className="bg-primary/10 px-4 py-3 rounded-xl border border-primary/30 text-primary text-xs font-bold text-center opacity-80 cursor-not-allowed">
+                                {dept}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Additional Approvers */}
+                        <div className="space-y-4">
                           <div>
                             <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
                               <ShieldCheck className="w-4 h-4 text-primary" />
-                              Mandatory Approvers
+                              Additional Approvals
                             </h3>
-                            <p className="text-xs text-muted-foreground mt-1">System-Assigned Executives</p>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
-                              {MANDATORY_DEPTS.map((dept) => (
-                                <div key={dept} className="bg-primary/10 px-4 py-3 rounded-xl border border-primary/30 text-primary text-xs font-bold text-center opacity-80 cursor-not-allowed">
-                                  {dept}
+                            <p className="text-xs text-muted-foreground mt-1">Select departments required for secondary sign-off</p>
+                          </div>
+                          {additionalDeptOptions.length === 0 ? (
+                            <p className="text-xs text-muted-foreground italic">No additional departments available.</p>
+                          ) : (
+                            <Controller
+                              control={control}
+                              name="additionalApprovers"
+                              render={({ field }) => (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                  {additionalDeptOptions.map((dept: any) => {
+                                    const isSelected = (field.value || []).includes(dept.name);
+                                    return (
+                                      <button
+                                        key={dept.id}
+                                        type="button"
+                                        onClick={() => {
+                                          const current = field.value || [];
+                                          const next = isSelected
+                                            ? current.filter((v: string) => v !== dept.name)
+                                            : [...current, dept.name];
+                                          field.onChange(next);
+                                        }}
+                                        className={`px-4 py-3 rounded-xl border text-xs font-bold text-center transition-all ${
+                                          isSelected
+                                            ? "bg-primary/10 text-primary border-primary/30 shadow-sm"
+                                            : "bg-secondary/50 text-muted-foreground border-border hover:border-primary/20 hover:text-foreground"
+                                        }`}
+                                      >
+                                        {dept.name}
+                                      </button>
+                                    );
+                                  })}
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Additional Approvers */}
-                          <div className="space-y-4">
-                            <div>
-                              <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                                <ShieldCheck className="w-4 h-4 text-primary" />
-                                Additional Approvals
-                              </h3>
-                              <p className="text-xs text-muted-foreground mt-1">Select departments required for secondary sign-off</p>
-                            </div>
-                            {additionalDeptOptions.length === 0 ? (
-                              <p className="text-xs text-muted-foreground italic">No additional departments available.</p>
-                            ) : (
-                              <Controller
-                                control={control}
-                                name="additionalApprovers"
-                                render={({ field }) => (
-                                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                    {additionalDeptOptions.map((dept: any) => {
-                                      const isSelected = (field.value || []).includes(dept.name);
-                                      return (
-                                        <button
-                                          key={dept.id}
-                                          type="button"
-                                          onClick={() => {
-                                            const current = field.value || [];
-                                            const next = isSelected
-                                              ? current.filter((v: string) => v !== dept.name)
-                                              : [...current, dept.name];
-                                            field.onChange(next);
-                                          }}
-                                          className={`px-4 py-3 rounded-xl border text-xs font-bold text-center transition-all ${
-                                            isSelected
-                                              ? "bg-primary/10 text-primary border-primary/30 shadow-sm"
-                                              : "bg-secondary/50 text-muted-foreground border-border hover:border-primary/20 hover:text-foreground"
-                                          }`}
-                                        >
-                                          {dept.name}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-                              />
-                            )}
-                          </div>
+                              )}
+                            />
+                          )}
                         </div>
-                      </motion.div>
-                    )}
-
-                  </AnimatePresence>
+                      </div>
+                    </div>
                 </div>
 
                 {/* Footer */}
