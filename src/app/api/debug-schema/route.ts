@@ -3,12 +3,19 @@ import { db } from "@db";
 import { purchaseRequests, paymentInstallments } from "@db/schema";
 import { eq, count } from "drizzle-orm";
 
+import { getAuthenticatedUser } from "@/lib/auth-next";
+
 export const dynamic = 'force-dynamic';
 
-// DEVELOPMENT ONLY — remove before production
+// DEVELOPMENT & DIAGNOSTIC ONLY — super_admin access required
 export async function POST(req: NextRequest) {
-  if (process.env.NODE_ENV !== 'development') {
-    return NextResponse.json({ error: "Not available" }, { status: 404 });
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ error: "Not available in production" }, { status: 404 });
+  }
+
+  const user = await getAuthenticatedUser(req);
+  if (!user || user.role !== 'super_admin') {
+    return NextResponse.json({ error: "Unauthorized: Super Admin access required" }, { status: 403 });
   }
 
   try {

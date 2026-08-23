@@ -56,6 +56,11 @@ export async function POST(req: NextRequest) {
 
       if (!targetApproval || targetApproval.status !== 'pending') continue;
 
+      // Stage 1 Gatekeeper for supervisor requests: mandatory approvals cannot be satisfied until Stage 1 is cleared
+      if (request.status === 'pending_dept_head' && targetApproval.isMandatory && user.role !== 'super_admin') {
+        continue;
+      }
+
       // Update approval
       await db
         .update(approvals)

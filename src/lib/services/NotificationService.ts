@@ -47,19 +47,19 @@ export const NOTIFICATION_ROUTES = {
   approval_overridden: '/dashboard/requests/{id}',
 
   // Vendor related notifications
-  vendor_created: '/dashboard/vendors/{id}',
-  vendor_updated: '/dashboard/vendors/{id}',
-  vendor_deactivated: '/dashboard/vendors/{id}',
+  vendor_created: '/dashboard/vendors',
+  vendor_updated: '/dashboard/vendors',
+  vendor_deactivated: '/dashboard/vendors',
 
   // Account related notifications
-  account_created: '/dashboard/user-profile',
-  account_updated: '/dashboard/user-profile',
-  password_reset: '/login', // Typically outside dashboard
+  account_created: '/dashboard/requests',
+  account_updated: '/dashboard/requests',
+  password_reset: '/login',
 
   // System notifications
-  system_maintenance: '/dashboard/notifications',
-  system_update: '/dashboard/notifications',
-  system_error: '/dashboard/error-dashboard'
+  system_maintenance: '/dashboard/requests',
+  system_update: '/dashboard/requests',
+  system_error: '/dashboard/admin/diagnostics'
 };
 
 /**
@@ -970,18 +970,25 @@ export class NotificationService {
    */
   private generateLink(type: string, params: Record<string, any> = {}): string | null {
     const routePattern = NOTIFICATION_ROUTES[type as keyof typeof NOTIFICATION_ROUTES];
-    if (!routePattern) return null;
+    if (!routePattern) return '/dashboard/requests';
 
     let link = routePattern;
+    const resolvedId = params.requestId ?? params.id ?? params.vendorId ?? '';
 
-    // Replace parameters in route pattern
+    // Replace both {id} and {requestId}
+    link = link.replace(/\{id\}/g, String(resolvedId)).replace(/\{requestId\}/g, String(resolvedId));
+
+    // Replace any remaining parameters
     Object.keys(params).forEach(key => {
       if (params[key] !== undefined && params[key] !== null) {
-        link = link.replace(`{${key}}`, params[key]);
+        link = link.replace(new RegExp(`\\{${key}\\}`, 'g'), String(params[key]));
       }
     });
 
-    return link;
+    // If an ID placeholder was not provided or empty, fallback cleanly
+    link = link.replace(/\/\{[^}]+\}/g, '').replace(/\{[^}]+\}/g, '');
+
+    return link || '/dashboard/requests';
   }
 }
 

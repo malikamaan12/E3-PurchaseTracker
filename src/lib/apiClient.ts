@@ -157,8 +157,9 @@ class ApiClient {
       window.open(`/api/export/bundle/${id}`, "_blank");
     },
     exportExcel: (params: Record<string, any> = {}) => {
-      const search = new URLSearchParams({ ...params, format: "excel" }).toString();
-      window.open(`/api/requests/export?${search}`, "_blank");
+      const search = new URLSearchParams(params).toString();
+      const url = search ? `/api/export/excel?${search}` : `/api/export/excel`;
+      window.open(url, "_blank");
     },
   };
 

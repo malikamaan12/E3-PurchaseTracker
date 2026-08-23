@@ -154,7 +154,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     if (!updated) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    return NextResponse.json({ message: "User updated successfully", user: updated });
+    const { password: _, ...userWithoutPassword } = updated;
+
+    return NextResponse.json({ message: "User updated successfully", user: userWithoutPassword });
   } catch (error: any) {
     console.error("[Native Admin API] User PATCH Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });

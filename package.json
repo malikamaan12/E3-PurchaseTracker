@@ -15,7 +15,9 @@
     "test:onboarding": "tsx tests/vendor-onboarding/onboarding.test.ts",
     "test:financials": "tsx tests/financial-metrics.test.ts",
     "test:quickcreate": "tsx tests/pr-vendor-quick-create-flow.test.ts",
-    "test:all": "npm run test:security && npm run test:visibility && npm run test:financials && npm run test:onboarding && npm run test:quickcreate && npm run test:e2e",
+    "test:notifications": "tsx tests/notification-formatter.test.ts",
+    "test:audit": "tsx tests/app-audit-remediations.test.ts",
+    "test:all": "npm run test:security && npm run test:visibility && npm run test:financials && npm run test:onboarding && npm run test:quickcreate && npm run test:notifications && npm run test:audit && npm run test:e2e",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

@@ -3,6 +3,7 @@ import { db } from "@db";
 import { vendorComplianceCases, vendors, notifications, users, auditLogs } from "@db/schema";
 import { eq, and, sql, lte, inArray, isNull } from "drizzle-orm";
 import { ComplianceEvaluationService } from "@/lib/services/ComplianceEvaluationService";
+import { getAuthenticatedUser } from "@/lib/auth-next";
 
 export const dynamic = "force-dynamic";
 
@@ -17,13 +18,19 @@ export async function GET(req: NextRequest) {
     const authHeader = req.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
 
-    if (process.env.NODE_ENV === "production" && !cronSecret) {
+    if (cronSecret) {
+      if (authHeader !== `Bearer ${cronSecret}`) {
+        return NextResponse.json({ error: "Unauthorized cron request" }, { status: 401 });
+      }
+    } else if (process.env.NODE_ENV === "production") {
       console.error("[CRON] Security Hard Stop: CRON_SECRET is not configured in production. Rejecting execution.");
       return NextResponse.json({ error: "CRON_SECRET must be configured in production." }, { status: 500 });
-    }
-
-    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized cron request" }, { status: 401 });
+    } else {
+      // In development/testing without CRON_SECRET, require an authenticated admin session
+      const user = await getAuthenticatedUser(req);
+      if (!user || (user.role !== "admin" && user.role !== "super_admin")) {
+        return NextResponse.json({ error: "Unauthorized: CRON_SECRET or Admin session required" }, { status: 401 });
+      }
     }
 
     const now = new Date();

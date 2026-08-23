@@ -34,6 +34,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const canManage = user.role === "admin" || user.role === "super_admin" || (user as any).canManageVendors === true;
+    if (!canManage) return NextResponse.json({ error: "Access Denied: Vendor management permissions required" }, { status: 403 });
+
     const vendorId = parseInt(paramId);
     if (isNaN(vendorId)) return NextResponse.json({ error: "Invalid vendor ID" }, { status: 400 });
 

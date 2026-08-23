@@ -51,7 +51,7 @@ export async function GET(req: NextRequest) {
     }
 
     // 3. Generate fresh 1-hour signed URL if R2 storage is active
-    let freshSignedUrl = rawUrl;
+    let freshSignedUrl: string | null = null;
     if (isR2Configured && objectKey) {
       try {
         freshSignedUrl = await r2Storage.getReadPresignedUrl(objectKey, 3600);
@@ -60,7 +60,25 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    return NextResponse.redirect(freshSignedUrl);
+    if (freshSignedUrl) {
+      return NextResponse.redirect(freshSignedUrl);
+    }
+
+    // 4. Safe destination check for non-R2 environments (prevent arbitrary open redirect)
+    try {
+      const parsed = new URL(rawUrl, req.url);
+      const reqOrigin = new URL(req.url).origin;
+      const isSameOrigin = parsed.origin === reqOrigin;
+      const isAllowedS3Host = parsed.hostname.endsWith(".r2.cloudflarestorage.com") || parsed.hostname.endsWith(".amazonaws.com");
+
+      if (isSameOrigin || isAllowedS3Host || rawUrl.startsWith("/uploads/")) {
+        return NextResponse.redirect(parsed.toString());
+      }
+    } catch {
+      // Invalid URL format
+    }
+
+    return NextResponse.json({ error: "Invalid document destination" }, { status: 400 });
   } catch (error: any) {
     console.error("[Document View API] Server Error:", error);
     return NextResponse.json({ error: "Failed to resolve document preview" }, { status: 500 });

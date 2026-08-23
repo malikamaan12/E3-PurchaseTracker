@@ -135,6 +135,21 @@ function RequestsDashboardContent() {
   const [confirmApprovalRequest, setConfirmApprovalRequest] = useState<any | null>(null);
   const [myQueueMode, setMyQueueMode] = useState(false);
 
+  // Auto-trigger Create Request modal if navigated with ?new=true or ?create=1
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("new") === "true" || params.get("new") === "1" || params.get("create") === "true" || params.get("create") === "1") {
+        setIsCreateModalOpen(true);
+        params.delete("new");
+        params.delete("create");
+        const newQuery = params.toString();
+        const newUrl = window.location.pathname + (newQuery ? `?${newQuery}` : "");
+        window.history.replaceState({}, "", newUrl);
+      }
+    }
+  }, []);
+
   // "My Queue" — requests where logged-in user is an approver and has an active pending approval slot
   const myQueueRequests = (!isSupervisor && (isSuperAdmin || isApprover)) ? (requests || []).filter((req: any) =>
     Array.isArray(req.approvals) &&

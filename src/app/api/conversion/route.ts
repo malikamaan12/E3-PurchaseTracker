@@ -44,14 +44,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing required data" }, { status: 400 });
     }
 
-    const absolutePath = path.join(process.cwd(), filePath.replace(/^\/uploads\//, "uploads/"));
+    const allowedBase = path.resolve(process.cwd(), "uploads");
+    const relativeClean = filePath.replace(/^\/?uploads\/?/, "").replace(/^(\.\.[\/\\])+/, "");
+    const absolutePath = path.resolve(allowedBase, relativeClean);
+
+    if (!absolutePath.startsWith(allowedBase)) {
+      return NextResponse.json({ error: "Access denied: Invalid file path" }, { status: 403 });
+    }
+
     await fs.access(absolutePath);
 
     const result = await conversionService.convertFile(absolutePath, targetFormat, sourceFormat);
     
+    // Normalize relative output path for public access
+    const relativeOutput = path.relative(process.cwd(), result.outputPath).replace(/\\/g, "/");
+    const publicUrl = relativeOutput.startsWith("/") ? relativeOutput : `/${relativeOutput}`;
+
     return NextResponse.json({
       success: true,
-      fileUrl: `/api/files/download?path=${encodeURIComponent(result.outputPath)}`,
+      fileUrl: publicUrl,
       outputType: result.outputType,
       size: (await fs.stat(result.outputPath)).size,
     });

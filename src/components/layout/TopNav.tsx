@@ -43,6 +43,12 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { usePerformance } from "@/context/PerformanceContext";
 import { usePWA } from "@/context/PWAContext";
+import { 
+  resolveNotificationLink, 
+  formatNotificationTitle, 
+  formatNotificationMessage, 
+  formatNotificationTime 
+} from "@/lib/utils/notification-formatter";
 import { PWASettings } from "./PWASettings";
 import { cn } from "@/lib/utils";
 import {
@@ -106,11 +112,7 @@ export default function TopNav() {
         queryClient.invalidateQueries({ queryKey: ["notifications"] });
       }
       setIsNotifOpen(false);
-      let link = notif.link || `/dashboard/requests/${notif.requestId || ''}`;
-      // Fix old notifications missing the /dashboard prefix
-      if (link.startsWith('/') && !link.startsWith('/dashboard')) {
-        link = `/dashboard${link}`;
-      }
+      const link = resolveNotificationLink(notif);
       router.push(link);
     } catch (error) {
       console.error("Failed to process notification:", error);
@@ -319,16 +321,10 @@ export default function TopNav() {
                              <Bell className="w-4 h-4" />
                           </div>
                           <div className="flex-1 min-w-0">
-                             <p className="text-xs font-bold text-foreground truncate">{notif.title}</p>
-                             <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{notif.message}</p>
+                             <p className="text-xs font-bold text-foreground truncate">{formatNotificationTitle(notif)}</p>
+                             <p className="text-[11px] text-muted-foreground line-clamp-2 mt-0.5">{formatNotificationMessage(notif)}</p>
                              <p className="text-[10px] font-mono text-muted-foreground/60 mt-1">
-                               {notif.createdAt ? (() => {
-                                  try {
-                                    return formatDistanceToNow(new Date(notif.createdAt));
-                                  } catch (e) {
-                                    return "recently";
-                                  }
-                               })() : "recently"} ago
+                               {formatNotificationTime(notif.createdAt)}
                              </p>
                           </div>
                         </button>

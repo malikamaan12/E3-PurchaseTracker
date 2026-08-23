@@ -6,6 +6,11 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { apiClient } from "@/lib/apiClient";
+import { 
+  resolveNotificationLink, 
+  formatNotificationTitle, 
+  formatNotificationMessage 
+} from "@/lib/utils/notification-formatter";
 
 /**
  * NotificationToastWatcher
@@ -59,7 +64,7 @@ export function NotificationToastWatcher() {
       newNotifications.forEach((notif: any) => {
         knownIdsRef.current.add(notif.id);
 
-        const targetUrl = notif.link || (notif.requestId ? `/dashboard/requests/${notif.requestId}` : null);
+        const targetUrl = resolveNotificationLink(notif);
 
         const actionHandler = targetUrl
           ? {
@@ -76,14 +81,12 @@ export function NotificationToastWatcher() {
           : undefined;
 
         // Clean and format message content
-        const cleanTitle = (notif.title || "")
-          .replace(/_/g, " ")
-          .replace(/\b\w/g, (c: string) => c.toUpperCase()) || "System Notification";
-        const cleanMessage = notif.message || "";
+        const cleanTitle = formatNotificationTitle(notif);
+        const cleanMessage = formatNotificationMessage(notif);
 
         switch (notif.type) {
           case "purchase_request_approved":
-            toast.success(cleanTitle || "Request Approved", {
+            toast.success(cleanTitle, {
               description: cleanMessage,
               action: actionHandler,
               duration: 4000,
@@ -91,7 +94,7 @@ export function NotificationToastWatcher() {
             break;
 
           case "purchase_request_rejected":
-            toast.error(cleanTitle || "Request Rejected", {
+            toast.error(cleanTitle, {
               description: cleanMessage,
               action: actionHandler,
               duration: 5000,
@@ -99,7 +102,7 @@ export function NotificationToastWatcher() {
             break;
 
           case "purchase_request_changes_requested":
-            toast.warning(cleanTitle || "Changes Requested", {
+            toast.warning(cleanTitle, {
               description: cleanMessage,
               action: actionHandler,
               duration: 5000,
@@ -108,7 +111,7 @@ export function NotificationToastWatcher() {
 
           case "approval_required":
           case "purchase_request_submitted":
-            toast.info(cleanTitle || "Approval Required", {
+            toast.info(cleanTitle, {
               description: cleanMessage,
               action: actionHandler,
               duration: 4000,

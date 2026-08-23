@@ -47,7 +47,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
 
   } catch (error: any) {
-    console.error("[Vendor Rating API] PATCH Error:", error);
+    console.error("[Vendor Rating API] Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
+}
+
+/**
+ * POST /api/vendors/[id]/rate
+ * Alias for PATCH to support clients invoking via POST.
+ */
+export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  return PATCH(req, ctx);
 }

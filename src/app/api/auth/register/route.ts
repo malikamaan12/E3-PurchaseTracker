@@ -69,9 +69,30 @@ export async function POST(req: NextRequest) {
       .where(or(eq(accountRequests.username, cleanUsername), eq(accountRequests.email, cleanEmail)))
       .limit(1);
       
-    if (existingRequest && existingRequest.status === "pending") {
-      console.warn(`[Auth][Native][${traceId}] Conflict: Pending request exists for ${cleanUsername}/${cleanEmail}`);
-      return NextResponse.json({ message: "A pending request already exists for this username or email" }, { status: 409 });
+    if (existingRequest) {
+      if (existingRequest.status === "pending") {
+        console.warn(`[Auth][Native][${traceId}] Conflict: Pending request exists for ${cleanUsername}/${cleanEmail}`);
+        return NextResponse.json({ message: "A pending request already exists for this username or email" }, { status: 409 });
+      }
+
+      // 3. Password Hashing & Re-submission for rejected request
+      console.log(`[Auth][Native][${traceId}] Re-submitting existing rejected request...`);
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await db.update(accountRequests).set({
+        username: cleanUsername,
+        password: hashedPassword,
+        email: cleanEmail,
+        contact_number: String(contact_number).trim(),
+        department: String(department).trim(),
+        role: "user",
+        status: "pending",
+        updatedAt: new Date()
+      }).where(eq(accountRequests.id, existingRequest.id));
+
+      console.log(`[Auth][Native][${traceId}] SUCCESS (Re-submitted): ${cleanUsername}`);
+      return NextResponse.json({ 
+        message: "Account request re-submitted successfully! Please wait for admin approval." 
+      }, { status: 200 });
     }
 
     // 3. Password Hashing

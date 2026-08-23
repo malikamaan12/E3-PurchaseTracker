@@ -61,7 +61,7 @@ export async function seedInitialApprovals(
         !isMandatory &&
         !isSupervisor &&
         normalizedUserDepts.includes(dept.toLowerCase().trim()) &&
-        (userRole === 'approver' || userRole === 'admin');
+        (userRole === 'approver' || userRole === 'admin' || userRole === 'super_admin');
 
       const [newApproval] = await db.insert(approvals).values({
         requestId,

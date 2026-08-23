@@ -13,6 +13,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+    const canManage = user.role === "admin" || user.role === "super_admin" || (user as any).canManageVendors === true;
+    if (!canManage) return NextResponse.json({ error: "Access Denied: Vendor management permissions required" }, { status: 403 });
+
     const vendorId = parseInt(paramId);
     const docId = parseInt(paramDocId);
     if (isNaN(vendorId) || isNaN(docId)) return NextResponse.json({ error: "Invalid IDs" }, { status: 400 });
@@ -34,6 +37,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const { id: paramId, docId: paramDocId } = await params;
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const canManage = user.role === "admin" || user.role === "super_admin" || (user as any).canManageVendors === true;
+    if (!canManage) return NextResponse.json({ error: "Access Denied: Vendor management permissions required" }, { status: 403 });
 
     const vendorId = parseInt(paramId);
     const docId = parseInt(paramDocId);

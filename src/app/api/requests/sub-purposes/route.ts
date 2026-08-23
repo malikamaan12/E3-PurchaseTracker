@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const purposeType = searchParams.get("purposeType");
     const purposeCategoryId = searchParams.get("purposeCategoryId");
-    const isAdmin = user?.role?.toLowerCase() === 'admin';
+    const isAdmin = user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'super_admin';
     const isApprover = user?.role?.toLowerCase() === 'approver' || user?.isApprover === true;
     
     console.log(`[Sub-Purposes API] User: ${user.username}, Role: ${user.role}, isAdmin: ${isAdmin}`);

@@ -30,8 +30,7 @@ import { useAuth } from "@/context/AuthContext";
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
-  const { user } = useAuth();
-  const isAdmin = user?.role === "admin";
+  const { user, isAdmin } = useAuth();
 
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
