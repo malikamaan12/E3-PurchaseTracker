@@ -28,10 +28,40 @@ export async function GET(req: NextRequest) {
         .orderBy(desc(vendorDocuments.uploadedAt));
     }
 
+    const standardRequiredDocs = [
+      { type: "Commercial Registration", mandatory: true, description: "Valid CR with expiry date" },
+      { type: "Tax Certificate", mandatory: false, description: "Optional tax identification certificate" },
+      { type: "Establishment Card", mandatory: false, description: "Computer card / Municipality license" },
+      { type: "Company Profile / Brochure", mandatory: false, description: "Company overview or catalog" }
+    ];
+
+    const draftData = session.draft || (session.vendor ? {
+      id: 0,
+      companyName: session.vendor.companyName,
+      contactPerson: session.vendor.contactPerson || "",
+      contactNumber: session.vendor.contactNumber || "",
+      email: session.vendor.email || "",
+      address: session.vendor.address || "",
+      taxNumber: session.vendor.taxNumber || "",
+      registrationNumber: session.vendor.registrationNumber || "",
+      bankName: session.vendor.bankName || "",
+      branchName: session.vendor.branchName || "",
+      accountNumber: session.vendor.accountNumber || "",
+      ibanNumber: session.vendor.ibanNumber || "",
+      category: session.vendor.category || "general",
+      payment_currency: session.vendor.payment_currency || "QAR",
+      onboardingStatus: "in_progress",
+      version: 1,
+    } : null);
+
+    const requiredDocs = (session.draft?.requiredDocumentTypes && session.draft.requiredDocumentTypes.length > 0)
+      ? session.draft.requiredDocumentTypes
+      : standardRequiredDocs;
+
     const response = NextResponse.json({
       success: true,
       data: {
-        draft: session.draft,
+        draft: draftData,
         vendor: session.vendor
           ? {
               id: session.vendor.id,
@@ -47,8 +77,8 @@ export async function GET(req: NextRequest) {
             }
           : null,
         documents,
-        requiredDocumentTypes: session.draft?.requiredDocumentTypes || [],
-        onboardingStatus: session.draft?.onboardingStatus || (session.vendor ? "approved" : "invited"),
+        requiredDocumentTypes: requiredDocs,
+        onboardingStatus: session.draft?.onboardingStatus || (session.vendor ? "in_progress" : "invited"),
         onboardingNotes: session.draft?.onboardingNotes || null,
         expiresAt: session.tokenRecord.expiresAt,
         remainingSeconds: session.remainingSeconds,

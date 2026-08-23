@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Building2,
   Landmark,
@@ -56,7 +56,7 @@ export function VendorPortalWizard({
     ibanNumber: initialDraft?.ibanNumber || "",
     payment_currency: initialDraft?.payment_currency || "QAR",
   });
-  const [documents, setDocuments] = useState<any[]>(initialDocuments);
+  const [documents, setDocuments] = useState<any[]>(initialDocuments || []);
   const [version, setVersion] = useState<number>(initialDraft?.version || 1);
 
   const [isSaving, setIsSaving] = useState<boolean>(false);
@@ -64,6 +64,34 @@ export function VendorPortalWizard({
   const [saveMessage, setSaveMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [declarationAccepted, setDeclarationAccepted] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (initialDocuments) {
+      setDocuments(initialDocuments);
+    }
+  }, [initialDocuments]);
+
+  useEffect(() => {
+    if (initialDraft) {
+      setFormData((prev) => ({
+        companyName: initialDraft.companyName || prev.companyName || "",
+        contactPerson: initialDraft.contactPerson || prev.contactPerson || "",
+        email: initialDraft.email || prev.email || "",
+        contactNumber: initialDraft.contactNumber || prev.contactNumber || "",
+        address: initialDraft.address || prev.address || "",
+        taxNumber: initialDraft.taxNumber || prev.taxNumber || "",
+        registrationNumber: initialDraft.registrationNumber || prev.registrationNumber || "",
+        bankName: initialDraft.bankName || prev.bankName || "",
+        branchName: initialDraft.branchName || prev.branchName || "",
+        accountNumber: initialDraft.accountNumber || prev.accountNumber || "",
+        ibanNumber: initialDraft.ibanNumber || prev.ibanNumber || "",
+        payment_currency: initialDraft.payment_currency || prev.payment_currency || "QAR",
+      }));
+      if (initialDraft.version) {
+        setVersion(initialDraft.version);
+      }
+    }
+  }, [initialDraft]);
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

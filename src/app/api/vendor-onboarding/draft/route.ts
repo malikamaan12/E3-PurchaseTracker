@@ -20,9 +20,9 @@ export async function PUT(req: NextRequest) {
       return attachVendorSecurityHeaders(res);
     }
 
-    if (!session.draft) {
+    if (!session.draft && !session.vendor) {
       const res = NextResponse.json(
-        { error: "No active draft associated with this session." },
+        { error: "No active profile or draft associated with this session." },
         { status: 400 }
       );
       return attachVendorSecurityHeaders(res);
@@ -47,16 +47,49 @@ export async function PUT(req: NextRequest) {
       return attachVendorSecurityHeaders(res);
     }
 
-    const updated = await vendorOnboardingService.saveDraftProgress({
-      draftId: session.draft.id,
-      invitationId: session.tokenRecord.id,
-      data: parseResult.data,
-      currentVersion: parseResult.data.version,
-    });
+    if (session.draft) {
+      const updated = await vendorOnboardingService.saveDraftProgress({
+        draftId: session.draft.id,
+        invitationId: session.tokenRecord.id,
+        data: parseResult.data,
+        currentVersion: parseResult.data.version,
+      });
+
+      const res = NextResponse.json({
+        success: true,
+        data: updated,
+      });
+      return attachVendorSecurityHeaders(res);
+    }
+
+    // Existing vendor profile update
+    const { db } = await import("@db");
+    const { vendors } = await import("@db/schema");
+    const { eq } = await import("drizzle-orm");
+
+    const updatePayload: Record<string, any> = { updatedAt: new Date() };
+    if (parseResult.data.companyName) updatePayload.companyName = parseResult.data.companyName;
+    if (parseResult.data.contactPerson) updatePayload.contactPerson = parseResult.data.contactPerson;
+    if (parseResult.data.contactNumber) updatePayload.contactNumber = parseResult.data.contactNumber;
+    if (parseResult.data.email) updatePayload.email = parseResult.data.email;
+    if (parseResult.data.address !== undefined) updatePayload.address = parseResult.data.address;
+    if (parseResult.data.taxNumber !== undefined) updatePayload.taxNumber = parseResult.data.taxNumber;
+    if (parseResult.data.registrationNumber !== undefined) updatePayload.registrationNumber = parseResult.data.registrationNumber;
+    if (parseResult.data.bankName !== undefined) updatePayload.bankName = parseResult.data.bankName;
+    if (parseResult.data.branchName !== undefined) updatePayload.branchName = parseResult.data.branchName;
+    if (parseResult.data.accountNumber !== undefined) updatePayload.accountNumber = parseResult.data.accountNumber;
+    if (parseResult.data.ibanNumber !== undefined) updatePayload.ibanNumber = parseResult.data.ibanNumber;
+    if (parseResult.data.payment_currency) updatePayload.payment_currency = parseResult.data.payment_currency;
+
+    await db.update(vendors).set(updatePayload).where(eq(vendors.id, session.vendor.id));
 
     const res = NextResponse.json({
       success: true,
-      data: updated,
+      data: {
+        ...session.vendor,
+        ...parseResult.data,
+        version: (parseResult.data.version || 1) + 1,
+      },
     });
     return attachVendorSecurityHeaders(res);
   } catch (error: any) {

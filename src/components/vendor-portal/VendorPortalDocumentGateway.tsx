@@ -46,8 +46,19 @@ export function VendorPortalDocumentGateway({
   onDocumentAdded,
   onDocumentRemoved,
 }: VendorPortalDocumentGatewayProps) {
+  const standardRequiredDocs: RequiredDocConfig[] = [
+    { type: "Commercial Registration", mandatory: true, description: "Valid CR with expiry date" },
+    { type: "Tax Certificate", mandatory: false, description: "Optional tax identification certificate" },
+    { type: "Establishment Card", mandatory: false, description: "Computer card / Municipality license" },
+    { type: "Company Profile / Brochure", mandatory: false, description: "Company overview or catalog" },
+  ];
+
+  const effectiveRequiredTypes = (requiredDocumentTypes && requiredDocumentTypes.length > 0)
+    ? requiredDocumentTypes
+    : standardRequiredDocs;
+
   const [selectedType, setSelectedType] = useState<string>(
-    requiredDocumentTypes[0]?.type || "Commercial Registration"
+    effectiveRequiredTypes[0]?.type || "Commercial Registration"
   );
   const [expiryDate, setExpiryDate] = useState<string>("");
   const [isUploading, setIsUploading] = useState<boolean>(false);
@@ -58,7 +69,7 @@ export function VendorPortalDocumentGateway({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Check upload compliance
-  const mandatoryMissing = requiredDocumentTypes
+  const mandatoryMissing = effectiveRequiredTypes
     .filter((req) => req.mandatory)
     .filter((req) => !documents.some((d) => d.documentType.toLowerCase().trim() === req.type.toLowerCase().trim()));
 
@@ -86,60 +97,30 @@ export function VendorPortalDocumentGateway({
 
     try {
       setIsUploading(true);
-      setUploadProgress(15);
+      setUploadProgress(30);
 
-      // Step 1: Initiate upload intent
-      const initRes = await fetch("/api/vendor-onboarding/documents/initiate", {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("documentType", selectedType);
+      if (expiryDate) {
+        formData.append("expiryDate", expiryDate);
+      }
+
+      const res = await fetch("/api/vendor-onboarding/documents/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          documentType: selectedType,
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type || "application/octet-stream",
-        }),
+        body: formData,
       });
-
-      const initData = await initRes.json();
-      if (!initRes.ok) {
-        throw new Error(initData.error || "Failed to initiate upload");
-      }
-
-      setUploadProgress(45);
-
-      // Step 2: Direct-to-R2 upload (Bypassing Vercel 4.5MB payload limit)
-      const uploadRes = await fetch(initData.data.uploadUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": file.type,
-        },
-        body: file,
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error("Direct storage upload failed. Please verify your connection and retry.");
-      }
 
       setUploadProgress(80);
 
-      // Step 3: Complete & verify intent (magic bytes + size verification)
-      const completeRes = await fetch("/api/vendor-onboarding/documents/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          intentId: initData.data.intentId,
-          expiryDate: expiryDate || null,
-        }),
-      });
-
-      const completeData = await completeRes.json();
-      if (!completeRes.ok) {
-        throw new Error(completeData.error || "Upload verification failed");
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to upload document");
       }
 
       setUploadProgress(100);
       setSuccessMessage(`Document "${file.name}" uploaded and verified successfully.`);
-      onDocumentAdded(completeData.data);
+      onDocumentAdded(data.data);
 
       // Reset form
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -202,12 +183,12 @@ export function VendorPortalDocumentGateway({
         <h3 className="text-sm font-semibold text-white mb-3 flex items-center justify-between">
           <span>Required Compliance Documents</span>
           <span className="text-xs font-normal text-slate-400">
-            {documents.length} of {requiredDocumentTypes.length} types uploaded
+            {documents.length} of {effectiveRequiredTypes.length} types uploaded
           </span>
         </h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {requiredDocumentTypes.map((req) => {
+          {effectiveRequiredTypes.map((req) => {
             const isUploaded = documents.some(
               (d) => d.documentType.toLowerCase().trim() === req.type.toLowerCase().trim()
             );
@@ -283,7 +264,7 @@ export function VendorPortalDocumentGateway({
                 disabled={isUploading}
                 className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-primary transition-colors min-h-[44px]"
               >
-                {requiredDocumentTypes.map((r) => (
+                {effectiveRequiredTypes.map((r) => (
                   <option key={r.type} value={r.type}>
                     {r.type} {r.mandatory ? "(Required)" : "(Optional)"}
                   </option>
