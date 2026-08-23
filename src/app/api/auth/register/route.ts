@@ -5,6 +5,7 @@ import { JWT_SECRET, TOKEN_COOKIE_NAME, COOKIE_OPTIONS } from "@/lib/utils/confi
 import { AppError } from "@/lib/utils/errors";
 import { accountRequests, users } from "@db/schema";
 import { eq, or } from "drizzle-orm";
+import { durableRateLimiter } from "@/lib/services/DurableRateLimitService";
 
 /**
  * NATIVE NEXT.JS REGISTER ROUTE
@@ -16,7 +17,19 @@ export async function POST(req: NextRequest) {
   console.log(`[Auth][Native][${traceId}] Register Request Start`);
 
   try {
-    const body = await req.json();
+    const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    const ipHash = durableRateLimiter.hashIp(clientIp);
+
+    // Rate limiting: 5 registration requests per minute per IP
+    const rateCheck = await durableRateLimiter.consume(`auth:register:${ipHash}`, 5, 60);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { message: "Too many registration attempts. Please wait a few minutes before trying again." },
+        { status: 429 }
+      );
+    }
+
+    const body = await req.json().catch(() => ({}));
     
     const { username, password, email, contact_number, department } = body;
 
@@ -25,27 +38,39 @@ export async function POST(req: NextRequest) {
        return NextResponse.json({ message: "Missing required fields" }, { status: 400 });
     }
 
-    if (password.length < 6) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(String(email).trim())) {
+       return NextResponse.json({ message: "Invalid email format" }, { status: 400 });
+    }
+
+    if (typeof username !== 'string' || username.trim().length < 3) {
+       return NextResponse.json({ message: "Username must be at least 3 characters" }, { status: 400 });
+    }
+
+    if (typeof password !== 'string' || password.length < 6) {
        return NextResponse.json({ message: "Password must be at least 6 characters" }, { status: 400 });
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanUsername = username.trim();
+
     // 2. Check for Existing User or Pending Request
-    console.log(`[Auth][Native][${traceId}] Checking availability: ${username} / ${email}`);
+    console.log(`[Auth][Native][${traceId}] Checking availability: ${cleanUsername} / ${cleanEmail}`);
     
     // Check users table
-    const [existingUser] = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    const [existingUser] = await db.select().from(users).where(or(eq(users.username, cleanUsername), eq(users.email, cleanEmail))).limit(1);
     if (existingUser) {
-      console.warn(`[Auth][Native][${traceId}] Conflict: Username ${username} already exists`);
-      return NextResponse.json({ message: "Username already exists" }, { status: 409 });
+      console.warn(`[Auth][Native][${traceId}] Conflict: User already exists for ${cleanUsername}/${cleanEmail}`);
+      return NextResponse.json({ message: "Username or email already in use" }, { status: 409 });
     }
 
     // Check accountRequests table
     const [existingRequest] = await db.select().from(accountRequests)
-      .where(or(eq(accountRequests.username, username), eq(accountRequests.email, email)))
+      .where(or(eq(accountRequests.username, cleanUsername), eq(accountRequests.email, cleanEmail)))
       .limit(1);
       
     if (existingRequest && existingRequest.status === "pending") {
-      console.warn(`[Auth][Native][${traceId}] Conflict: Pending request exists for ${username}/${email}`);
+      console.warn(`[Auth][Native][${traceId}] Conflict: Pending request exists for ${cleanUsername}/${cleanEmail}`);
       return NextResponse.json({ message: "A pending request already exists for this username or email" }, { status: 409 });
     }
 
@@ -56,25 +81,25 @@ export async function POST(req: NextRequest) {
     // 4. Create Account Request
     console.log(`[Auth][Native][${traceId}] Inserting account request...`);
     await db.insert(accountRequests).values({
-      username,
+      username: cleanUsername,
       password: hashedPassword,
-      email,
-      contact_number,
-      department,
+      email: cleanEmail,
+      contact_number: String(contact_number).trim(),
+      department: String(department).trim(),
       role: "user",
       status: "pending"
     });
 
-    console.log(`[Auth][Native][${traceId}] SUCCESS: ${username}`);
+    console.log(`[Auth][Native][${traceId}] SUCCESS: ${cleanUsername}`);
     return NextResponse.json({ 
       message: "Account request submitted successfully! Please wait for admin approval." 
     }, { status: 201 });
 
   } catch (error: any) {
-    console.error(`[Auth][Native][${traceId}] FATAL ERROR:`, error.message);
+    console.error(`[Auth][Native][${traceId}] FATAL ERROR:`, error?.message || error);
     return NextResponse.json({ 
       error: "Internal Server Error", 
-      message: error.message 
+      message: "An unexpected error occurred while processing registration." 
     }, { status: 500 });
   }
 }

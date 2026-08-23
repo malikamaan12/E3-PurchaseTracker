@@ -32,17 +32,35 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
     }
 
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
-      return NextResponse.json({ error: "Invalid file type. Only images are allowed." }, { status: 400 });
+    const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5 MB
+    const ALLOWED_IMAGE_MIMES = new Set(["image/png", "image/jpeg", "image/webp"]);
+    const ALLOWED_IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "webp"]);
+
+    if (file.size > MAX_IMAGE_SIZE) {
+      return NextResponse.json({ error: "Image file exceeds maximum allowed size of 5MB." }, { status: 400 });
     }
+
+    const ext = file.name.split(".").pop()?.toLowerCase() || "";
+    if (!ALLOWED_IMAGE_EXTS.has(ext)) {
+      return NextResponse.json({ error: `Image extension ".${ext}" is not permitted. Only PNG, JPG, JPEG, and WebP are allowed.` }, { status: 400 });
+    }
+
+    if (!ALLOWED_IMAGE_MIMES.has(file.type.toLowerCase())) {
+      return NextResponse.json({ error: "Invalid file type. Only PNG, JPG, and WebP images are allowed." }, { status: 400 });
+    }
+
+    const sanitizedFileName = file.name
+      .replace(/\.\.+/g, "")
+      .replace(/[^a-zA-Z0-9._\- ]/g, "")
+      .trim()
+      .slice(0, 150) || "branding-image.png";
 
     const buffer = Buffer.from(await file.arrayBuffer());
     
     // Upload to R2
     const objectKey = await r2Storage.uploadAttachment(
       buffer,
-      file.name,
+      sanitizedFileName,
       file.type
     );
 

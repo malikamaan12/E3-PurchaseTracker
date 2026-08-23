@@ -7,6 +7,7 @@ import { eq, inArray } from "drizzle-orm";
 import { JWT_SECRET, TOKEN_COOKIE_NAME, IS_PRODUCTION } from "@/lib/utils/config";
 import { AppError } from "@/lib/utils/errors";
 import { normalizeDepartmentAssignments } from "@/lib/auth-next";
+import { durableRateLimiter } from "@/lib/services/DurableRateLimitService";
 
 /**
  * NATIVE NEXT.JS LOGIN ROUTE
@@ -18,7 +19,23 @@ export async function POST(req: NextRequest) {
   console.log(`[Auth][Native][${traceId}] Login Request Start`);
 
   try {
-    const { email, password } = await req.json();
+    const clientIp = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
+    const ipHash = durableRateLimiter.hashIp(clientIp);
+
+    // Rate limiting: 10 attempts per minute per IP
+    const rateCheck = await durableRateLimiter.consume(`auth:login:${ipHash}`, 10, 60);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { message: "Too many login attempts. Please wait a moment before trying again." },
+        { status: 429 }
+      );
+    }
+
+    const { email, password } = await req.json().catch(() => ({}));
+
+    if (!email || !password) {
+      return NextResponse.json({ message: "Email and password are required" }, { status: 400 });
+    }
 
     // 1. Database Lookup
     console.log(`[Auth][Native][${traceId}] Querying user: ${email}`);
@@ -100,10 +117,10 @@ export async function POST(req: NextRequest) {
     return response;
 
   } catch (error: any) {
-    console.error(`[Auth][Native][${traceId}] FATAL ERROR:`, error.message);
+    console.error(`[Auth][Native][${traceId}] FATAL ERROR:`, error?.message || error);
     return NextResponse.json({ 
       error: "Internal Server Error", 
-      message: error.message 
+      message: "An unexpected error occurred. Please try again later." 
     }, { status: 500 });
   }
 }

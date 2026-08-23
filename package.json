@@ -8,8 +8,14 @@
     "build": "next build",
     "start": "next start",
     "check": "tsc",
+    "test": "tsx tests/verify_all_fixes.ts",
     "test:security": "tsx tests/vendor-completion-link.test.ts",
     "test:visibility": "tsx tests/requests-visibility-rbac.test.ts",
+    "test:e2e": "tsx tests/e2e-purchase-vendor-lifecycle.test.ts",
+    "test:onboarding": "tsx tests/vendor-onboarding/onboarding.test.ts",
+    "test:financials": "tsx tests/financial-metrics.test.ts",
+    "test:quickcreate": "tsx tests/pr-vendor-quick-create-flow.test.ts",
+    "test:all": "npm run test:security && npm run test:visibility && npm run test:financials && npm run test:onboarding && npm run test:quickcreate && npm run test:e2e",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
