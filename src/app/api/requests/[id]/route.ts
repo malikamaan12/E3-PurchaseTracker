@@ -263,7 +263,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const rawBody = await req.json();
     const validation = updateRequestSchema.safeParse(rawBody);
     if (!validation.success) {
-      return NextResponse.json({ error: "Validation Failed", details: validation.error.format() }, { status: 400 });
+      const errorMsg = validation.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(", ");
+      return NextResponse.json({ error: "Validation Failed", message: errorMsg || "Invalid request payload", details: validation.error.format() }, { status: 400 });
     }
     const updateData = validation.data;
 

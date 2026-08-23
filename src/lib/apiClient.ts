@@ -52,7 +52,7 @@ class ApiClient {
       const errorData = await response.json().catch(() => ({}));
       throw new ApiError(
         response.status,
-        errorData.error || errorData.message || "An unexpected error occurred",
+        errorData.message || errorData.error || "An unexpected error occurred",
         errorData
       );
     }

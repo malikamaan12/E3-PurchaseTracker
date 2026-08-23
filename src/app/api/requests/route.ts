@@ -289,8 +289,10 @@ export async function POST(req: NextRequest) {
     // 1. Strict Payload Validation (Zod Hardening)
     const validation = createRequestSchema.safeParse(body);
     if (!validation.success) {
+      const errorMsg = validation.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(", ");
       return NextResponse.json({ 
         error: "Validation Failed", 
+        message: errorMsg || "Invalid request payload",
         details: validation.error.format() 
       }, { status: 400 });
     }
@@ -315,6 +317,15 @@ export async function POST(req: NextRequest) {
       status: requestedStatus
     } = validation.data;
 
+    if (requestedStatus === "pending") {
+      if (!vendorId || vendorId <= 0) {
+        return NextResponse.json({ error: "Validation Failed", message: "Please select a vendor before submitting for approval." }, { status: 400 });
+      }
+      if (!items || items.length === 0) {
+        return NextResponse.json({ error: "Validation Failed", message: "At least one line item is required before submitting for approval." }, { status: 400 });
+      }
+    }
+
     // --- Submitting Department Authority Resolution ---
     let effectiveDept = user.department;
     if (requestedDept) {
@@ -329,10 +340,11 @@ export async function POST(req: NextRequest) {
 
     // --- SECURITY PATCH: Trust No Client Payload ---
     // Recalculate actual sum from items to prevent client-side manipulation of budget.
-    const calculatedItemsTotal = items.reduce((sum, item) => sum + (item.quantity * item.estimatedCost), 0);
+    const safeItems = Array.isArray(items) ? items : [];
+    const calculatedItemsTotal = safeItems.reduce((sum, item) => sum + (item.quantity * item.estimatedCost), 0);
     const totalEstimatedCostNum = Math.round(calculatedItemsTotal);
     const freightAmountNum = Math.round(freightAmount || 0);
-    const vendorIdNum = vendorId;
+    const vendorIdNum = vendorId || null;
     const totalCost = totalEstimatedCostNum + freightAmountNum;
     
     // --- Currency Conversion Lock-In ---

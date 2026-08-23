@@ -130,6 +130,7 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     control,
     setValue,
     watch,
+    trigger,
     formState: { errors },
   } = useForm<RequestFormValues>({
     resolver: zodResolver(requestSchema),
@@ -407,14 +408,14 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
 
       const finalizedData = { 
         ...data, 
-        vendorId: Number(data.vendorId),
-        purposeCategoryId: Number(data.purposeCategoryId),
-        subPurposeId: Number(data.subPurposeId),
+        vendorId: data.vendorId && Number(data.vendorId) > 0 ? Number(data.vendorId) : undefined,
+        purposeCategoryId: data.purposeCategoryId && Number(data.purposeCategoryId) > 0 ? Number(data.purposeCategoryId) : null,
+        subPurposeId: data.subPurposeId && Number(data.subPurposeId) > 0 ? Number(data.subPurposeId) : null,
         purposeType: data.purposeType || "PROJECT",
         status: targetStatus,
         currency: "QAR",
-        freightAmount: data.freightAmount * exchangeRate,
-        totalEstimatedCost: data.totalEstimatedCost * exchangeRate,
+        freightAmount: (data.freightAmount || 0) * exchangeRate,
+        totalEstimatedCost: (data.totalEstimatedCost || 0) * exchangeRate,
         items: convertedItems,
         installments: convertedInstallments
       };
@@ -443,24 +444,16 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     if (!requestId) {
       const currentValues = watch();
       const hasData = 
-        (currentValues.title && currentValues.title.trim().length > 0) ||
-        (currentValues.description && currentValues.description.trim().length > 0) ||
-        (currentValues.vendorId && String(currentValues.vendorId) !== "") ||
-        (currentValues.items && currentValues.items.some((i: any) => i.name && i.name.trim().length > 0));
+        (currentValues.title && currentValues.title.trim().length >= 3) &&
+        ((currentValues.description && currentValues.description.trim().length > 0) ||
+         (currentValues.vendorId && Number(currentValues.vendorId) > 0) ||
+         (currentValues.items && currentValues.items.some((i: any) => i.name && i.name.trim().length > 0)));
 
       if (hasData) {
-        const draftTitle = currentValues.title && currentValues.title.trim().length >= 3 
-          ? currentValues.title.trim() 
-          : `Draft Request (${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })})`;
-        
-        const draftVendorId = currentValues.vendorId && Number(currentValues.vendorId) > 0
-          ? Number(currentValues.vendorId)
-          : (vendors.length > 0 ? vendors[0].id : 1);
-
-        const draftPurposeCategoryId = currentValues.purposeCategoryId && Number(currentValues.purposeCategoryId) > 0
-          ? Number(currentValues.purposeCategoryId)
-          : (categories.length > 0 ? categories[0].id : 1);
-
+        const draftTitle = currentValues.title.trim();
+        const draftVendorId = currentValues.vendorId && Number(currentValues.vendorId) > 0 ? Number(currentValues.vendorId) : (vendors.length > 0 ? vendors[0].id : null);
+        const draftPurposeCategoryId = currentValues.purposeCategoryId && Number(currentValues.purposeCategoryId) > 0 ? Number(currentValues.purposeCategoryId) : null;
+        const draftSubPurposeId = currentValues.subPurposeId && Number(currentValues.subPurposeId) > 0 ? Number(currentValues.subPurposeId) : null;
         const draftItems = currentValues.items && currentValues.items.length > 0 && currentValues.items[0].name
           ? currentValues.items
           : [{ name: draftTitle, quantity: 1, estimatedCost: currentValues.totalEstimatedCost || 0, description: currentValues.description || "Draft request item" }];
@@ -468,8 +461,9 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
         const draftPayload: RequestFormValues = {
           ...currentValues,
           title: draftTitle,
-          vendorId: draftVendorId,
-          purposeCategoryId: draftPurposeCategoryId,
+          vendorId: draftVendorId ? String(draftVendorId) : "",
+          purposeCategoryId: draftPurposeCategoryId ? String(draftPurposeCategoryId) : "",
+          subPurposeId: draftSubPurposeId ? String(draftSubPurposeId) : "",
           items: draftItems,
         };
 
@@ -1282,10 +1276,29 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           variant={isOverBudget ? "outline" : "secondary"}
                           size="lg"
                           type="button"
-                          onClick={() => {
-                            if (activeTab === "general") setActiveTab("items");
-                            else if (activeTab === "items") setActiveTab("payments");
-                            else if (activeTab === "payments") setActiveTab("approvals");
+                          onClick={async () => {
+                            if (activeTab === "general") {
+                              const isValid = await trigger(["title", "description", "vendorId", "purposeCategoryId", "subPurposeId", "priority", "currency"]);
+                              if (!isValid) {
+                                toast.error("Please complete all required fields in Details before proceeding.");
+                                return;
+                              }
+                              setActiveTab("items");
+                            } else if (activeTab === "items") {
+                              const isValid = await trigger(["items", "totalEstimatedCost", "freightAmount"]);
+                              if (!isValid) {
+                                toast.error("Please ensure at least one valid line item is added.");
+                                return;
+                              }
+                              setActiveTab("payments");
+                            } else if (activeTab === "payments") {
+                              const isValid = await trigger(["paymentStructure", "installments"]);
+                              if (!isValid) {
+                                toast.error("Please verify payment milestone allocations.");
+                                return;
+                              }
+                              setActiveTab("approvals");
+                            }
                           }}
                           className={`min-h-[44px] flex items-center gap-2 px-6 sm:px-8 rounded-xl font-semibold ${isOverBudget ? "border-rose-500/30 text-rose-500 hover:bg-rose-500/10" : "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"}`}
                         >
@@ -1296,7 +1309,28 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                         <Button
                           disabled={isSubmitting}
                           size="lg"
-                          onClick={handleSubmit((data) => handleAction(data, "pending"))}
+                          type="button"
+                          onClick={handleSubmit(
+                            (data) => handleAction(data, "pending"),
+                            (formErrors) => {
+                              const generalFields = ["title", "description", "vendorId", "purposeCategoryId", "subPurposeId", "priority", "currency"];
+                              const hasGeneralError = generalFields.some((f) => formErrors[f as keyof RequestFormValues]);
+                              if (hasGeneralError) {
+                                setActiveTab("general");
+                                const firstEntry = Object.entries(formErrors).find(([k]) => generalFields.includes(k));
+                                toast.error((firstEntry?.[1]?.message as string) || "Please complete all required fields in the Details tab.");
+                              } else if (formErrors.items) {
+                                setActiveTab("items");
+                                toast.error("Please add at least one valid line item with quantity and cost.");
+                              } else if (formErrors.installments) {
+                                setActiveTab("payments");
+                                toast.error(((formErrors.installments as any)?.message as string) || "Please check milestone allocation.");
+                              } else {
+                                const firstErr = Object.values(formErrors)[0]?.message as string;
+                                toast.error(firstErr || "Validation failed. Please review all tabs.");
+                              }
+                            }
+                          )}
                           className={cn(
                             "min-h-[44px] flex items-center gap-2 px-6 sm:px-8 rounded-xl shadow-sm font-semibold transition-all",
                             isOverBudget 
