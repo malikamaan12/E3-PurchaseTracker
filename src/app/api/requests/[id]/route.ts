@@ -77,6 +77,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .leftJoin(users, eq(users.id, approvals.approverId))
       .where(eq(approvals.requestId, requestId))
       .orderBy(asc(approvals.id)),
+      db.select().from(fileAttachments).where(eq(fileAttachments.requestId, requestId)),
       db.select({
         id: paymentInstallments.id,
         requestId: paymentInstallments.requestId,
