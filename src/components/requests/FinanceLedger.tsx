@@ -80,7 +80,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
   const [variationAmount, setVariationAmount] = useState<string>("");
   const [showVariationConfirm, setShowVariationConfirm] = useState(false);
 
-  const isLockedByStatus = request.status !== "approved";
+  const isLockedByStatus = request.status !== "approved" && request.status !== "fully_paid";
 
   const updatePaymentMutation = useMutation({
     mutationFn: ({ paymentId, data }: { paymentId: number; data: any }) => apiClient.requests.updatePayment(request.id, paymentId, data),
@@ -121,6 +121,9 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
     setEditingPayment(payment.id);
     setIsFinalSettlement(false);
     setFormData({
+      installmentName: payment.installmentName || "",
+      dueDate: payment.dueDate ? new Date(payment.dueDate).toISOString().slice(0, 10) : "",
+      calculatedAmount: payment.calculatedAmount ?? "",
       status: payment.status || "pending",
       paidAmount: payment.status === "pending" ? (payment.paidAmount || "0") : (payment.paidAmount ?? payment.calculatedAmount ?? ""),
       financeNotes: payment.financeNotes || "",
@@ -131,6 +134,10 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
   }
 
   function handleStatusChange(newStatus: string, milestone: any) {
+    const targetAuth = formData.calculatedAmount !== undefined && Number(formData.calculatedAmount) > 0 
+      ? Number(formData.calculatedAmount) 
+      : (milestone.calculatedAmount || 0);
+
     if (newStatus === "pending") {
       setFormData((prev: any) => ({
         ...prev,
@@ -142,14 +149,14 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
       setFormData((prev: any) => ({
         ...prev,
         status: "paid",
-        paidAmount: prev.paidAmount && Number(prev.paidAmount) > 0 ? prev.paidAmount : String(milestone.calculatedAmount),
+        paidAmount: prev.paidAmount && Number(prev.paidAmount) > 0 ? prev.paidAmount : String(targetAuth),
         actualPaymentDate: prev.actualPaymentDate || new Date().toISOString().slice(0, 10),
       }));
     } else if (newStatus === "partial") {
       setFormData((prev: any) => ({
         ...prev,
         status: "partial",
-        paidAmount: prev.paidAmount && Number(prev.paidAmount) > 0 && Number(prev.paidAmount) < milestone.calculatedAmount ? prev.paidAmount : String(Math.round(milestone.calculatedAmount / 2)),
+        paidAmount: prev.paidAmount && Number(prev.paidAmount) > 0 && Number(prev.paidAmount) < targetAuth ? prev.paidAmount : String(Math.round(targetAuth / 2)),
         actualPaymentDate: prev.actualPaymentDate || new Date().toISOString().slice(0, 10),
       }));
     } else {
@@ -305,53 +312,94 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                         <div className="bg-background border border-border/50 rounded-2xl p-6 shadow-inner flex flex-col gap-6">
                           <div className="flex items-center justify-between border-b border-border/50 pb-3">
                             <h4 className="text-sm font-bold flex items-center gap-2 text-primary">
-                              <Edit3 className="w-4 h-4" /> Editing {p.installmentName}
+                              <Edit3 className="w-4 h-4" /> Editing Milestone & Disbursement Details
                             </h4>
                             <span className="text-xs text-muted-foreground font-mono">ID #{p.id}</span>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-                            <div className="space-y-2">
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {/* Milestone Title */}
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Milestone Title</label>
+                              <input 
+                                type="text" 
+                                value={formData.installmentName || ""} 
+                                onChange={(e) => setFormData({ ...formData, installmentName: e.target.value })}
+                                placeholder="e.g. Post-Project Settlement"
+                                className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all font-medium"
+                              />
+                            </div>
+
+                            {/* Due Date */}
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Due Date</label>
+                              <input 
+                                type="date" 
+                                value={formData.dueDate || ""} 
+                                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                                className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all font-mono"
+                              />
+                            </div>
+
+                            {/* Authorized / Milestone Target Amount */}
+                            <div className="space-y-1.5">
+                              <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Auth Milestone ({request.currency || 'QAR'})</label>
+                              <input 
+                                type="number" 
+                                value={formData.calculatedAmount ?? ""} 
+                                onChange={(e) => setFormData({ ...formData, calculatedAmount: e.target.value })}
+                                placeholder="Target value"
+                                className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm font-mono font-bold focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                              />
+                            </div>
+
+                            {/* Clearance Status */}
+                            <div className="space-y-1.5">
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Clearance Status</label>
                               <select 
                                 value={formData.status} 
                                 onChange={(e) => handleStatusChange(e.target.value, p)}
-                                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all font-semibold"
                               >
                                 <option value="pending">Pending</option>
                                 <option value="partial">Partial</option>
                                 <option value="paid">Fully Paid</option>
                               </select>
                             </div>
+                          </div>
 
-                            <div className="space-y-2">
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {/* Paid Amount */}
+                            <div className="space-y-1.5">
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Paid Amount ({request.currency || 'QAR'})</label>
                               <input 
                                 type="number" 
                                 value={formData.paidAmount} 
                                 onChange={(e) => setFormData({ ...formData, paidAmount: e.target.value })}
-                                className={cn("w-full bg-background border rounded-xl px-4 py-2.5 text-sm font-mono font-bold focus:ring-2 outline-none transition-all", isOverpaid ? "border-destructive focus:ring-destructive/20 text-destructive" : "border-border/50 focus:ring-primary/20")}
+                                className={cn("w-full bg-background border rounded-xl px-3.5 py-2 text-sm font-mono font-bold focus:ring-2 outline-none transition-all", isOverpaid ? "border-destructive focus:ring-destructive/20 text-destructive" : "border-border/50 focus:ring-primary/20")}
                               />
                             </div>
 
-                            <div className="space-y-2">
+                            {/* Execution Date */}
+                            <div className="space-y-1.5">
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Execution Date</label>
                               <input 
                                 type="date" 
                                 value={formData.actualPaymentDate} 
                                 onChange={(e) => setFormData({ ...formData, actualPaymentDate: e.target.value })}
-                                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all font-mono"
                               />
                             </div>
 
-                            <div className="space-y-2">
+                            {/* Transaction Ref */}
+                            <div className="space-y-1.5">
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Transaction Ref</label>
                               <input 
                                 type="text" 
                                 value={formData.transactionReference} 
                                 onChange={(e) => setFormData({ ...formData, transactionReference: e.target.value })} 
                                 placeholder="e.g. TRF-10293 or Cheque #"
-                                className="w-full bg-background border border-border/50 rounded-xl px-4 py-2.5 text-sm font-mono focus:ring-2 focus:ring-primary/20 outline-none transition-all"
+                                className="w-full bg-background border border-border/50 rounded-xl px-3.5 py-2 text-sm font-mono focus:ring-2 focus:ring-primary/20 outline-none transition-all"
                               />
                             </div>
                           </div>
@@ -361,7 +409,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                             {/* Finance Comment / Revision Reason */}
                             <div className="space-y-2">
                               <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
-                                <MessageSquare className="w-3.5 h-3.5 text-primary" /> Finance Notes & Reason for Change
+                                <MessageSquare className="w-3.5 h-3.5 text-primary" /> Notes & Rationale for Modification
                               </label>
                               <textarea
                                 value={formData.financeNotes || ""}
@@ -473,11 +521,13 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                              </div>
                            )}
 
-                           {/* Modified Timestamp Badge */}
-                           {wasModified && (
-                             <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
-                               <Clock className="w-3 h-3 text-muted-foreground/70" />
-                               <span>Modified on {safeFormatDate(p.updatedAt, "MMM dd, yyyy • hh:mm a")}</span>
+                           {/* Modification Audit Badge */}
+                           {(p.lastModifiedUser || wasModified) && (
+                             <div className="mt-1.5 flex items-center gap-1 text-[10px] text-muted-foreground font-medium bg-muted/40 border border-border/40 px-2 py-0.5 rounded-md w-max">
+                               <Clock className="w-3 h-3 text-primary/70 shrink-0" />
+                               <span>
+                                 Modified {p.lastModifiedUser?.username ? `by ${p.lastModifiedUser.username} (${p.lastModifiedUser.department || p.lastModifiedUser.role || 'Finance'})` : ""} on {safeFormatDate(p.updatedAt, "MMM dd, yyyy • hh:mm a")}
+                               </span>
                              </div>
                            )}
                         </td>
@@ -510,10 +560,6 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                            {isLockedByStatus ? (
                               <div className="bg-muted inline-flex p-2 rounded-full border border-border/50" title="Locked">
                                 <Lock className="w-4 h-4 text-muted-foreground/50" />
-                              </div>
-                           ) : cfg.locked ? (
-                              <div className="bg-emerald-500/10 inline-flex p-2 rounded-full border border-emerald-500/20" title="Completed">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                               </div>
                            ) : (
                               <Button variant="outline" size="sm" className="rounded-full px-5 border-border/50 hover:bg-muted shadow-sm transition-all" onClick={() => handleEditClick(p)}>

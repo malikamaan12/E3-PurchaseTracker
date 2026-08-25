@@ -708,6 +708,7 @@ export const paymentInstallments = pgTable("payment_installments", {
   financeNotes: text("finance_notes"),
   attachmentUrl: text("attachment_url"), // Receipt/invoice URL from R2 storage
   createdBy: integer("created_by").notNull().references(() => users.id),
+  lastModifiedBy: integer("last_modified_by").references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({

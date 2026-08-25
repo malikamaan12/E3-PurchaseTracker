@@ -77,8 +77,43 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       .leftJoin(users, eq(users.id, approvals.approverId))
       .where(eq(approvals.requestId, requestId))
       .orderBy(asc(approvals.id)),
-      db.select().from(fileAttachments).where(eq(fileAttachments.requestId, requestId)),
-      db.select().from(paymentInstallments).where(eq(paymentInstallments.requestId, requestId)),
+      db.select({
+        id: paymentInstallments.id,
+        requestId: paymentInstallments.requestId,
+        vendorId: paymentInstallments.vendorId,
+        installmentName: paymentInstallments.installmentName,
+        dueDate: paymentInstallments.dueDate,
+        valueType: paymentInstallments.valueType,
+        amountValue: paymentInstallments.amountValue,
+        calculatedAmount: paymentInstallments.calculatedAmount,
+        paidAmount: paymentInstallments.paidAmount,
+        savingsAmount: paymentInstallments.savingsAmount,
+        currency: paymentInstallments.currency,
+        exchangeRate: paymentInstallments.exchangeRate,
+        calculatedAmountQar: paymentInstallments.calculatedAmountQar,
+        status: paymentInstallments.status,
+        paidAt: paymentInstallments.paidAt,
+        actualPaymentDate: paymentInstallments.actualPaymentDate,
+        rescheduledDate: paymentInstallments.rescheduledDate,
+        transactionReference: paymentInstallments.transactionReference,
+        remarks: paymentInstallments.remarks,
+        financeNotes: paymentInstallments.financeNotes,
+        attachmentUrl: paymentInstallments.attachmentUrl,
+        createdBy: paymentInstallments.createdBy,
+        lastModifiedBy: paymentInstallments.lastModifiedBy,
+        createdAt: paymentInstallments.createdAt,
+        updatedAt: paymentInstallments.updatedAt,
+        lastModifiedUser: {
+          id: users.id,
+          username: users.username,
+          department: users.department,
+          role: users.role,
+        }
+      })
+      .from(paymentInstallments)
+      .leftJoin(users, eq(users.id, paymentInstallments.lastModifiedBy))
+      .where(eq(paymentInstallments.requestId, requestId))
+      .orderBy(asc(paymentInstallments.dueDate), asc(paymentInstallments.id)),
       db.select({
         id: auditLogs.id,
         action: auditLogs.action,
@@ -95,7 +130,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           eq(auditLogs.resourceId, requestId),
           or(
             eq(auditLogs.resourceType, "purchase_request"),
-            eq(auditLogs.resourceType, "purchase_requests")
+            eq(auditLogs.resourceType, "purchase_requests"),
+            eq(auditLogs.resourceType, "payment_installment")
           )
         )
       )
@@ -463,6 +499,43 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
       if (finalInstallments.length > 0) {
         await db.insert(paymentInstallments).values(finalInstallments);
+      }
+    } else if (updatedTotalCost !== ((existing.totalEstimatedCost || 0) + (existing.freightAmount || 0))) {
+      // Synchronize existing installments if request total cost was updated
+      const existingInsts = await db.select().from(paymentInstallments).where(eq(paymentInstallments.requestId, requestId));
+      if (existingInsts.length === 1) {
+        const singleInst = existingInsts[0];
+        const newCalc = updatedTotalCost;
+        const newCalcQar = Math.round(updatedTotalCost * activeRate);
+        const shouldUpdatePaid = singleInst.status === 'paid' && singleInst.paidAmount === singleInst.calculatedAmount;
+        
+        await db.update(paymentInstallments)
+          .set({
+            calculatedAmount: newCalc,
+            calculatedAmountQar: newCalcQar,
+            amountValue: singleInst.valueType === 'PERCENTAGE' ? singleInst.amountValue : newCalc,
+            ...(shouldUpdatePaid ? { paidAmount: newCalc } : {}),
+            lastModifiedBy: user.id,
+            updatedAt: new Date()
+          })
+          .where(eq(paymentInstallments.id, singleInst.id));
+      } else if (existingInsts.length > 1) {
+        for (const inst of existingInsts) {
+          if (inst.valueType === "PERCENTAGE" && Number(inst.amountValue) > 0) {
+            const newCalc = Math.round((Number(inst.amountValue) / 100) * updatedTotalCost);
+            const newCalcQar = Math.round(newCalc * activeRate);
+            const shouldUpdatePaid = inst.status === 'paid' && inst.paidAmount === inst.calculatedAmount;
+            await db.update(paymentInstallments)
+              .set({
+                calculatedAmount: newCalc,
+                calculatedAmountQar: newCalcQar,
+                ...(shouldUpdatePaid ? { paidAmount: newCalc } : {}),
+                lastModifiedBy: user.id,
+                updatedAt: new Date()
+              })
+              .where(eq(paymentInstallments.id, inst.id));
+          }
+        }
       }
     }
 

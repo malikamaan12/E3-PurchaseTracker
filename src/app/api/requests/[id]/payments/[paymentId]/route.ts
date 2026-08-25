@@ -70,6 +70,9 @@ export async function PATCH(
 
     const body = await req.json();
     const {
+      calculatedAmount,
+      installmentName,
+      dueDate,
       paidAmount,
       status,
       rescheduledDate,
@@ -89,7 +92,7 @@ export async function PATCH(
     } else if (normalizedStatus === 'paid') {
       safePaidAmount = paidAmount !== undefined && Number(paidAmount) > 0 
         ? Math.round(Number(paidAmount)) 
-        : (existing.calculatedAmount || existing.paidAmount || 0);
+        : (calculatedAmount !== undefined ? Math.round(Number(calculatedAmount)) : (existing.calculatedAmount || existing.paidAmount || 0));
     } else {
       safePaidAmount = paidAmount !== undefined ? Math.round(Number(paidAmount)) : (existing.paidAmount ?? 0);
     }
@@ -123,6 +126,7 @@ export async function PATCH(
 
     const updatePayload: any = { 
       updatedAt: new Date(),
+      lastModifiedBy: user.id,
       paidAmount: safePaidAmount,
       status: normalizedStatus,
       financeNotes: financeNotes !== undefined ? financeNotes : existing.financeNotes,
@@ -131,6 +135,20 @@ export async function PATCH(
       actualPaymentDate: resolvedActualPaymentDate,
       rescheduledDate: rescheduledDate ? new Date(rescheduledDate) : existing.rescheduledDate,
     };
+
+    if (calculatedAmount !== undefined) {
+      const parsedCalc = Math.round(Number(calculatedAmount));
+      if (!isNaN(parsedCalc) && parsedCalc >= 0) {
+        updatePayload.calculatedAmount = parsedCalc;
+        updatePayload.calculatedAmountQar = Math.round(parsedCalc * Number(existing.exchangeRate || 1));
+      }
+    }
+    if (installmentName !== undefined && String(installmentName).trim()) {
+      updatePayload.installmentName = String(installmentName).trim();
+    }
+    if (dueDate !== undefined) {
+      updatePayload.dueDate = new Date(dueDate);
+    }
 
     let responseMessage = "Payment ledger updated successfully.";
 
@@ -209,18 +227,24 @@ export async function PATCH(
         userId: user.id,
         details: {
           installmentId: paymentId,
-          installmentName: existing.installmentName,
+          installmentName: updatePayload.installmentName || existing.installmentName,
           previous: {
+            calculatedAmount: existing.calculatedAmount,
             paidAmount: existing.paidAmount,
             status: existing.status,
+            installmentName: existing.installmentName,
+            dueDate: existing.dueDate,
             transactionReference: existing.transactionReference,
             actualPaymentDate: existing.actualPaymentDate,
             financeNotes: existing.financeNotes,
             attachmentUrl: existing.attachmentUrl,
           },
           updated: {
+            calculatedAmount: updatePayload.calculatedAmount ?? existing.calculatedAmount,
             paidAmount: updatePayload.paidAmount,
             status: updatePayload.status,
+            installmentName: updatePayload.installmentName ?? existing.installmentName,
+            dueDate: updatePayload.dueDate ?? existing.dueDate,
             transactionReference: updatePayload.transactionReference,
             actualPaymentDate: updatePayload.actualPaymentDate,
             financeNotes: updatePayload.financeNotes,
@@ -229,6 +253,7 @@ export async function PATCH(
           author: user.username,
           role: user.role,
           department: user.department,
+          modifiedAt: new Date().toISOString(),
         },
         timestamp: new Date(),
       });
