@@ -175,7 +175,16 @@ function RequestsDashboardContent() {
   }) : [];
 
   const isMyQueueActive = myQueueMode || filters.status === 'my_queue';
-  const displayedRequests = isMyQueueActive ? myQueueRequests : (requests || []);
+  const displayedRequests = useMemo(() => {
+    if (!requests) return [];
+    if (filters.status === 'my_queue') {
+      return requests;
+    }
+    if (myQueueMode) {
+      return myQueueRequests;
+    }
+    return requests;
+  }, [requests, filters.status, myQueueMode, myQueueRequests]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiClient.requests.delete(id),
@@ -217,8 +226,8 @@ function RequestsDashboardContent() {
   });
 
   const handleSelectAll = (checked: boolean) => {
-    if (checked && requests) {
-      setSelectedIds(requests.map((r: any) => r.id));
+    if (checked && displayedRequests) {
+      setSelectedIds(displayedRequests.map((r: any) => r.id));
     } else {
       setSelectedIds([]);
     }
@@ -244,14 +253,23 @@ function RequestsDashboardContent() {
     const rejected = list.filter((r: any) =>
       ['rejected', 'cancelled'].includes((r.status || '').toLowerCase())
     ).length;
+
+    const totalAll = analytics?.overview?.activeRequestsCount ?? list.length;
+    const totalPending = (analytics?.overview?.pendingRequestsCount ?? 0) + (analytics?.overview?.partiallyApprovedCount ?? 0) || pending;
+    const totalApproved = analytics?.overview?.fullyApprovedCount ?? approved;
+    const totalRejected = analytics?.overview?.rejectedCount ?? rejected;
+    const myQueueCount = analytics?.overview?.awaitingSignOffsCount ?? myQueueRequests.length;
+
+    const isFilteredBySpecificStatus = filters.status !== 'all';
+
     return {
-      all: list.length,
-      pending,
-      approved,
-      rejected,
-      myQueue: myQueueRequests.length
+      all: isFilteredBySpecificStatus && analytics?.overview ? totalAll : list.length,
+      pending: isFilteredBySpecificStatus && analytics?.overview ? totalPending : pending,
+      approved: isFilteredBySpecificStatus && analytics?.overview ? totalApproved : approved,
+      rejected: isFilteredBySpecificStatus && analytics?.overview ? totalRejected : rejected,
+      myQueue: myQueueCount
     };
-  }, [requests, myQueueRequests]);
+  }, [requests, myQueueRequests, analytics, filters.status]);
 
   return (
     <div className="flex flex-col gap-5 sm:gap-6 md:gap-7 w-full max-w-full">
@@ -415,7 +433,7 @@ function RequestsDashboardContent() {
               </table>
             </div>
           </div>
-        ) : requests?.length === 0 ? (
+        ) : displayedRequests.length === 0 ? (
           <div className="bg-card border border-border rounded-2xl p-8 sm:p-12 text-center flex flex-col items-center justify-center space-y-4 shadow-sm">
             <div className="w-16 h-16 rounded-2xl bg-secondary/80 flex items-center justify-center border border-border text-muted-foreground">
               <Inbox className="w-8 h-8 opacity-70" />

@@ -12,7 +12,7 @@ import {
   vendors,
   itemCatalog
 } from "@db/schema";
-import { eq, and, desc, inArray, gte, lte, count, or, ilike, sql } from "drizzle-orm";
+import { eq, ne, and, desc, inArray, gte, lte, count, or, ilike, sql } from "drizzle-orm";
 import { getAuthenticatedUser, canCreateInDepartment, isDepartmentFrozen, normalizeDepartmentAssignments } from "@/lib/auth-next";
 import { createRequestSchema } from "@/lib/validation";
 import { evaluateCompliance, capturePrComplianceSnapshot } from "@/lib/core/compliance";
@@ -119,8 +119,16 @@ export async function GET(req: NextRequest) {
     }
 
     if (deptFilter && deptFilter !== "all") {
+      const trimmedDept = deptFilter.trim();
       whereConditions.push(
-        sql`COALESCE(${purchaseRequests.department}, ${users.department}) ILIKE ${deptFilter}`
+        or(
+          sql`LOWER(TRIM(COALESCE(${purchaseRequests.department}, ${users.department}))) = LOWER(TRIM(${trimmedDept}))`,
+          sql`EXISTS (
+            SELECT 1 FROM ${approvals} 
+            WHERE ${approvals.requestId} = ${purchaseRequests.id} 
+            AND LOWER(TRIM(${approvals.department})) = LOWER(TRIM(${trimmedDept}))
+          )`
+        )
       );
     }
 
@@ -174,38 +182,73 @@ export async function GET(req: NextRequest) {
     }
 
     if (search) {
+      const searchPattern = `%${search}%`;
       whereConditions.push(or(
-        ilike(purchaseRequests.title, `%${search}%`),
-        ilike(purchaseRequests.requestNumber, `%${search}%`),
-        ilike(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, `%${search}%`),
-        ilike(users.username, `%${search}%`),
-        ilike(users.department, `%${search}%`),
-        ilike(subPurposes.name, `%${search}%`),
-        ilike(vendors.companyName, `%${search}%`),
-        ilike(purchaseRequests.purposeType, `%${search}%`)
+        ilike(purchaseRequests.title, searchPattern),
+        ilike(purchaseRequests.requestNumber, searchPattern),
+        ilike(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, searchPattern),
+        ilike(users.username, searchPattern),
+        ilike(users.department, searchPattern),
+        ilike(subPurposes.name, searchPattern),
+        ilike(vendors.companyName, searchPattern),
+        ilike(purchaseRequests.purposeType, searchPattern),
+        sql`EXISTS (
+          SELECT 1 FROM ${approvals} 
+          WHERE ${approvals.requestId} = ${purchaseRequests.id} 
+          AND LOWER(TRIM(${approvals.department})) ILIKE LOWER(TRIM(${searchPattern}))
+        )`
       ));
     }
 
     // 1. Isolation for pending_dept_head requests:
     // Only super_admin, the supervisor (requester), or someone from the submitting department can see it.
     if (!isSuperAdmin) {
-      whereConditions.push(
-        sql`(${purchaseRequests.status} != 'pending_dept_head' OR COALESCE(${purchaseRequests.department}, ${users.department}) IN ${userDepts} OR ${purchaseRequests.requesterId} = ${user.id})`
-      );
+      const lowerUserDepts = userDepts.map((d: any) => String(d).toLowerCase().trim()).filter(Boolean);
+      if (lowerUserDepts.length > 0) {
+        const userDeptListSql = sql.join(lowerUserDepts.map((d: string) => sql`${d}`), sql`, `);
+        whereConditions.push(
+          or(
+            ne(purchaseRequests.status, 'pending_dept_head'),
+            sql`LOWER(TRIM(COALESCE(${purchaseRequests.department}, ${users.department}))) IN (${userDeptListSql})`,
+            eq(purchaseRequests.requesterId, user.id)
+          )
+        );
+      } else {
+        whereConditions.push(
+          or(
+            ne(purchaseRequests.status, 'pending_dept_head'),
+            eq(purchaseRequests.requesterId, user.id)
+          )
+        );
+      }
     }
 
     // 2. Department & Role Scoping for non-admins:
     // - Users always see requests originating from their department or submitted by them.
     // - ONLY users with active approver roles in an approval department see cross-department requests requiring their approval.
     if (!isAdmin) {
-      const visibilityConditions = [
-        inArray(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, userDepts),
+      const lowerUserDepts = userDepts.map((d: any) => String(d).toLowerCase().trim()).filter(Boolean);
+      const lowerApproverDepts = approverDepts.map((d: any) => String(d).toLowerCase().trim()).filter(Boolean);
+
+      const visibilityConditions: any[] = [
         eq(purchaseRequests.requesterId, user.id)
       ];
 
-      if (approverDepts.length > 0) {
+      if (lowerUserDepts.length > 0) {
+        const userDeptListSql = sql.join(lowerUserDepts.map((d: string) => sql`${d}`), sql`, `);
         visibilityConditions.push(
-          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.department} IN ${approverDepts})`
+          sql`LOWER(TRIM(COALESCE(${purchaseRequests.department}, ${users.department}))) IN (${userDeptListSql})`
+        );
+      }
+
+      if (lowerApproverDepts.length > 0) {
+        const approverDeptListSql = sql.join(lowerApproverDepts.map((d: string) => sql`${d}`), sql`, `);
+        visibilityConditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM ${approvals} 
+            WHERE ${approvals.requestId} = ${purchaseRequests.id} 
+            AND LOWER(TRIM(${approvals.department})) IN (${approverDeptListSql})
+          )`
         );
       }
 

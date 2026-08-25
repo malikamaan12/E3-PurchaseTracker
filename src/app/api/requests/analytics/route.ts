@@ -65,21 +65,39 @@ export async function GET(req: NextRequest) {
 
     // RBAC: Force department and approver scoping for non-admin users
     if (!isAdmin) {
-      const visibilityConditions: any[] = [];
-      if (userDepts.length > 0) {
-        visibilityConditions.push(inArray(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, userDepts));
+      const visibilityConditions: any[] = [
+        eq(purchaseRequests.requesterId, user.id)
+      ];
+      if (userDeptsLower.length > 0) {
+        const userDeptListSql = sql.join(userDeptsLower.map((d: string) => sql`${d}`), sql`, `);
+        visibilityConditions.push(sql`LOWER(TRIM(COALESCE(${purchaseRequests.department}, ${users.department}))) IN (${userDeptListSql})`);
       }
-      visibilityConditions.push(eq(purchaseRequests.requesterId, user.id));
 
-      if (approverDepts.length > 0) {
+      const lowerApproverDepts = approverDepts.map((d: any) => String(d).toLowerCase().trim()).filter(Boolean);
+      if (lowerApproverDepts.length > 0) {
+        const approverDeptListSql = sql.join(lowerApproverDepts.map((d: string) => sql`${d}`), sql`, `);
         visibilityConditions.push(
-          sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.department} IN ${approverDepts})`
+          sql`EXISTS (
+            SELECT 1 FROM ${approvals} 
+            WHERE ${approvals.requestId} = ${purchaseRequests.id} 
+            AND LOWER(TRIM(${approvals.department})) IN (${approverDeptListSql})
+          )`
         );
       }
 
       prFilters.push(or(...visibilityConditions));
-    } else if (filterDept) {
-      prFilters.push(eq(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, filterDept));
+    } else if (filterDept && filterDept !== "all") {
+      const trimmedDept = filterDept.trim();
+      prFilters.push(
+        or(
+          sql`LOWER(TRIM(COALESCE(${purchaseRequests.department}, ${users.department}))) = LOWER(TRIM(${trimmedDept}))`,
+          sql`EXISTS (
+            SELECT 1 FROM ${approvals} 
+            WHERE ${approvals.requestId} = ${purchaseRequests.id} 
+            AND LOWER(TRIM(${approvals.department})) = LOWER(TRIM(${trimmedDept}))
+          )`
+        )
+      );
     }
 
     const whereClause = prFilters.length > 0 ? and(...prFilters) : undefined;
