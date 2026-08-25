@@ -145,16 +145,6 @@ export function AuthProvider({
     fetchUser(true);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const isSuperAdmin = useMemo(() => user?.role?.toLowerCase() === "super_admin", [user]);
-  const isAdmin = useMemo(() => user?.role?.toLowerCase() === "admin" || user?.role?.toLowerCase() === "super_admin", [user]);
-  const isSupervisor = useMemo(() => user?.role?.toLowerCase() === "supervisor", [user]);
-  const isApprover = useMemo(() => {
-    if (!user || user.role?.toLowerCase() === "supervisor" || user.role?.toLowerCase() === "user") {
-      return false;
-    }
-    return user.role?.toLowerCase() === "approver" || user.isApprover === true;
-  }, [user]);
-
   const departmentAssignments = useMemo<DepartmentAssignment[]>(() => {
     if (!user) return [];
     if (Array.isArray(user.departmentAssignments)) return user.departmentAssignments;
@@ -171,6 +161,19 @@ export function AuthProvider({
       };
     }).filter(a => !!a.department);
   }, [user]);
+
+  const isSuperAdmin = useMemo(() => user?.role?.toLowerCase() === "super_admin", [user]);
+  const isAdmin = useMemo(() => user?.role?.toLowerCase() === "admin" || user?.role?.toLowerCase() === "super_admin", [user]);
+  const isSupervisor = useMemo(() => user?.role?.toLowerCase() === "supervisor", [user]);
+  const isApprover = useMemo(() => {
+    if (!user || user.role?.toLowerCase() === "supervisor") {
+      return false;
+    }
+    if (user.role?.toLowerCase() === "super_admin" || user.role?.toLowerCase() === "admin" || user.role?.toLowerCase() === "approver" || user.isApprover === true) {
+      return true;
+    }
+    return departmentAssignments.some(a => a.status === 'active' && (a.role === 'approver' || a.role === 'both'));
+  }, [user, departmentAssignments]);
 
   const userDepartments = useMemo(() => {
     if (!user) return [];
@@ -207,10 +210,10 @@ export function AuthProvider({
   const canApproveInDepartment = useCallback((targetDept: string) => {
     if (!user) return false;
     if (user.role?.toLowerCase() === 'supervisor' || user.role?.toLowerCase() === 'user') return false;
-    if (user.role?.toLowerCase() === 'super_admin' || user.role?.toLowerCase() === 'admin') return true;
+    if (user.role?.toLowerCase() === 'super_admin') return true;
     const target = targetDept.toLowerCase().trim();
     if ((user.department || '').toLowerCase().trim() === target) {
-      return user.role?.toLowerCase() === 'approver' || user.isApprover === true;
+      return user.role?.toLowerCase() === 'approver' || user.role?.toLowerCase() === 'admin' || user.isApprover === true;
     }
     const match = departmentAssignments.find(a => a.department.toLowerCase().trim() === target);
     return !!match && match.status === 'active' && (match.role === 'approver' || match.role === 'both');

@@ -39,9 +39,10 @@ import {
 import { RequestFilters } from "@/components/requests/RequestFilters";
 import { DeleteRequestDialog } from "@/components/requests/DeleteRequestDialog";
 import { pageLoad } from "@/lib/animations";
-import { Edit2, Trash2, Zap } from "lucide-react";
+import { Edit2, Trash2, Zap, ShieldAlert, ShieldCheck } from "lucide-react";
 import { usePerformance } from "@/context/PerformanceContext";
 import { usePageTitle } from "@/lib/hooks/usePageTitle";
+import { getRequestApprovalContext } from "@/lib/utils/approval-helpers";
 
 // Lazy-load the heavy 62KB modal — only downloaded when user clicks "New Request"
 const CreateRequestModal = lazy(() => import("@/components/requests/CreateRequestModal"));
@@ -133,6 +134,7 @@ function RequestsDashboardContent() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [deleteRequest, setDeleteRequest] = useState<any | null>(null);
   const [confirmApprovalRequest, setConfirmApprovalRequest] = useState<any | null>(null);
+  const [selectedApprovalSlotId, setSelectedApprovalSlotId] = useState<number | null>(null);
   const [myQueueMode, setMyQueueMode] = useState(false);
 
   // Auto-trigger Create Request modal if navigated with ?new=true or ?create=1
@@ -150,15 +152,23 @@ function RequestsDashboardContent() {
     }
   }, []);
 
-  // "My Queue" — requests where logged-in user is an approver and has an active pending approval slot
-  const myQueueRequests = (!isSupervisor && (isSuperAdmin || isApprover)) ? (requests || []).filter((req: any) =>
-    Array.isArray(req.approvals) &&
-    req.approvals.some((a: any) =>
-      a.status === 'pending' && (isSuperAdmin || canApproveInDepartment(a.department))
-    )
-  ) : [];
+  // User's authorized approver departments list
+  const userApprovalDeptsList = (!isSupervisor && (isSuperAdmin || isApprover || isAdmin)) ? [
+    user?.department,
+    ...(user?.departmentAssignments || [])
+      .filter((a: any) => a.status === 'active' && (a.role === 'approver' || a.role === 'both'))
+      .map((a: any) => a.department)
+  ].filter(Boolean) : [];
+  const userApprovalDeptsSummary = isSuperAdmin ? "All Company Departments (Super Admin)" : userApprovalDeptsList.join(", ");
 
-  const displayedRequests = myQueueMode ? myQueueRequests : (requests || []);
+  // "My Queue" — requests where logged-in user is an approver and has an active pending approval slot
+  const myQueueRequests = (!isSupervisor && (isSuperAdmin || isApprover || isAdmin)) ? (requests || []).filter((req: any) => {
+    const ctx = getRequestApprovalContext(req, user, isSuperAdmin, canApproveInDepartment);
+    return ctx.isAwaitingMyAction;
+  }) : [];
+
+  const isMyQueueActive = myQueueMode || filters.status === 'my_queue';
+  const displayedRequests = isMyQueueActive ? myQueueRequests : (requests || []);
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiClient.requests.delete(id),
@@ -172,7 +182,11 @@ function RequestsDashboardContent() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: (requestId: number) => apiClient.requests.approve(requestId, { status: "approved" }),
+    mutationFn: (target: number | { requestId: number; approvalId?: number }) => {
+      const id = typeof target === 'number' ? target : target.requestId;
+      const approvalId = typeof target === 'object' ? target.approvalId : undefined;
+      return apiClient.requests.approve(id, { status: "approved", approvalId });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["requests"] });
       queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
@@ -238,7 +252,7 @@ function RequestsDashboardContent() {
         <div className="space-y-1">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-foreground">Purchase Requests</h1>
-            {isApprover && myQueueRequests.length > 0 && (
+            {(isApprover || isAdmin) && myQueueRequests.length > 0 && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30 animate-pulse">
                 <span>⏳</span> {myQueueRequests.length} Pending Your Review
               </span>
@@ -249,12 +263,18 @@ function RequestsDashboardContent() {
 
         <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
           {/* Approver My Queue Quick Toggle */}
-          {isApprover && (
+          {(isApprover || isAdmin) && (
             <div className="flex p-1 bg-secondary/80 border border-border/80 rounded-xl shadow-xs shrink-0">
               <button
-                onClick={() => setMyQueueMode(false)}
+                type="button"
+                onClick={() => {
+                  setMyQueueMode(false);
+                  if (filters.status === 'my_queue') {
+                    setFilters((f: any) => ({ ...f, status: 'all' }));
+                  }
+                }}
                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  !myQueueMode
+                  !isMyQueueActive
                     ? "bg-primary text-primary-foreground shadow-xs"
                     : "text-muted-foreground hover:text-foreground"
                 }`}
@@ -262,9 +282,13 @@ function RequestsDashboardContent() {
                 All PRs
               </button>
               <button
-                onClick={() => setMyQueueMode(true)}
+                type="button"
+                onClick={() => {
+                  setMyQueueMode(true);
+                  setFilters((f: any) => ({ ...f, status: 'my_queue' }));
+                }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  myQueueMode
+                  isMyQueueActive
                     ? "bg-amber-500 text-white shadow-xs"
                     : "text-amber-600 dark:text-amber-400 hover:bg-amber-500/10"
                 }`}
@@ -272,7 +296,7 @@ function RequestsDashboardContent() {
                 <span>⏳</span> My Queue
                 {myQueueRequests.length > 0 && (
                   <span className={`text-[10px] font-black px-1.5 py-0.2 rounded-full ${
-                    myQueueMode ? "bg-white/30 text-white" : "bg-amber-500 text-white"
+                    isMyQueueActive ? "bg-white/30 text-white" : "bg-amber-500 text-white"
                   }`}>
                     {myQueueRequests.length}
                   </span>
@@ -284,6 +308,51 @@ function RequestsDashboardContent() {
           <ActionBar onNewRequest={() => setIsCreateModalOpen(true)} />
         </div>
       </header>
+
+      {/* Approval Action Attention Banner for Approvers & Admins with pending sign-offs */}
+      {!isSupervisor && (isSuperAdmin || isApprover || isAdmin) && myQueueRequests.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5 border border-amber-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm animate-fade-scale-in">
+          <div className="flex items-start sm:items-center gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-bold text-foreground flex items-center gap-2 flex-wrap">
+                <span>Action Required:</span>
+                <span className="text-amber-600 dark:text-amber-400 font-extrabold">
+                  {myQueueRequests.length} {myQueueRequests.length === 1 ? 'Request' : 'Requests'}
+                </span>
+                <span>Awaiting Your Department Sign-Off</span>
+              </h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                You have active approval authority for: <strong className="text-foreground font-semibold">{userApprovalDeptsSummary}</strong>
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2.5 shrink-0 self-end sm:self-auto">
+            <button
+              type="button"
+              onClick={() => {
+                if (isMyQueueActive) {
+                  setFilters((f: any) => ({ ...f, status: 'all' }));
+                  setMyQueueMode(false);
+                } else {
+                  setFilters((f: any) => ({ ...f, status: 'my_queue' }));
+                  setMyQueueMode(true);
+                }
+              }}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5 min-h-[40px] touch-target cursor-pointer ${
+                isMyQueueActive
+                  ? "bg-secondary text-foreground hover:bg-secondary/80 border border-border"
+                  : "bg-amber-500 hover:bg-amber-600 text-white"
+              }`}
+            >
+              <span>⏳</span>
+              <span>{isMyQueueActive ? "Show All Requests" : "Filter to My Pending (Instant View)"}</span>
+            </button>
+          </div>
+        </div>
+      )}
 
       <SpendAnalytics data={analytics} isLoading={analyticsLoading} />
 
@@ -371,29 +440,17 @@ function RequestsDashboardContent() {
           <>
             {/* Mobile View: Request Cards */}
             <div className="md:hidden space-y-4">
-              {displayedRequests.map((req: any) => {
-                const awaitingMyApproval = !isSupervisor && (isSuperAdmin || isApprover) && Array.isArray(req.approvals) &&
-                  req.approvals.some((a: any) =>
-                    a.status === 'pending' && (isSuperAdmin || canApproveInDepartment(a.department))
-                  );
-                return (
-                  <div key={req.id} className="relative">
-                    {awaitingMyApproval && (
-                      <div className="absolute -top-2.5 left-3 z-10 flex items-center gap-1.5 bg-amber-500 text-white text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-md">
-                        <span>⏳</span> Awaiting Your Approval
-                      </div>
-                    )}
-                    <RequestMobileCard
-                      request={req}
-                      isSelected={selectedIds.includes(req.id)}
-                      onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
-                      onRequestApprove={(targetReq: any) => setConfirmApprovalRequest(targetReq)}
-                      onEdit={() => setEditingId(req.id)}
-                      onDelete={() => setDeleteRequest(req)}
-                    />
-                  </div>
-                );
-              })}
+              {displayedRequests.map((req: any) => (
+                <RequestMobileCard
+                  key={req.id}
+                  request={req}
+                  isSelected={selectedIds.includes(req.id)}
+                  onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
+                  onRequestApprove={(targetReq: any) => setConfirmApprovalRequest(targetReq)}
+                  onEdit={() => setEditingId(req.id)}
+                  onDelete={() => setDeleteRequest(req)}
+                />
+              ))}
             </div>
 
             {/* Desktop / Tablet View: Full Table */}
@@ -412,30 +469,23 @@ function RequestsDashboardContent() {
                     </th>
                     <th scope="col" className="px-6 py-5 font-bold">Request #</th>
                     <th scope="col" className="px-6 py-5 font-bold">Title & Requester</th>
-                    <th scope="col" className="px-6 py-5 font-bold">Status</th>
+                    <th scope="col" className="px-6 py-5 font-bold">Status & Pipeline</th>
                     <th scope="col" className="px-6 py-5 font-bold">Amount</th>
                     <th scope="col" className="px-6 py-5 text-right font-bold pr-10">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
-                  {displayedRequests.map((req: any) => {
-                    const awaitingMyApproval = !isSupervisor && (isSuperAdmin || isApprover) && Array.isArray(req.approvals) &&
-                      req.approvals.some((a: any) =>
-                        a.status === 'pending' && (isSuperAdmin || canApproveInDepartment(a.department))
-                      );
-                    return (
-                      <RequestRow
-                        key={req.id}
-                        request={req}
-                        isSelected={selectedIds.includes(req.id)}
-                        onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
-                        onApprove={() => setConfirmApprovalRequest(req)}
-                        onEdit={() => setEditingId(req.id)}
-                        onDelete={() => setDeleteRequest(req)}
-                        awaitingMyApproval={awaitingMyApproval}
-                      />
-                    );
-                  })}
+                  {displayedRequests.map((req: any) => (
+                    <RequestRow
+                      key={req.id}
+                      request={req}
+                      isSelected={selectedIds.includes(req.id)}
+                      onSelect={(checked: boolean) => handleSelectRow(req.id, checked)}
+                      onApprove={() => setConfirmApprovalRequest(req)}
+                      onEdit={() => setEditingId(req.id)}
+                      onDelete={() => setDeleteRequest(req)}
+                    />
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -498,10 +548,19 @@ function RequestsDashboardContent() {
           confirmApprovalRequest.approvals.every((a: any) => a.status === 'approved');
         const isApproved = isAlreadyFullyApproved || allApprovalsApproved;
 
+        const eligiblePendingApprovals = Array.isArray(confirmApprovalRequest.approvals)
+          ? (isSuperAdmin
+              ? confirmApprovalRequest.approvals.filter((a: any) => a.status === 'pending')
+              : confirmApprovalRequest.approvals.filter((a: any) => a.status === 'pending' && canApproveInDepartment(a.department)))
+          : [];
+
         const myDeptApproval = Array.isArray(confirmApprovalRequest.approvals) 
-          ? confirmApprovalRequest.approvals.find((a: any) => canApproveInDepartment(a.department))
+          ? (isSuperAdmin
+              ? (selectedApprovalSlotId ? confirmApprovalRequest.approvals.find((a: any) => a.id === selectedApprovalSlotId) : null) || eligiblePendingApprovals[0] || confirmApprovalRequest.approvals[0]
+              : (selectedApprovalSlotId ? confirmApprovalRequest.approvals.find((a: any) => a.id === selectedApprovalSlotId) : null) || eligiblePendingApprovals[0] || confirmApprovalRequest.approvals.find((a: any) => canApproveInDepartment(a.department)))
           : null;
         const isMyDeptAlreadyApproved = !isSuperAdmin && myDeptApproval && myDeptApproval.status === 'approved';
+        const hasNoAuthority = !isSuperAdmin && !myDeptApproval;
 
         return (
           <div className="fixed inset-0 z-[250] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -522,7 +581,9 @@ function RequestsDashboardContent() {
                       ? "Request Fully Approved" 
                       : isMyDeptAlreadyApproved
                       ? "Already Approved by Your Department"
-                      : "Confirm Request Approval"}
+                      : hasNoAuthority
+                      ? "No Department Approval Authority"
+                      : `Confirm ${myDeptApproval?.department || ''} Approval`}
                   </h3>
                   <p className="text-xs font-mono text-muted-foreground truncate">{confirmApprovalRequest.requestNumber}</p>
                 </div>
@@ -541,7 +602,30 @@ function RequestsDashboardContent() {
                   <span className="text-muted-foreground">Requester:</span>
                   <span className="font-medium text-foreground">{confirmApprovalRequest.requester?.username} ({confirmApprovalRequest.requester?.department})</span>
                 </div>
+                {myDeptApproval?.department && (
+                  <div className="flex justify-between pt-1 border-t border-border/50">
+                    <span className="text-muted-foreground">Stage:</span>
+                    <span className="font-semibold text-primary">{myDeptApproval.department} Approval</span>
+                  </div>
+                )}
               </div>
+
+              {eligiblePendingApprovals.length > 1 && (
+                <div className="flex flex-col gap-1.5 p-3 rounded-xl bg-secondary/40 border border-border/80 text-xs">
+                  <label className="font-semibold text-foreground">Acting on behalf of department:</label>
+                  <select
+                    value={selectedApprovalSlotId || eligiblePendingApprovals[0]?.id}
+                    onChange={(e) => setSelectedApprovalSlotId(Number(e.target.value))}
+                    className="bg-background border border-border rounded-lg px-3 py-2 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer"
+                  >
+                    {eligiblePendingApprovals.map((slot: any) => (
+                      <option key={slot.id} value={slot.id}>
+                        {slot.department} Approval (Pending)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {isApproved ? (
                 <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3.5 text-xs text-emerald-700 dark:text-emerald-300 font-medium flex items-start gap-2">
@@ -556,28 +640,38 @@ function RequestsDashboardContent() {
                   <CheckCircle className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
                   <div>
                     <span className="font-bold block text-foreground mb-0.5">Your department has already approved.</span>
-                    Your approval slot is marked as approved. The request is currently awaiting remaining department approvers in the workflow chain.
+                    Your approval slot ({myDeptApproval?.department}) is marked as approved. The request is currently awaiting remaining department approvers in the workflow chain.
+                  </div>
+                </div>
+              ) : hasNoAuthority ? (
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3.5 text-xs text-amber-700 dark:text-amber-300 font-medium flex items-start gap-2">
+                  <div>
+                    <span className="font-bold block text-foreground mb-0.5">Unauthorized for other department approvals.</span>
+                    You do not have approval authority for any remaining pending departments on this request.
                   </div>
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Are you sure you want to approve this purchase request? This action will record your departmental sign-off and advance the request in the procurement cycle.
+                  Are you sure you want to approve this purchase request for <strong className="text-foreground">{myDeptApproval?.department}</strong>? This action will record your departmental sign-off and advance the request in the procurement cycle.
                 </p>
               )}
 
               <div className="flex items-center justify-end gap-2.5 pt-2">
                 <button
                   type="button"
-                  onClick={() => setConfirmApprovalRequest(null)}
+                  onClick={() => {
+                    setConfirmApprovalRequest(null);
+                    setSelectedApprovalSlotId(null);
+                  }}
                   disabled={approveMutation.isPending}
                   className="px-4 py-2.5 rounded-xl bg-secondary text-foreground hover:bg-secondary/80 font-semibold text-xs min-h-[44px] touch-target"
                 >
-                  {isApproved || isMyDeptAlreadyApproved ? "Close" : "Cancel"}
+                  {isApproved || isMyDeptAlreadyApproved || hasNoAuthority ? "Close" : "Cancel"}
                 </button>
-                {!(isApproved || isMyDeptAlreadyApproved) && (
+                {!(isApproved || isMyDeptAlreadyApproved || hasNoAuthority) && (
                   <button
                     type="button"
-                    onClick={() => approveMutation.mutate(confirmApprovalRequest.id)}
+                    onClick={() => approveMutation.mutate({ requestId: confirmApprovalRequest.id, approvalId: myDeptApproval?.id })}
                     disabled={approveMutation.isPending}
                     className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm min-h-[44px] touch-target flex items-center gap-1.5"
                   >
@@ -802,17 +896,16 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
   const router = useRouter();
   const { user, isSuperAdmin, isAdmin, isApprover, isSupervisor, canApproveInDepartment } = useAuth();
 
+  const approvalContext = useMemo(() => {
+    return getRequestApprovalContext(request, user, isSuperAdmin, canApproveInDepartment);
+  }, [request, user, isSuperAdmin, canApproveInDepartment]);
+
   const isOwner = request.requesterId === user?.id;
   const approvedCount = (request.approvals?.filter((a: any) => a.status === 'approved').length) || Number(request.approvedCount || 0);
   const isPaidOrDisbursed = ['fully_paid', 'partially_paid'].includes(request.status) || Number(request.paidAmount || 0) > 0;
 
-  const isFullyApproved = ['approved', 'fully_paid'].includes((request.status || '').toLowerCase()) ||
-    (Array.isArray(request.approvals) && request.approvals.length > 0 && request.approvals.every((a: any) => a.status === 'approved'));
-
-  const myDeptApproval = Array.isArray(request.approvals)
-    ? request.approvals.find((a: any) => canApproveInDepartment(a.department))
-    : null;
-  const isMyDeptSignedOff = !isSuperAdmin && myDeptApproval && myDeptApproval.status === 'approved';
+  const isFullyApproved = approvalContext.isFullyApproved;
+  const canQuickApprove = !isSupervisor && (isSuperAdmin || isAdmin || isApprover) && approvalContext.isAwaitingMyAction;
 
   const canEdit =
     (isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
@@ -827,19 +920,20 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
     (isSuperAdmin && !isPaidOrDisbursed) ||
     (isOwner && approvedCount === 0 && !isPaidOrDisbursed);
 
-  const isSupervisorGate = request.status === "pending_dept_head";
-  const canQuickApprove = !isSupervisor && (isSuperAdmin || isApprover) && !isFullyApproved && (
-    (
-      (request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
-      Array.isArray(request.approvals) &&
-      request.approvals.some((a: any) => a.status === 'pending' && (isSuperAdmin || canApproveInDepartment(a.department)))
-    ) || (
-      isSupervisorGate && (isSuperAdmin || canApproveInDepartment(request.department))
-    )
-  );
-
   return (
-    <div className={`bg-card rounded-2xl border p-4 sm:p-5 shadow-sm transition-all relative ${isSelected ? 'border-primary/50 bg-primary/5' : 'border-border hover:border-primary/20'}`}>
+    <div className={`bg-card rounded-2xl border p-4 sm:p-5 shadow-sm transition-all relative ${
+      isSelected 
+        ? 'border-primary/50 bg-primary/5' 
+        : approvalContext.isAwaitingMyAction
+        ? 'border-amber-500/40 bg-amber-500/[0.02] shadow-amber-500/5'
+        : 'border-border hover:border-primary/20'
+    }`}>
+      {approvalContext.isAwaitingMyAction && (
+        <div className="absolute -top-2.5 left-3 z-10 flex items-center gap-1.5 bg-amber-500 text-white text-[11px] font-extrabold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-md animate-pulse">
+          <span>⏳</span> Needs Your Sign-Off ({approvalContext.myPendingDepartments.join(", ")})
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div className="flex items-center gap-3 min-w-0">
           <label className="min-h-[44px] min-w-[44px] -m-2 flex items-center justify-center cursor-pointer shrink-0" title={`Select request ${request.requestNumber}`}>
@@ -861,8 +955,21 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
             </div>
           </div>
         </div>
-        <div className="self-start sm:self-auto pl-9 sm:pl-0">
+        <div className="self-start sm:self-auto pl-9 sm:pl-0 flex flex-col gap-1 items-start sm:items-end">
           <StatusBadge status={request.status} />
+          {approvalContext.isAwaitingMyAction ? (
+            <span className="text-[10px] font-black text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-md">
+              Pending: {approvalContext.myPendingDepartments.join(", ")}
+            </span>
+          ) : approvalContext.myApprovedDepartments.length > 0 && approvalContext.otherPendingDepartments.length > 0 ? (
+            <span className="text-[10px] font-medium text-blue-600 dark:text-blue-400 bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-md">
+              Signed ({approvalContext.myApprovedDepartments.join(", ")}) • Waiting {approvalContext.otherPendingDepartments.join(", ")}
+            </span>
+          ) : approvalContext.otherPendingDepartments.length > 0 && !approvalContext.isFullyApproved ? (
+            <span className="text-[10px] font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded-md border border-border/50">
+              Awaiting: {approvalContext.otherPendingDepartments.join(", ")}
+            </span>
+          ) : null}
         </div>
       </div>
 
@@ -908,7 +1015,7 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
             <DropdownMenuContent align="end" className="w-48">
               {canQuickApprove && (
                 <DropdownMenuItem onClick={() => onRequestApprove(request)} className="text-emerald-600 dark:text-emerald-400 font-bold">
-                  <CheckCircle className="w-4 h-4 mr-2" /> Approve Request
+                  <CheckCircle className="w-4 h-4 mr-2" /> Approve ({approvalContext.myPendingDepartments[0] || 'Stage'})
                 </DropdownMenuItem>
               )}
               {canEdit && (
@@ -936,22 +1043,21 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
   );
 }
 
-function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete, awaitingMyApproval }: any) {
+function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete }: any) {
   const router = useRouter();
   const { highPerformanceMode } = usePerformance();
   const { user, isSuperAdmin, isAdmin, isApprover, isSupervisor, canApproveInDepartment } = useAuth();
+
+  const approvalContext = useMemo(() => {
+    return getRequestApprovalContext(request, user, isSuperAdmin, canApproveInDepartment);
+  }, [request, user, isSuperAdmin, canApproveInDepartment]);
 
   const isOwner = request.requesterId === user?.id;
   const approvedCount = (request.approvals?.filter((a: any) => a.status === 'approved').length) || Number(request.approvedCount || 0);
   const isPaidOrDisbursed = ['fully_paid', 'partially_paid'].includes(request.status) || Number(request.paidAmount || 0) > 0;
 
-  const isFullyApproved = ['approved', 'fully_paid'].includes((request.status || '').toLowerCase()) ||
-    (Array.isArray(request.approvals) && request.approvals.length > 0 && request.approvals.every((a: any) => a.status === 'approved'));
-
-  const myDeptApproval = Array.isArray(request.approvals)
-    ? request.approvals.find((a: any) => canApproveInDepartment(a.department))
-    : null;
-  const isMyDeptSignedOff = !isSuperAdmin && myDeptApproval && myDeptApproval.status === 'approved';
+  const isFullyApproved = approvalContext.isFullyApproved;
+  const canQuickApprove = !isSupervisor && (isSuperAdmin || isAdmin || isApprover) && approvalContext.isAwaitingMyAction;
 
   const canEdit =
     (isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
@@ -966,18 +1072,13 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
     (isSuperAdmin && !isPaidOrDisbursed) ||
     (isOwner && approvedCount === 0 && !isPaidOrDisbursed);
 
-  const isSupervisorGate = request.status === "pending_dept_head";
-  const canQuickApprove = !isSupervisor && (isSuperAdmin || isApprover) && !isFullyApproved && (
-    (
-      (request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
-      Array.isArray(request.approvals) &&
-      request.approvals.some((a: any) => a.status === 'pending' && (isSuperAdmin || canApproveInDepartment(a.department)))
-    ) || (
-      isSupervisorGate && (isSuperAdmin || canApproveInDepartment(request.department))
-    )
-  );
-
-  const rowClassName = `group hover:bg-white/[0.04] dark:hover:bg-white/[0.02] transition-all duration-300 ${isSelected ? 'bg-primary/10' : ''}`;
+  const rowClassName = `group transition-all duration-200 ${
+    isSelected 
+      ? 'bg-primary/10' 
+      : approvalContext.isAwaitingMyAction
+      ? 'bg-amber-500/[0.04] hover:bg-amber-500/[0.08]'
+      : 'hover:bg-white/[0.04] dark:hover:bg-white/[0.02]'
+  }`;
 
   const renderCells = () => (
     <>
@@ -1013,13 +1114,23 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
         </div>
       </td>
       <td className="px-6 py-5 whitespace-nowrap">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 items-start">
           <StatusBadge status={request.status} />
-          {awaitingMyApproval && !isFullyApproved && (
-            <span className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full w-max flex items-center gap-1">
-              <span>⏳</span> Action Required
+          {approvalContext.isAwaitingMyAction ? (
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2.5 py-0.5 rounded-full w-max flex items-center gap-1 shadow-xs animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              <span>Needs Sign-off ({approvalContext.myPendingDepartments.join(", ")})</span>
             </span>
-          )}
+          ) : approvalContext.myApprovedDepartments.length > 0 && approvalContext.otherPendingDepartments.length > 0 ? (
+            <span className="text-[10px] font-semibold text-blue-700 dark:text-blue-300 bg-blue-500/10 border border-blue-500/20 px-2.5 py-0.5 rounded-full w-max flex items-center gap-1" title={`Your department (${approvalContext.myApprovedDepartments.join(", ")}) signed off. Currently waiting for ${approvalContext.otherPendingDepartments.join(", ")}.`}>
+              <Check className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+              <span>Signed ({approvalContext.myApprovedDepartments.join(", ")}) • Waiting {approvalContext.otherPendingDepartments.join(", ")}</span>
+            </span>
+          ) : approvalContext.otherPendingDepartments.length > 0 && !approvalContext.isFullyApproved ? (
+            <span className="text-[10px] font-medium text-muted-foreground bg-secondary/80 border border-border/60 px-2 py-0.5 rounded-full w-max flex items-center gap-1">
+              <span>⏳ Awaiting {approvalContext.otherPendingDepartments.join(", ")}</span>
+            </span>
+          ) : null}
         </div>
       </td>
       <td className="px-6 py-5 whitespace-nowrap">
@@ -1033,10 +1144,11 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
           {canQuickApprove && (
             <button
               onClick={onApprove}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-colors text-xs font-semibold shadow-xs"
-              title="Quick Approve"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors text-xs font-bold shadow-xs hover:shadow-sm"
+              title={`Quick approve for ${approvalContext.myPendingDepartments[0] || 'your department'}`}
             >
-              <CheckCircle className="w-3.5 h-3.5" /> Approve
+              <CheckCircle className="w-3.5 h-3.5" />
+              <span>Approve {approvalContext.myPendingDepartments.length === 1 ? `(${approvalContext.myPendingDepartments[0]})` : ''}</span>
             </button>
           )}
 
@@ -1049,10 +1161,10 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
             </span>
           )}
 
-          {!canQuickApprove && !isFullyApproved && isMyDeptSignedOff && (
+          {!canQuickApprove && !isFullyApproved && approvalContext.myApprovedDepartments.length > 0 && (
             <span
               className="hidden lg:inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-medium border border-blue-500/20"
-              title="Your department has already approved this stage."
+              title={`Your department (${approvalContext.myApprovedDepartments.join(", ")}) has already approved this stage.`}
             >
               <Check className="w-3.5 h-3.5" /> Signed Off
             </span>

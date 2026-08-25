@@ -42,14 +42,39 @@ export async function GET(req: NextRequest) {
     const search = searchParams.get("search");
     const requestNo = searchParams.get("requestNo");
 
+    // Role-based visibility & approval calculations
+    const normalizedRole = user.role?.toLowerCase() || '';
+    const isSuperAdmin = normalizedRole === 'super_admin' || normalizedRole === 'superadmin';
+    const isAdmin = isSuperAdmin || normalizedRole === 'admin';
+    const userDepts = (user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean);
+
+    // Calculate which departments this user is authorized to APPROVE for
+    const approverDepts: string[] = [];
+    if ((normalizedRole === 'approver' || normalizedRole === 'admin') && user.department) {
+      approverDepts.push(user.department);
+    }
+    const normalizedAssignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);
+    for (const assignment of normalizedAssignments) {
+      if (assignment.status === 'active' && (assignment.role === 'approver' || assignment.role === 'both')) {
+        if (assignment.department && !approverDepts.includes(assignment.department)) {
+          approverDepts.push(assignment.department);
+        }
+      }
+    }
+
     const whereConditions: any[] = [];
 
     // Filter Logic
     if (status && status !== "all") {
       const statusArr = status.split(",").map(s => s.trim().toLowerCase());
       const expanded: string[] = [];
+      let isMyQueueFilter = false;
+
       for (const s of statusArr) {
-        if (s === "pending") {
+        if (s === "my_queue") {
+          isMyQueueFilter = true;
+          expanded.push("pending", "partially_approved", "pending_dept_head", "variation_pending");
+        } else if (s === "pending") {
           expanded.push("pending", "partially_approved", "pending_dept_head", "variation_pending");
         } else if (s === "approved") {
           expanded.push("approved", "fully_paid");
@@ -62,6 +87,22 @@ export async function GET(req: NextRequest) {
         }
       }
       whereConditions.push(inArray(purchaseRequests.status, Array.from(new Set(expanded))));
+
+      if (isMyQueueFilter) {
+        if (!isSuperAdmin) {
+          if (approverDepts.length > 0) {
+            whereConditions.push(
+              sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.status} = 'pending' AND ${approvals.department} IN ${approverDepts})`
+            );
+          } else {
+            whereConditions.push(sql`1 = 0`);
+          }
+        } else {
+          whereConditions.push(
+            sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.status} = 'pending')`
+          );
+        }
+      }
     }
 
     if (deptFilter && deptFilter !== "all") {
@@ -130,26 +171,6 @@ export async function GET(req: NextRequest) {
         ilike(vendors.companyName, `%${search}%`),
         ilike(purchaseRequests.purposeType, `%${search}%`)
       ));
-    }
-
-    // Role-based visibility
-    const normalizedRole = user.role?.toLowerCase() || '';
-    const isSuperAdmin = normalizedRole === 'super_admin' || normalizedRole === 'superadmin';
-    const isAdmin = isSuperAdmin || normalizedRole === 'admin';
-    const userDepts = (user.departments && user.departments.length > 0 ? user.departments : [user.department]).filter(Boolean);
-
-    // Calculate which departments this user is authorized to APPROVE for
-    const approverDepts: string[] = [];
-    if (normalizedRole === 'approver' && user.department) {
-      approverDepts.push(user.department);
-    }
-    const normalizedAssignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);
-    for (const assignment of normalizedAssignments) {
-      if (assignment.status === 'active' && (assignment.role === 'approver' || assignment.role === 'both')) {
-        if (assignment.department && !approverDepts.includes(assignment.department)) {
-          approverDepts.push(assignment.department);
-        }
-      }
     }
 
     // 1. Isolation for pending_dept_head requests:

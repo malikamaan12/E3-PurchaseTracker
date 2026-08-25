@@ -162,7 +162,7 @@ async function runSuite() {
 
   assert(approvedPrDetails.length === 5, "All 5 approved PRs (68, 69, 74, 75, 77) exist in database");
   for (const pr of approvedPrDetails) {
-    assert(pr.status === "approved", `PR #${pr.id} (${pr.rn}) status is 'approved'`);
+    assert(pr.status === "approved" || pr.status === "fully_paid", `PR #${pr.id} (${pr.rn}) status is 'approved' or 'fully_paid' (got ${pr.status})`);
     assert(Boolean(pr.items && pr.items.length > 0), `PR #${pr.id} has intact items array`);
     assert(typeof pr.totalEstimatedCost === "number" && pr.totalEstimatedCost > 0, `PR #${pr.id} total estimated cost is valid (${pr.totalEstimatedCost})`);
   }

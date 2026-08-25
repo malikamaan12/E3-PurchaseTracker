@@ -156,13 +156,44 @@ export function RequestFilters({ filters, setFilters, metadata, counts }: Reques
         </div>
 
         <div className="flex items-center gap-2 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 no-scrollbar">
-          <div className="flex p-1 bg-secondary/60 border border-border rounded-xl shrink-0">
+          <div className="flex p-1 bg-secondary/60 border border-border rounded-xl shrink-0 gap-1">
+            {/* Needs My Sign-Off Tab (For Approvers & Admins) */}
+            {typeof counts?.myQueue === 'number' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters({ ...filters, status: filters.status === "my_queue" ? "all" : "my_queue" });
+                }}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap min-h-[38px] ${
+                  filters.status === "my_queue"
+                    ? "bg-amber-500 text-white shadow-sm"
+                    : counts.myQueue > 0
+                    ? "text-amber-700 dark:text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                title="Filter to requests requiring your departmental sign-off"
+              >
+                <span>⏳</span>
+                <span>Needs My Sign-Off</span>
+                {counts.myQueue > 0 && (
+                  <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full leading-none ${
+                    filters.status === "my_queue"
+                      ? "bg-white/30 text-white"
+                      : "bg-amber-500 text-white animate-pulse"
+                  }`}>
+                    {counts.myQueue}
+                  </span>
+                )}
+              </button>
+            )}
+
             {statusOptions.slice(0, 4).map(status => {
               const count = counts ? (counts as any)[status] : undefined;
               const isActive = filters.status === status;
               return (
                 <button
                   key={status}
+                  type="button"
                   onClick={() => {
                     if (filters.status !== status) {
                       setFilters({ ...filters, status });
@@ -174,7 +205,7 @@ export function RequestFilters({ filters, setFilters, metadata, counts }: Reques
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  <span>{status}</span>
+                  <span>{status === "all" ? "All" : status}</span>
                   {typeof count === 'number' && (
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
                       isActive 

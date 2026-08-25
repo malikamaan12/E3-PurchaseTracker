@@ -306,7 +306,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         action: `approval_${status}`,
         userId: user.id,
         details: {
-          dept: user.department,
+          dept: targetApproval.department || user.department,
           role: user.role,
           status: status,
           finalStatus: finalRequest.status,
@@ -339,7 +339,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       if (status === 'approved') {
         type = 'purchase_request_approved';
         notifTitle = `Request Approved`;
-        notifMessage = `Your request "${updatedRequest.title}" was approved by ${user.username} (${user.department}).`;
+        notifMessage = `Your request "${updatedRequest.title}" was approved by ${user.username} (${targetApproval.department || user.department}).`;
       } else if (status === 'rejected') {
         type = 'purchase_request_rejected';
         notifTitle = `Request Rejected`;

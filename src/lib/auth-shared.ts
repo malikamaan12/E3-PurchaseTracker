@@ -120,15 +120,17 @@ export function canCreateInDepartment(user: AuthenticatedUser, targetDept: strin
 /**
  * Helper to check if user can approve requests for a specific department.
  * Supervisors and regular users NEVER have approval power in any department.
+ * ONLY super_admin has universal approval authority across all departments.
+ * Admins and approvers can ONLY approve for their primary department or assigned active approver departments.
  */
 export function canApproveInDepartment(user: AuthenticatedUser, targetDept: string): boolean {
   if (user.role === 'supervisor' || user.role === 'user') return false;
-  if (user.role === 'super_admin' || user.role === 'admin') return true;
+  if (user.role === 'super_admin') return true;
   const target = targetDept.toLowerCase().trim();
 
-  // Primary department approver check
+  // Primary department approver / admin check
   if ((user.department || '').toLowerCase().trim() === target) {
-    return user.role === 'approver' || !!user.isApprover;
+    return user.role === 'approver' || user.role === 'admin' || !!user.isApprover;
   }
 
   const assignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);

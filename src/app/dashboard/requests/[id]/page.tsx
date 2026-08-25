@@ -29,7 +29,7 @@ export default function RequestDetailPage() {
   const params = useParams();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { user, isAdmin, isApprover, isSuperAdmin, isSupervisor } = useAuth();
+  const { user, isAdmin, isApprover, isSuperAdmin, isSupervisor, canApproveInDepartment } = useAuth();
   const requestId = parseInt(params.id as string);
   const [activeAttachment, setActiveAttachment] = useState<any>(null);
   const [approvalComments, setApprovalComments] = useState("");
@@ -155,19 +155,24 @@ export default function RequestDetailPage() {
   const pendingApprovals = request.approvals?.filter((a: any) => a.status === "pending") || [];
 
   // Active approver departments for current user (primary department + active assigned departments with approver or both role)
-  const userApprovalDepts = (!isSupervisor && (isSuperAdmin || isApprover)) ? [
+  const userApprovalDepts = (!isSupervisor && (isSuperAdmin || isAdmin || isApprover)) ? [
     user?.department,
     ...(user?.departmentAssignments || [])
       .filter((a: any) => a.status === 'active' && (a.role === 'approver' || a.role === 'both'))
       .map((a: any) => a.department)
   ].filter(Boolean).map((d: string) => d.toLowerCase().trim()) : [];
 
-  // Find any pending approval slot that matches one of user's active approver departments
-  const myDeptApproval = request.approvals?.find((a: any) =>
-    a.status === "pending" && userApprovalDepts.includes(a.department?.toLowerCase().trim())
-  ) || request.approvals?.find((a: any) =>
-    userApprovalDepts.includes(a.department?.toLowerCase().trim())
-  );
+  // Pending approval slots the current user is authorized to act on
+  const eligiblePendingApprovals = isSuperAdmin
+    ? pendingApprovals
+    : pendingApprovals.filter((a: any) => canApproveInDepartment(a.department));
+
+  // Resolved approval slot to act on (if user selected targetApprovalId, or first eligible pending, or fallback)
+  const selectedApproval = (targetApprovalId && request.approvals?.find((a: any) => a.id === targetApprovalId))
+    || eligiblePendingApprovals[0]
+    || (isSuperAdmin ? request.approvals?.[0] : request.approvals?.find((a: any) => userApprovalDepts.includes(a.department?.toLowerCase().trim())));
+
+  const myDeptApproval = selectedApproval;
 
   // canAct:
   // - Supervisors and regular users NEVER have approval power!
@@ -175,7 +180,7 @@ export default function RequestDetailPage() {
   // - Admin & Approver can act only if their authorized department slot is pending
   // - If request is pending_dept_head, only the supervisor's Department Head or Super Admin can act!
   const isSupervisorGate = request.status === "pending_dept_head";
-  const isMyDeptPending = myDeptApproval?.status === "pending";
+  const isMyDeptPending = eligiblePendingApprovals.length > 0;
   const isDeptHeadForStage1 = isSupervisorGate && isMyDeptPending && (isAdmin || isApprover) && !isSupervisor;
 
   const canAct = !isSupervisor && (
@@ -211,16 +216,18 @@ export default function RequestDetailPage() {
       return;
     }
 
+    const deptName = selectedApproval?.department || "Department";
+
     const titles = {
-      approved: "Confirm Request Approval",
-      rejected: "Reject Purchase Request",
-      changes_requested: "Request Modifications"
+      approved: `Confirm ${deptName} Approval`,
+      rejected: `Reject Purchase Request (${deptName})`,
+      changes_requested: `Request Modifications (${deptName})`
     };
 
     const descs = {
-      approved: "Are you sure you want to approve this request? This action will move it to the next stage of the procurement workflow.",
-      rejected: "Warning: Rejecting this request will terminate the procurement cycle for these items.",
-      changes_requested: "The requester will be notified to update the documentation based on your comments below."
+      approved: `Are you sure you want to approve this request for ${deptName}? This action will record your departmental sign-off and advance the request in the procurement workflow.`,
+      rejected: `Warning: Rejecting this request as ${deptName} will terminate the procurement cycle for these items.`,
+      changes_requested: `The requester will be notified to update the documentation based on your comments for ${deptName}.`
     };
 
     setConfirmData({
@@ -233,10 +240,11 @@ export default function RequestDetailPage() {
 
   const executeApprovalAction = () => {
     if (!confirmData) return;
+    const activeApprovalId = targetApprovalId || selectedApproval?.id || eligiblePendingApprovals[0]?.id || (isSuperAdmin && pendingApprovals.length > 0 ? pendingApprovals[0]?.id : undefined);
     approvalMutation.mutate({ 
       status: confirmData.status, 
       comments: approvalComments,
-      approvalId: targetApprovalId || myDeptApproval?.id || (isSuperAdmin && pendingApprovals.length > 0 ? pendingApprovals[0]?.id : undefined)
+      approvalId: activeApprovalId
     });
     setShowConfirmAction(false);
   };
@@ -335,26 +343,31 @@ export default function RequestDetailPage() {
                       <ShieldCheck className="w-5 h-5 text-primary" />
                     </div>
                     <span className="text-sm font-semibold tracking-tight">
-                      Reviewing as {isSuperAdmin ? (
-                        <span className="text-primary font-bold">Super Admin (Universal Access)</span>
+                      Reviewing as{" "}
+                      {isSuperAdmin ? (
+                        <span className="text-primary font-bold">
+                          Super Admin {selectedApproval?.department ? `(${selectedApproval.department})` : "(Universal Access)"}
+                        </span>
                       ) : (
-                        <span className="text-primary">{user?.department}</span>
+                        <span className="text-primary font-bold">
+                          {selectedApproval?.department || user?.department}
+                        </span>
                       )}
                     </span>
                   </div>
 
-                  {/* Super Admin Department Stage Selector */}
-                  {isSuperAdmin && pendingApprovals.length > 1 && (
+                  {/* Department Stage Selector for Multi-Department Approvers & Super Admins */}
+                  {eligiblePendingApprovals.length > 1 && (
                     <div className="flex items-center gap-2">
-                      <label className="text-xs text-muted-foreground font-medium">Acting on stage:</label>
+                      <label className="text-xs text-muted-foreground font-semibold">Acting for department:</label>
                       <select
-                        value={targetApprovalId || pendingApprovals[0]?.id}
+                        value={targetApprovalId || eligiblePendingApprovals[0]?.id}
                         onChange={(e) => setTargetApprovalId(Number(e.target.value))}
-                        className="bg-background border border-border/50 rounded-lg px-2.5 py-1 text-xs font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                        className="bg-background border border-border/80 rounded-xl px-3 py-1.5 text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 cursor-pointer shadow-sm"
                       >
-                        {pendingApprovals.map((pa: any) => (
+                        {eligiblePendingApprovals.map((pa: any) => (
                           <option key={pa.id} value={pa.id}>
-                            {pa.department} (Pending)
+                            {pa.department} Approval (Pending)
                           </option>
                         ))}
                       </select>
@@ -912,10 +925,26 @@ export default function RequestDetailPage() {
                     const isApproved = approval.status === 'approved';
                     const isRejected = approval.status === 'rejected';
                     
+                    const isMyAuthorizedDept = isSuperAdmin || canApproveInDepartment(approval.department);
+
                     return (
                       <TimelineItem 
                         key={approval.id}
-                        title={`${approval.department} Approval`}
+                        title={
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span>{approval.department} Approval</span>
+                            {isMyAuthorizedDept && isPending && (
+                              <span className="text-[9px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-xs animate-pulse">
+                                <span>👉</span> Your Department
+                              </span>
+                            )}
+                            {isMyAuthorizedDept && isApproved && (
+                              <span className="text-[9px] font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                <span>✓</span> Your Department
+                              </span>
+                            )}
+                          </div>
+                        }
                         desc={
                           <div className="space-y-1.5 mt-0.5">
                             <div className="font-medium text-foreground/90">
@@ -1304,7 +1333,7 @@ function TimelineItem({
   status, 
   actions 
 }: { 
-  title: string; 
+  title: React.ReactNode; 
   desc: React.ReactNode; 
   time?: string; 
   status: string; 

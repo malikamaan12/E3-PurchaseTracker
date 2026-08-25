@@ -17,7 +17,8 @@
     "test:quickcreate": "tsx tests/pr-vendor-quick-create-flow.test.ts",
     "test:notifications": "tsx tests/notification-formatter.test.ts",
     "test:audit": "tsx tests/app-audit-remediations.test.ts",
-    "test:all": "npm run test:security && npm run test:visibility && npm run test:financials && npm run test:onboarding && npm run test:quickcreate && npm run test:notifications && npm run test:audit && npm run test:e2e",
+    "test:department-approval": "tsx tests/department-approval-rbac.test.ts",
+    "test:all": "npm run test:security && npm run test:visibility && npm run test:financials && npm run test:onboarding && npm run test:quickcreate && npm run test:notifications && npm run test:audit && npm run test:department-approval && npm run test:e2e",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {

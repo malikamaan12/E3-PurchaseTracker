@@ -337,8 +337,8 @@ export class NotificationService {
     for (const u of activeUsers) {
       if (excludeUserId && u.id === excludeUserId) continue;
 
-      // 1. Super Admins and Admins have global authority across all departments
-      if (u.role === 'super_admin' || u.role === 'admin') {
+      // 1. Super Admins have global oversight across all departments
+      if (u.role === 'super_admin') {
         eligibleIds.add(u.id);
         continue;
       }
@@ -348,14 +348,14 @@ export class NotificationService {
         continue;
       }
 
-      // 3. Approvers: check primary department
+      // 3. Department Admins & Approvers: check primary department
       const primary = (u.department || '').toLowerCase().trim();
-      if (normalizedTargets.includes(primary) && u.role === 'approver') {
+      if (normalizedTargets.includes(primary) && (u.role === 'approver' || u.role === 'admin' || (u as any).isApprover)) {
         eligibleIds.add(u.id);
         continue;
       }
 
-      // 4. Approvers: check assigned departments
+      // 4. Department Admins & Approvers: check assigned departments
       const assignments = normalizeDepartmentAssignments(u.assignedDepartments, u.department);
       const hasMatchingAssignment = assignments.some(
         a => normalizedTargets.includes(a.department.toLowerCase().trim()) &&
@@ -393,8 +393,8 @@ export class NotificationService {
       }
     }
 
-    // 2. Department Restrictions Enforcement (Admins have global access across departments)
-    if (actionData.departmentRestrictions && user.role !== 'admin') {
+    // 2. Department Restrictions Enforcement (super_admin has global access, others scoped to department)
+    if (actionData.departmentRestrictions) {
       const allowedDepts = (Array.isArray(actionData.departmentRestrictions)
         ? actionData.departmentRestrictions
         : [actionData.departmentRestrictions]
@@ -416,7 +416,7 @@ export class NotificationService {
           if (!primaryMatches && !assignmentMatches) {
             return false;
           }
-          if (primaryMatches && user.role !== 'approver' && !user.isApprover) {
+          if (primaryMatches && user.role !== 'approver' && user.role !== 'admin' && !user.isApprover) {
             if (!assignmentMatches) {
               return false;
             }
