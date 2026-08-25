@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import {
   Building2,
@@ -86,11 +86,15 @@ export default function VendorsDashboard() {
       return Array.isArray(j?.drafts) ? j.drafts : [];
     },
     enabled: !!isAdmin,
+    staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
   });
 
   const { data: vendors, isLoading, isError, error, refetch: refetchVendors } = useQuery({
     queryKey: ["vendors"],
     queryFn: () => apiClient.vendors.list(),
+    staleTime: 30 * 1000,
+    placeholderData: keepPreviousData,
   });
 
   const statusMutation = useMutation({

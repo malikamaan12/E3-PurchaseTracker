@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { useState, lazy, useMemo, useEffect, useRef, Suspense } from "react";
 import {
@@ -84,22 +84,25 @@ function RequestsDashboardContent() {
   const { data: departments = [] } = useQuery({
     queryKey: ["departments"],
     queryFn: () => apiClient.departments.list(),
-    enabled: true,
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: vendors = [] } = useQuery({
     queryKey: ["vendors"],
     queryFn: () => apiClient.vendors.list(),
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: purposes = [] } = useQuery({
     queryKey: ["purposes"],
     queryFn: () => apiClient.purposes.list(),
+    staleTime: 5 * 60 * 1000,
   });
 
   const { data: subPurposes = [] } = useQuery({
     queryKey: ["sub-purposes"],
     queryFn: () => apiClient.requests.getSubPurposes(),
+    staleTime: 5 * 60 * 1000,
   });
 
   useEffect(() => {
@@ -121,12 +124,16 @@ function RequestsDashboardContent() {
       });
       return apiClient.requests.list(params);
     },
+    placeholderData: keepPreviousData,
+    staleTime: 15 * 1000,
   });
 
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ["requests-analytics"],
     queryFn: () => apiClient.requests.analytics(),
+    placeholderData: keepPreviousData,
+    staleTime: 30 * 1000,
   });
 
   // Edit/Delete/Approve Confirmation State

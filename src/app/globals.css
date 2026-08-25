@@ -381,4 +381,18 @@ input[type=number] {
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+
+  /* GPU Hardware Acceleration & Smooth Rendering */
+  .gpu-accelerated {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    will-change: transform, opacity;
+  }
+
+  /* Content visibility for long lists & tables to bypass off-screen rendering */
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: 0 80px;
+  }
 }

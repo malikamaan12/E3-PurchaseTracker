@@ -3,12 +3,29 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Disable strict mode in dev to prevent double-rendering every component
   reactStrictMode: false,
+  compress: true,
+  poweredByHeader: false,
   
   // Reduce noisy fetch logging in dev server output
   logging: {
     fetches: {
       fullUrl: false,
     },
+  },
+
+  experimental: {
+    optimizePackageImports: [
+      "lucide-react",
+      "date-fns",
+      "recharts",
+      "framer-motion",
+      "clsx",
+      "tailwind-merge",
+      "@radix-ui/react-dialog",
+      "@radix-ui/react-dropdown-menu",
+      "@radix-ui/react-popover",
+      "@radix-ui/react-tooltip"
+    ],
   },
 
   serverExternalPackages: [

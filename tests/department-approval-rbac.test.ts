@@ -4,6 +4,7 @@ import { canApproveInDepartment, canActInDepartment, canCreateInDepartment, type
 import { getRequestApprovalContext } from "../src/lib/utils/approval-helpers";
 import { NotificationService } from "../src/lib/services/NotificationService";
 import { POST } from "../src/app/api/requests/[id]/approvals/route";
+import { GET as getRequests } from "../src/app/api/requests/route";
 import { NextRequest } from "next/server";
 import { SignJWT } from "jose";
 import { JWT_SECRET, TOKEN_COOKIE_NAME } from "../src/lib/utils/config";
@@ -14,7 +15,8 @@ import { eq } from "drizzle-orm";
 async function createAuthRequest(
   url: string,
   user: { id: number; email: string; role: string; department: string; username: string },
-  body: any
+  body?: any,
+  method: string = "POST"
 ): Promise<NextRequest> {
   const secretKey = new TextEncoder().encode(JWT_SECRET);
   const token = await new SignJWT({
@@ -29,14 +31,18 @@ async function createAuthRequest(
     .setExpirationTime("2h")
     .sign(secretKey);
 
-  const req = new NextRequest(new URL(url, "http://localhost:3000"), {
-    method: "POST",
+  const init: any = {
+    method,
     headers: {
       "Content-Type": "application/json",
       Cookie: `${TOKEN_COOKIE_NAME}=${token}`,
     },
-    body: JSON.stringify(body),
-  });
+  };
+  if (body && method !== "GET") {
+    init.body = JSON.stringify(body);
+  }
+
+  const req = new NextRequest(new URL(url, "http://localhost:3000"), init);
   return req;
 }
 
@@ -237,6 +243,26 @@ describe("Departmental Approval RBAC & Cross-Department Security Test Suite", ()
     assert.strictEqual(canApproveInDepartment(ahmadFarazDb as any, "Finance"), false);
   });
 
+  it("GET /api/requests?status=my_queue returns pending requests for Ceo Office (case-insensitive)", async () => {
+    const adilDb = await db.query.users.findFirst({ where: eq(users.username, "Adil Ahmed") });
+    if (!adilDb) return;
+
+    const req = await createAuthRequest(
+      "http://localhost:3000/api/requests?status=my_queue",
+      adilDb,
+      undefined,
+      "GET"
+    );
+    const res = await getRequests(req);
+    assert.strictEqual(res.status, 200);
+    const items = await res.json();
+    assert.ok(Array.isArray(items), "Response must be an array");
+    assert.ok(items.length > 0, `Must return active pending requests for Ceo Office queue (found: ${items.length})`);
+    for (const item of items) {
+      assert.ok(['pending', 'partially_approved', 'pending_dept_head', 'variation_pending'].includes(item.status), "Only in-flight requests in queue");
+    }
+  });
+
   // ─────────────────────────────────────────────────────────────────────────────
   // 4. Request Approval Context Clarity Helper
   // ─────────────────────────────────────────────────────────────────────────────
@@ -301,5 +327,34 @@ describe("Departmental Approval RBAC & Cross-Department Security Test Suite", ()
     assert.strictEqual(financeSignedCtx.isAwaitingMyAction, false);
     assert.deepStrictEqual(financeSignedCtx.myApprovedDepartments, ["Finance"]);
     assert.deepStrictEqual(financeSignedCtx.otherPendingDepartments, ["Management"]);
+
+    // 5. Rejected Request with orphan pending approval slots
+    const rejectedRequest = {
+      id: 998,
+      status: "rejected",
+      approvals: [
+        { id: 1, department: "Management", status: "rejected" },
+        { id: 2, department: "Finance", status: "pending" }
+      ]
+    };
+    const rejectedFinanceCtx = getRequestApprovalContext(
+      rejectedRequest,
+      financeAdminUser,
+      false,
+      (dept: string) => canApproveInDepartment(financeAdminUser, dept)
+    );
+    assert.strictEqual(rejectedFinanceCtx.isAwaitingMyAction, false, "Rejected request must NEVER be awaiting action");
+    assert.deepStrictEqual(rejectedFinanceCtx.myPendingDepartments, [], "No pending departments on rejected request");
+    assert.deepStrictEqual(rejectedFinanceCtx.otherPendingDepartments, [], "No other pending departments on rejected request");
+
+    // Even Super Admin cannot take action on a closed rejected request
+    const rejectedSuperAdminCtx = getRequestApprovalContext(
+      rejectedRequest,
+      superAdminUser,
+      true,
+      (dept: string) => canApproveInDepartment(superAdminUser, dept)
+    );
+    assert.strictEqual(rejectedSuperAdminCtx.isAwaitingMyAction, false, "Super Admin cannot have action on rejected request");
+    assert.deepStrictEqual(rejectedSuperAdminCtx.myPendingDepartments, []);
   });
 });

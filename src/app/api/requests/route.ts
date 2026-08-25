@@ -90,16 +90,29 @@ export async function GET(req: NextRequest) {
 
       if (isMyQueueFilter) {
         if (!isSuperAdmin) {
-          if (approverDepts.length > 0) {
+          const lowerApproverDepts = approverDepts.map(d => d.toLowerCase().trim()).filter(Boolean);
+          if (lowerApproverDepts.length > 0) {
+            const deptListSql = sql.join(lowerApproverDepts.map(d => sql`${d}`), sql`, `);
             whereConditions.push(
-              sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.status} = 'pending' AND ${approvals.department} IN ${approverDepts})`
+              or(
+                sql`EXISTS (
+                  SELECT 1 FROM ${approvals} 
+                  WHERE ${approvals.requestId} = ${purchaseRequests.id} 
+                  AND ${approvals.status} = 'pending' 
+                  AND LOWER(TRIM(${approvals.department})) IN (${deptListSql})
+                )`,
+                sql`(${purchaseRequests.status} = 'pending_dept_head' AND LOWER(TRIM(COALESCE(${purchaseRequests.department}, ${users.department}))) IN (${deptListSql}))`
+              )
             );
           } else {
             whereConditions.push(sql`1 = 0`);
           }
         } else {
           whereConditions.push(
-            sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.status} = 'pending')`
+            or(
+              sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.status} = 'pending')`,
+              sql`${purchaseRequests.status} = 'pending_dept_head'`
+            )
           );
         }
       }

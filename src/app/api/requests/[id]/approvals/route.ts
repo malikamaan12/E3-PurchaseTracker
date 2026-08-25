@@ -60,6 +60,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
     if (!reqHeader) return NextResponse.json({ error: "Purchase request not found." }, { status: 404 });
 
+    if (['rejected', 'cancelled', 'draft'].includes((reqHeader.status || '').toLowerCase())) {
+      return NextResponse.json(
+        { error: `Cannot process approval. This purchase request is in '${reqHeader.status}' status and closed.` },
+        { status: 400 }
+      );
+    }
+
     if (reqHeader.requesterId === user.id && user.role !== 'super_admin') {
       return NextResponse.json(
         { error: "Self-approval is not permitted. You cannot approve a request you submitted." },

@@ -60,7 +60,10 @@ export const notifications = pgTable("notifications", {
   expiresAt: timestamp("expires_at"), // Optional expiration time
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  userUnreadIdx: index("idx_notifications_user_unread").on(table.userId, table.isRead, table.createdAt),
+  reqIdIdx: index("idx_notifications_request_id").on(table.requestId),
+}));
 
 export const errorLogs = pgTable("error_logs", {
   id: serial("id").primaryKey(),
@@ -145,7 +148,14 @@ export const purchaseRequests = pgTable("purchase_requests", {
   latestComplianceSnapshotId: integer("latest_compliance_snapshot_id"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  statusCreatedIdx: index("idx_purchase_requests_status_created").on(table.status, table.createdAt),
+  requesterIdx: index("idx_purchase_requests_requester").on(table.requesterId),
+  departmentIdx: index("idx_purchase_requests_department").on(table.department),
+  vendorIdx: index("idx_purchase_requests_vendor").on(table.vendorId),
+  subPurposeIdx: index("idx_purchase_requests_subpurpose").on(table.subPurposeId),
+  requestNumberIdx: index("idx_purchase_requests_number").on(table.requestNumber),
+}));
 
 export const approvals = pgTable("approvals", {
   id: serial("id").primaryKey(),
@@ -158,7 +168,11 @@ export const approvals = pgTable("approvals", {
   processedAt: timestamp("processed_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  reqStatusIdx: index("idx_approvals_request_id_status").on(table.requestId, table.status),
+  deptStatusIdx: index("idx_approvals_department_status").on(table.department, table.status),
+  approverIdx: index("idx_approvals_approver").on(table.approverId),
+}));
 
 export const approvalAuditLogs = pgTable("approval_audit_logs", {
   id: serial("id").primaryKey(),
@@ -696,7 +710,10 @@ export const paymentInstallments = pgTable("payment_installments", {
   createdBy: integer("created_by").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => ({
+  reqStatusIdx: index("idx_payment_installments_req_status").on(table.requestId, table.status),
+  vendorIdx: index("idx_payment_installments_vendor").on(table.vendorId),
+}));
 
 export const paymentVariations = pgTable("payment_variations", {
   id: serial("id").primaryKey(),

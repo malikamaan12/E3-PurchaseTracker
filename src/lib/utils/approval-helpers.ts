@@ -32,7 +32,7 @@ export function getRequestApprovalContext(
     };
   }
 
-  const rawStatus = (request.status || "").toLowerCase();
+  const rawStatus = (request.status || "").toLowerCase().trim();
   const isSupervisorGate = rawStatus === "pending_dept_head";
   const approvalsList: any[] = Array.isArray(request.approvals) ? request.approvals : [];
 
@@ -40,10 +40,36 @@ export function getRequestApprovalContext(
     ["approved", "fully_paid"].includes(rawStatus) ||
     (approvalsList.length > 0 && approvalsList.every((a: any) => a.status === "approved"));
 
+  // Check if request is actionable in the approval workflow
+  const isActionable = ["pending", "partially_approved", "pending_dept_head", "variation_pending"].includes(rawStatus);
+
   const myPendingDepartments: string[] = [];
   const myApprovedDepartments: string[] = [];
   const otherPendingDepartments: string[] = [];
   const allPendingDepartments: string[] = [];
+
+  // Track approved departments for informational badges
+  for (const app of approvalsList) {
+    const deptName = app.department || "Department";
+    const isMine = isSuperAdmin || canApproveInDepartment(deptName);
+    if (app.status === "approved" && isMine && !myApprovedDepartments.includes(deptName)) {
+      myApprovedDepartments.push(deptName);
+    }
+  }
+
+  // If request is rejected, cancelled, draft, changes_requested, approved, or fully_paid,
+  // it is NEVER awaiting any sign-off!
+  if (!isActionable) {
+    return {
+      isAwaitingMyAction: false,
+      myPendingDepartments: [],
+      myApprovedDepartments,
+      otherPendingDepartments: [],
+      allPendingDepartments: [],
+      isFullyApproved,
+      userRoleSummary: isSuperAdmin ? "Super Admin" : user?.department || "",
+    };
+  }
 
   // 1. If in Stage 1 Supervisor Gate (pending_dept_head)
   if (isSupervisorGate) {
@@ -69,12 +95,6 @@ export function getRequestApprovalContext(
         } else {
           if (!otherPendingDepartments.includes(deptName)) {
             otherPendingDepartments.push(deptName);
-          }
-        }
-      } else if (app.status === "approved") {
-        if (isMine) {
-          if (!myApprovedDepartments.includes(deptName)) {
-            myApprovedDepartments.push(deptName);
           }
         }
       }
