@@ -354,7 +354,19 @@ function RequestsDashboardContent() {
         </div>
       )}
 
-      <SpendAnalytics data={analytics} isLoading={analyticsLoading} />
+      <SpendAnalytics 
+        data={analytics} 
+        isLoading={analyticsLoading} 
+        onFilterStatus={(status: string) => {
+          if (status === 'my_queue') {
+            setMyQueueMode(true);
+            setFilters((f: any) => ({ ...f, status: 'my_queue' }));
+          } else {
+            setMyQueueMode(false);
+            setFilters((f: any) => ({ ...f, status }));
+          }
+        }} 
+      />
 
       <RequestFilters
         filters={filters}
@@ -695,7 +707,16 @@ export default function RequestsDashboard() {
   );
 }
 
-function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) {
+function SpendAnalytics({ 
+  data, 
+  isLoading, 
+  onFilterStatus 
+}: { 
+  data: any; 
+  isLoading: boolean; 
+  onFilterStatus?: (status: string) => void;
+}) {
+  const { isApprover, isAdmin, isSuperAdmin } = useAuth();
   if (isLoading) {
     return (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
@@ -747,6 +768,7 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
         icon={<TrendingUp className="text-emerald-500 w-5 h-5" />}
         gradient="from-emerald-500/10 via-emerald-500/5 to-transparent"
         iconBg="bg-emerald-500/10 border-emerald-500/20"
+        onClick={() => onFilterStatus?.('approved')}
       />
       <AnalyticsCard
         label="Pending Decisions"
@@ -757,6 +779,7 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
         icon={<BarChart3 className="text-amber-500 w-5 h-5" />}
         gradient="from-amber-500/10 via-amber-500/5 to-transparent"
         iconBg="bg-amber-500/10 border-amber-500/20"
+        onClick={() => onFilterStatus?.('pending')}
       />
       <AnalyticsCard
         label="Active Requests"
@@ -767,24 +790,35 @@ function SpendAnalytics({ data, isLoading }: { data: any; isLoading: boolean }) 
         icon={<FileSpreadsheet className="text-primary w-5 h-5" />}
         gradient="from-primary/10 via-primary/5 to-transparent"
         iconBg="bg-primary/10 border-primary/20"
+        onClick={() => onFilterStatus?.('all')}
       />
       <AnalyticsCard
         label="Awaiting Sign-offs"
         value={pendingCount}
         suffix="REQ"
         subValue={pendingCount}
-        subLabel="awaiting decision"
+        subLabel={(isApprover || isAdmin || isSuperAdmin) ? "awaiting your sign-off" : "awaiting decision"}
         icon={<Clock className="text-amber-500 w-5 h-5" />}
         gradient="from-orange-500/10 via-orange-500/5 to-transparent"
         iconBg="bg-orange-500/10 border-orange-500/20"
+        onClick={() => onFilterStatus?.((isApprover || isAdmin || isSuperAdmin) ? 'my_queue' : 'pending')}
       />
     </div>
   );
 }
 
-function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon, gradient, iconBg }: any) {
+function AnalyticsCard({ label, value, suffix = "", subValue, subLabel, icon, gradient, iconBg, onClick }: any) {
   return (
-    <div className={`bg-card border border-border p-4 sm:p-5 rounded-2xl relative overflow-hidden shadow-xs flex flex-col justify-between hover:border-primary/30 transition-all bg-gradient-to-br ${gradient || 'from-secondary/30 to-transparent'} min-h-[110px]`}>
+    <div 
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={onClick ? (e: any) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+      aria-label={onClick ? `Filter by ${label}` : undefined}
+      className={`bg-card border border-border p-4 sm:p-5 rounded-2xl relative overflow-hidden shadow-xs flex flex-col justify-between hover:border-primary/30 transition-all bg-gradient-to-br ${gradient || 'from-secondary/30 to-transparent'} min-h-[110px] ${
+        onClick ? 'cursor-pointer hover:shadow-md hover:scale-[1.01] active:scale-[0.99] focus:outline-none focus:ring-2 focus:ring-primary/40' : ''
+      }`}
+    >
       <div className="flex justify-between items-start gap-3">
         <div className="space-y-1 min-w-0 flex-1">
           <p className="text-xs font-semibold text-muted-foreground truncate">{label}</p>
@@ -920,14 +954,51 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
     (isSuperAdmin && !isPaidOrDisbursed) ||
     (isOwner && approvedCount === 0 && !isPaidOrDisbursed);
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest("button") ||
+      target.closest("input") ||
+      target.closest("label") ||
+      target.closest("select") ||
+      target.closest("[role='menuitem']") ||
+      target.closest("[data-radix-popper-content-wrapper]")
+    ) {
+      return;
+    }
+    router.push(`/dashboard/requests/${request.id}`);
+  };
+
   return (
-    <div className={`bg-card rounded-2xl border p-4 sm:p-5 shadow-sm transition-all relative ${
-      isSelected 
-        ? 'border-primary/50 bg-primary/5' 
-        : approvalContext.isAwaitingMyAction
-        ? 'border-amber-500/40 bg-amber-500/[0.02] shadow-amber-500/5'
-        : 'border-border hover:border-primary/20'
-    }`}>
+    <div 
+      onClick={handleCardClick}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          const target = e.target as HTMLElement;
+          if (
+            target.closest("button") ||
+            target.closest("input") ||
+            target.closest("label") ||
+            target.closest("select") ||
+            target.closest("[role='menuitem']")
+          ) {
+            return;
+          }
+          e.preventDefault();
+          router.push(`/dashboard/requests/${request.id}`);
+        }
+      }}
+      aria-label={`Open purchase request ${request.requestNumber}`}
+      className={`bg-card rounded-2xl border p-4 sm:p-5 shadow-sm transition-all relative cursor-pointer group hover:shadow-md active:scale-[0.995] ${
+        isSelected 
+          ? 'border-primary/50 bg-primary/5' 
+          : approvalContext.isAwaitingMyAction
+          ? 'border-amber-500/40 bg-amber-500/[0.02] shadow-amber-500/5 hover:border-amber-500/60'
+          : 'border-border hover:border-primary/40'
+      }`}
+    >
       {approvalContext.isAwaitingMyAction && (
         <div className="absolute -top-2.5 left-3 z-10 flex items-center gap-1.5 bg-amber-500 text-white text-[11px] font-extrabold uppercase tracking-wider px-3 py-0.5 rounded-full shadow-md animate-pulse">
           <span>⏳</span> Needs Your Sign-Off ({approvalContext.myPendingDepartments.join(", ")})
@@ -936,7 +1007,11 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
 
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
         <div className="flex items-center gap-3 min-w-0">
-          <label className="min-h-[44px] min-w-[44px] -m-2 flex items-center justify-center cursor-pointer shrink-0" title={`Select request ${request.requestNumber}`}>
+          <label 
+            onClick={(e) => e.stopPropagation()}
+            className="min-h-[44px] min-w-[44px] -m-2 flex items-center justify-center cursor-pointer shrink-0" 
+            title={`Select request ${request.requestNumber}`}
+          >
             <input
               type="checkbox"
               aria-label={`Select request ${request.requestNumber}`}
@@ -946,7 +1021,7 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
             />
           </label>
           <div className="min-w-0">
-            <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20 break-all inline-block">
+            <span className="font-mono text-xs font-bold text-primary bg-primary/10 group-hover:bg-primary/20 px-2.5 py-1 rounded-lg border border-primary/20 break-all inline-block transition-colors">
               {request.requestNumber}
             </span>
             <div className="text-xs text-muted-foreground font-medium mt-1 truncate">
@@ -974,7 +1049,7 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
       </div>
 
       <div className="my-3 pl-9 sm:pl-9">
-        <h4 className="font-bold text-foreground text-sm sm:text-base leading-snug">
+        <h4 className="font-bold text-foreground group-hover:text-primary text-sm sm:text-base leading-snug transition-colors">
           {request.title}
         </h4>
         {request.subPurpose?.name && (
@@ -994,11 +1069,11 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
           />
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <button
             onClick={() => router.push(`/dashboard/requests/${request.id}`)}
             aria-label={`View details for request ${request.requestNumber}`}
-            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 transition-colors shadow-sm min-h-[44px] touch-target"
+            className="flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 transition-colors shadow-sm min-h-[44px] touch-target cursor-pointer"
           >
             <Eye className="w-4 h-4" /> View
           </button>
@@ -1007,7 +1082,7 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
             <DropdownMenuTrigger asChild>
               <button
                 aria-label="More options for request"
-                className="w-11 h-11 rounded-xl flex items-center justify-center border border-border bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors touch-target"
+                className="w-11 h-11 rounded-xl flex items-center justify-center border border-border bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors touch-target cursor-pointer"
               >
                 <MoreHorizontal className="w-5 h-5" />
               </button>
@@ -1072,31 +1147,47 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
     (isSuperAdmin && !isPaidOrDisbursed) ||
     (isOwner && approvedCount === 0 && !isPaidOrDisbursed);
 
-  const rowClassName = `group transition-all duration-200 ${
+  const handleRowClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest("button") ||
+      target.closest("input") ||
+      target.closest("label") ||
+      target.closest("select") ||
+      target.closest("[role='menuitem']") ||
+      target.closest("[data-radix-popper-content-wrapper]")
+    ) {
+      return;
+    }
+    router.push(`/dashboard/requests/${request.id}`);
+  };
+
+  const rowClassName = `group transition-all duration-200 cursor-pointer ${
     isSelected 
       ? 'bg-primary/10' 
       : approvalContext.isAwaitingMyAction
-      ? 'bg-amber-500/[0.04] hover:bg-amber-500/[0.08]'
-      : 'hover:bg-white/[0.04] dark:hover:bg-white/[0.02]'
+      ? 'bg-amber-500/[0.04] hover:bg-amber-500/[0.10]'
+      : 'hover:bg-primary/[0.03] dark:hover:bg-primary/[0.05]'
   }`;
 
   const renderCells = () => (
     <>
-      <td className="px-6 py-5">
+      <td className="px-6 py-5" onClick={(e) => e.stopPropagation()}>
         <input
           type="checkbox"
+          aria-label={`Select request ${request.requestNumber}`}
           className="rounded border-border bg-secondary text-primary focus:ring-primary cursor-pointer transition-colors"
           checked={isSelected}
           onChange={(e) => onSelect(e.target.checked)}
         />
       </td>
       <td className="px-6 py-5 whitespace-nowrap">
-        <span className="font-mono text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20">
+        <span className="font-mono text-xs font-bold text-primary bg-primary/10 group-hover:bg-primary/20 px-2.5 py-1 rounded-lg border border-primary/20 transition-colors inline-block">
           {request.requestNumber}
         </span>
       </td>
       <td className="px-6 py-5">
-        <div className="font-medium text-foreground transition-colors">{request.title}</div>
+        <div className="font-medium text-foreground group-hover:text-primary transition-colors">{request.title}</div>
         <div className="text-xs text-muted-foreground mt-1">
           {request.requester?.username} • {request.requester?.department}
           {request.vendor?.name && (
@@ -1139,12 +1230,12 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
           paidAmount={request.paidAmount}
         />
       </td>
-      <td className="px-6 py-5 text-right whitespace-nowrap">
+      <td className="px-6 py-5 text-right whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-end gap-2 items-center shrink-0">
           {canQuickApprove && (
             <button
               onClick={onApprove}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors text-xs font-bold shadow-xs hover:shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors text-xs font-bold shadow-xs hover:shadow-sm cursor-pointer"
               title={`Quick approve for ${approvalContext.myPendingDepartments[0] || 'your department'}`}
             >
               <CheckCircle className="w-3.5 h-3.5" />
@@ -1172,7 +1263,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
 
           <button
             onClick={() => router.push(`/dashboard/requests/${request.id}`)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground transition-colors text-xs font-medium border border-border shadow-xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-secondary hover:bg-secondary/80 text-foreground transition-colors text-xs font-medium border border-border shadow-xs cursor-pointer"
           >
             <Eye className="w-3.5 h-3.5" /> View
           </button>
@@ -1181,7 +1272,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
             <DropdownMenuTrigger asChild>
               <button
                 aria-label="More options"
-                className="flex items-center justify-center w-8 h-8 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors border border-transparent hover:border-border"
+                className="flex items-center justify-center w-8 h-8 rounded-xl hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors border border-transparent hover:border-border cursor-pointer"
               >
                 <MoreHorizontal className="w-4 h-4" />
               </button>
@@ -1204,10 +1295,10 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
               )}
               {(canQuickApprove || canEdit || canDelete) && <DropdownMenuSeparator />}
               <DropdownMenuItem onClick={() => apiClient.documents.downloadPdf(request.id)}>
-                <FileText className="w-3.5 h-3.5 mr-2" /> Download PDF
+                <FileText className="w-4 h-4 mr-2" /> Download PDF
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => apiClient.documents.downloadZip(request.id)}>
-                <Archive className="w-3.5 h-3.5 mr-2" /> Download ZIP
+                <Archive className="w-4 h-4 mr-2" /> Download ZIP
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1217,10 +1308,10 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
   );
 
   if (highPerformanceMode) {
-    return <tr className={rowClassName}>{renderCells()}</tr>;
+    return <tr className={rowClassName} onClick={handleRowClick}>{renderCells()}</tr>;
   }
 
-  return <tr className={`animate-slide-up ${rowClassName}`}>{renderCells()}</tr>;
+  return <tr className={`animate-slide-up ${rowClassName}`} onClick={handleRowClick}>{renderCells()}</tr>;
 }
 
 function StatusBadge({ status }: { status: string }) {
