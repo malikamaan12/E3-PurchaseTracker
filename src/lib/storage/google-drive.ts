@@ -81,7 +81,7 @@ export class GoogleDriveStorage {
     if (creds.type === "service_account_json" || creds.type === "service_account_keys") {
       const auth = new google.auth.GoogleAuth({
         credentials: creds.credentials,
-        scopes: ["https://www.googleapis.com/auth/drive.file"],
+        scopes: ["https://www.googleapis.com/auth/drive"],
       });
       return google.drive({ version: "v3", auth });
     }
@@ -128,6 +128,7 @@ export class GoogleDriveStorage {
         requestBody: fileMetadata,
         media: media,
         fields: "id",
+        supportsAllDrives: true,
       });
 
       console.log(`[DriveStorage] Successfully uploaded to folder ${folderId}:`, response.data.id);
