@@ -771,6 +771,7 @@ export const purchaseRequestRelations = relations(purchaseRequests, ({ one, many
     references: [vendors.id],
   }),
   installments: many(paymentInstallments),
+  purchaseOrders: many(purchaseOrders),
 }));
 
 export const purposeCategoryRelations = relations(purposeCategories, ({ many }) => ({
@@ -838,6 +839,7 @@ export const vendorRelations = relations(vendors, ({ one, many }) => ({
   bankingSubmissions: many(vendorBankingSubmissions),
   scoreHistory: many(vendorComplianceScoreHistory),
   portalEvents: many(vendorPortalEvents),
+  purchaseOrders: many(purchaseOrders),
   rulesetVersion: one(vendorRulesetVersions, {
     fields: [vendors.rulesetVersionId],
     references: [vendorRulesetVersions.id],
@@ -1603,3 +1605,117 @@ export const itemCatalog = pgTable("item_catalog", {
 });
 
 export type ItemCatalog = typeof itemCatalog.$inferSelect;
+
+// ==========================================
+// Purchase Orders & Lifecycle Tables
+// ==========================================
+
+export const purchaseOrders = pgTable("purchase_orders", {
+  id: serial("id").primaryKey(),
+  poNumber: text("po_number").unique().notNull(), // e.g. PO-2026-00001
+  requestId: integer("request_id")
+    .notNull()
+    .references(() => purchaseRequests.id, { onDelete: "restrict" }),
+  vendorId: integer("vendor_id")
+    .notNull()
+    .references(() => vendors.id, { onDelete: "restrict" }),
+  createdById: integer("created_by_id")
+    .notNull()
+    .references(() => users.id),
+
+  // Status: 'draft' | 'issued' | 'acknowledged' | 'fulfilled' | 'cancelled'
+  status: text("status").notNull().default("draft"),
+
+  // Snapshots (frozen at time of issuance)
+  itemsSnapshot: jsonb("items_snapshot").$type<Array<{
+    name: string;
+    description?: string;
+    quantity: number;
+    unitPrice: number;
+    totalPrice: number;
+  }>>().notNull(),
+
+  currency: text("currency").notNull().default("QAR"),
+  subtotalAmount: numeric("subtotal_amount", { precision: 12, scale: 2 }).notNull(),
+  freightAmount: numeric("freight_amount", { precision: 12, scale: 2 }).default("0"),
+  taxAmount: numeric("tax_amount", { precision: 12, scale: 2 }).default("0"),
+  totalAmount: numeric("total_amount", { precision: 12, scale: 2 }).notNull(),
+
+  // Terms & Delivery
+  paymentTerms: text("payment_terms").notNull(),
+  expectedDeliveryDate: timestamp("expected_delivery_date"),
+  deliveryAddress: text("delivery_address").notNull(),
+  billingAddress: text("billing_address").notNull(),
+  specialInstructions: text("special_instructions"),
+  termsAndConditions: text("terms_and_conditions"),
+
+  // Public Sharing Security
+  tokenHash: text("token_hash"), // SHA-256 hash of public token
+  tokenExpiresAt: timestamp("token_expires_at"),
+  tokenStatus: text("token_status").default("active"), // 'active' | 'revoked'
+
+  // Vendor Acknowledgment Details
+  acknowledgedAt: timestamp("acknowledged_at"),
+  acknowledgedBy: text("acknowledged_by"),
+  acknowledgmentNotes: text("acknowledgment_notes"),
+
+  issuedAt: timestamp("issued_at"),
+  cancelledAt: timestamp("cancelled_at"),
+  cancellationReason: text("cancellation_reason"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  poNumberIdx: index("idx_po_number").on(table.poNumber),
+  requestIdIdx: index("idx_po_request_id").on(table.requestId),
+  vendorIdIdx: index("idx_po_vendor_id").on(table.vendorId),
+  tokenHashIdx: index("idx_po_token_hash").on(table.tokenHash),
+  statusIdx: index("idx_po_status").on(table.status),
+}));
+
+export const purchaseOrderEvents = pgTable("purchase_order_events", {
+  id: serial("id").primaryKey(),
+  poId: integer("po_id").notNull().references(() => purchaseOrders.id, { onDelete: "cascade" }),
+  eventType: text("event_type").notNull(), // 'CREATED' | 'ISSUED' | 'LINK_COPIED' | 'LINK_EMAILED' | 'VIEWED' | 'PDF_DOWNLOADED' | 'ACKNOWLEDGED' | 'CANCELLED'
+  actorType: text("actor_type").notNull(), // 'internal_user' | 'vendor' | 'system'
+  actorId: integer("actor_id").references(() => users.id),
+  metadata: jsonb("metadata").$type<Record<string, any>>().default({}),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => ({
+  poIdIdx: index("idx_po_events_po_id").on(table.poId),
+}));
+
+export const purchaseOrderRelations = relations(purchaseOrders, ({ one, many }) => ({
+  request: one(purchaseRequests, {
+    fields: [purchaseOrders.requestId],
+    references: [purchaseRequests.id],
+  }),
+  vendor: one(vendors, {
+    fields: [purchaseOrders.vendorId],
+    references: [vendors.id],
+  }),
+  createdBy: one(users, {
+    fields: [purchaseOrders.createdById],
+    references: [users.id],
+  }),
+  events: many(purchaseOrderEvents),
+}));
+
+export const purchaseOrderEventRelations = relations(purchaseOrderEvents, ({ one }) => ({
+  purchaseOrder: one(purchaseOrders, {
+    fields: [purchaseOrderEvents.poId],
+    references: [purchaseOrders.id],
+  }),
+  actor: one(users, {
+    fields: [purchaseOrderEvents.actorId],
+    references: [users.id],
+  }),
+}));
+
+export const insertPurchaseOrderSchema = createInsertSchema(purchaseOrders);
+export const selectPurchaseOrderSchema = createSelectSchema(purchaseOrders);
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type InsertPurchaseOrder = typeof purchaseOrders.$inferInsert;
+export type PurchaseOrderEvent = typeof purchaseOrderEvents.$inferSelect;
+export type InsertPurchaseOrderEvent = typeof purchaseOrderEvents.$inferInsert;
+

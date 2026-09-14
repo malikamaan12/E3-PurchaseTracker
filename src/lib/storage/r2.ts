@@ -60,4 +60,38 @@ export class R2Storage {
 
     return getSignedUrl(r2Client, command, { expiresIn: 3600 });
   }
+
+  /**
+   * Tests connectivity and access to the Cloudflare R2 bucket.
+   */
+  static async testConnection() {
+    try {
+      if (!process.env.R2_ENDPOINT || !process.env.R2_ACCESS_KEY_ID || !process.env.R2_SECRET_ACCESS_KEY) {
+        return {
+          ok: false,
+          error: "Cloudflare R2 environment credentials (R2_ENDPOINT, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY) are missing.",
+        };
+      }
+
+      const command = new ListObjectsV2Command({
+        Bucket: BUCKET_NAME,
+        MaxKeys: 1,
+      });
+
+      const response = await r2Client.send(command);
+      return {
+        ok: true,
+        bucket: BUCKET_NAME,
+        endpoint: process.env.R2_ENDPOINT,
+        statusCode: response.$metadata.httpStatusCode || 200,
+        message: "Successfully connected to Cloudflare R2 vault.",
+      };
+    } catch (error: any) {
+      return {
+        ok: false,
+        error: error.message || "Failed to establish connection to Cloudflare R2.",
+        code: error.code || error.name,
+      };
+    }
+  }
 }

@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { 
   ChevronLeft, Download, CheckCircle2, XCircle, Clock, FileText, 
   User, Building2, CreditCard, History, FileBadge, MessageSquare,
@@ -11,12 +11,13 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import CreateRequestModal from "@/components/requests/CreateRequestModal";
 import { DeleteRequestDialog } from "@/components/requests/DeleteRequestDialog";
 import { ConfirmActionDialog } from "@/components/shared/ConfirmActionDialog";
 import { FinanceLedger } from "@/components/requests/FinanceLedger";
+import { PurchaseOrderCard } from "@/components/requests/PurchaseOrderCard";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { ExportDropdown } from "@/components/requests/ExportDropdown";
 import { Button } from "@/components/ui/Button";
@@ -28,9 +29,36 @@ import { RequestComplianceOverrideModal } from "@/components/requests/RequestCom
 export default function RequestDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { user, isAdmin, isApprover, isSuperAdmin, isSupervisor, canApproveInDepartment } = useAuth();
   const requestId = parseInt(params.id as string);
+  const [highlightedItemIndex, setHighlightedItemIndex] = useState<number | null>(null);
+
+  // Auto-scroll and highlight target line item or section anchor from email links
+  useEffect(() => {
+    const itemParam = searchParams.get("itemIndex");
+    if (itemParam !== null) {
+      const idx = parseInt(itemParam, 10);
+      if (!isNaN(idx)) {
+        setHighlightedItemIndex(idx);
+        setTimeout(() => {
+          const el = document.getElementById(`item-${idx}`) || document.getElementById(`item-row-${idx}`) || document.getElementById("line-items");
+          if (el) {
+            el.scrollIntoView({ behavior: "smooth", block: "center" });
+          }
+        }, 500);
+      }
+    } else if (typeof window !== "undefined" && window.location.hash) {
+      const targetId = window.location.hash.replace("#", "");
+      setTimeout(() => {
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      }, 500);
+    }
+  }, [searchParams]);
   const [activeAttachment, setActiveAttachment] = useState<any>(null);
   const [approvalComments, setApprovalComments] = useState("");
   const [targetApprovalId, setTargetApprovalId] = useState<number | null>(null);
@@ -451,7 +479,7 @@ export default function RequestDetailPage() {
         {/* Left Column - Details */}
         <div className="lg:col-span-2 space-y-8">
           
-          <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+          <div id="overview" className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
             <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="bg-primary/10 p-1.5 rounded-lg">
@@ -713,7 +741,7 @@ export default function RequestDetailPage() {
             );
           })()}
 
-          <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
+          <div id="line-items" className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden">
             <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="bg-purple-500/10 p-1.5 rounded-lg">
@@ -738,7 +766,14 @@ export default function RequestDetailPage() {
             <div className="md:hidden p-4 space-y-3">
               {Array.isArray(request.items) && request.items.length > 0 ? (
                 request.items.map((item: any, idx: number) => (
-                  <div key={idx} className="p-4 rounded-2xl border border-border/60 bg-secondary/20 space-y-2 shadow-sm">
+                  <div
+                    key={idx}
+                    id={`item-${idx}`}
+                    className={cn(
+                      "p-4 rounded-2xl border border-border/60 bg-secondary/20 space-y-2 shadow-sm transition-all duration-500",
+                      highlightedItemIndex === idx && "ring-2 ring-primary border-primary bg-primary/5 shadow-md"
+                    )}
+                  >
                     <div className="flex justify-between items-start gap-2">
                       <p className="font-bold text-sm text-foreground">{item.name || "Unnamed Item"}</p>
                       <span className="text-xs font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 shrink-0">
@@ -774,7 +809,14 @@ export default function RequestDetailPage() {
                 </thead>
                 <tbody className="divide-y divide-border/50">
                    {Array.isArray(request.items) ? request.items.map((item: any, idx: number) => (
-                     <tr key={idx} className="hover:bg-muted/10 transition-colors">
+                     <tr
+                       key={idx}
+                       id={`item-row-${idx}`}
+                       className={cn(
+                         "hover:bg-muted/10 transition-colors duration-500",
+                         highlightedItemIndex === idx && "bg-primary/10 ring-1 ring-primary/40 font-semibold"
+                       )}
+                     >
                        <td className="px-6 py-4">
                          <div className="font-medium text-foreground">{item.name || "Unnamed Item"}</div>
                          {item.remarks && <div className="text-xs text-muted-foreground mt-1">{item.remarks}</div>}
@@ -796,7 +838,7 @@ export default function RequestDetailPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-[450px]">
+            <div id="attachments" className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden flex flex-col h-[450px]">
               <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent">
                 <div className="flex items-center gap-2">
                   <div className="bg-indigo-500/10 p-1.5 rounded-lg">
@@ -876,6 +918,11 @@ export default function RequestDetailPage() {
             </div>
           </div>
           
+          {/* Purchase Order (PO) Section */}
+          <div className="pt-8">
+            <PurchaseOrderCard request={request} user={user} />
+          </div>
+
           {isFinanceOrAdmin && (
              <div className="pt-8">
                 <FinanceLedger request={request} />
@@ -886,7 +933,7 @@ export default function RequestDetailPage() {
 
         {/* Right Column - Sidebar */}
         <div className="space-y-8">
-          <div className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden sticky top-24">
+          <div id="approvals" className="bg-card/60 backdrop-blur-xl border border-border/40 rounded-3xl shadow-sm hover:shadow-md transition-all duration-300 overflow-hidden sticky top-24">
             <div className="p-5 border-b border-border/50 bg-gradient-to-r from-muted/50 to-transparent flex justify-between items-center">
               <div className="flex items-center gap-2">
                 <div className="bg-amber-500/10 p-1.5 rounded-lg">

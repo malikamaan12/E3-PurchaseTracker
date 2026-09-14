@@ -14,8 +14,9 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser(req);
-    if (!user || user.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    const role = user?.role?.toLowerCase();
+    if (!user || (role !== "admin" && role !== "super_admin")) {
+      return NextResponse.json({ error: "Unauthorized. Admin or Super Admin privileges required." }, { status: 403 });
     }
 
     // 1. Evaluate Primary Storage (Cloudflare R2)
@@ -95,20 +96,43 @@ export async function GET(req: NextRequest) {
     };
 
     // 3. Evaluate Secondary Storage (Google Drive)
-    const isGDriveEnvConfigured = Boolean(
-      process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && 
-      process.env.GOOGLE_PRIVATE_KEY
+    let isGDriveEnvConfigured = false;
+    if (process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON && process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON !== "{}") {
+      try {
+        const parsed = JSON.parse(process.env.GOOGLE_DRIVE_SERVICE_ACCOUNT_JSON);
+        if (parsed.client_email && (parsed.private_key || parsed.privateKey)) {
+          isGDriveEnvConfigured = true;
+        }
+      } catch {}
+    }
+    if (!isGDriveEnvConfigured && process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && process.env.GOOGLE_PRIVATE_KEY) {
+      isGDriveEnvConfigured = true;
+    }
+
+    // Check DB vault settings (support both canonical 'google_drive_folder_*_id' and legacy 'vault_gdrive_*_id')
+    const [primarySetting] = await db.select().from(systemSettings).where(
+      eq(systemSettings.key, "google_drive_folder_primary_id")
     );
+    const [legacyPrimary] = !primarySetting ? await db.select().from(systemSettings).where(
+      eq(systemSettings.key, "vault_gdrive_primary_id")
+    ) : [null];
 
-    // Check DB vault settings
-    const [primarySetting] = await db.select().from(systemSettings).where(eq(systemSettings.key, "vault_gdrive_primary_id"));
-    const [secondarySetting] = await db.select().from(systemSettings).where(eq(systemSettings.key, "vault_gdrive_secondary_id"));
+    const [secondarySetting] = await db.select().from(systemSettings).where(
+      eq(systemSettings.key, "google_drive_folder_secondary_id")
+    );
+    const [legacySecondary] = !secondarySetting ? await db.select().from(systemSettings).where(
+      eq(systemSettings.key, "vault_gdrive_secondary_id")
+    ) : [null];
 
-    const hasFolderIds = Boolean(primarySetting?.value || secondarySetting?.value);
+    const primaryFolderId = primarySetting?.value || legacyPrimary?.value || process.env.GOOGLE_DRIVE_FOLDER_PRIMARY_ID;
+    const secondaryFolderId = secondarySetting?.value || legacySecondary?.value || process.env.GOOGLE_DRIVE_FOLDER_SECONDARY_ID;
+    const hasFolderIds = Boolean(primaryFolderId || secondaryFolderId);
 
     let gdriveStatus: string = "Not configured";
     if (isGDriveEnvConfigured && hasFolderIds) {
       gdriveStatus = "Configured but not verified";
+    } else if (hasFolderIds && !isGDriveEnvConfigured) {
+      gdriveStatus = "Folder specified (Awaiting Service Account Credentials)";
     } else {
       gdriveStatus = "Not configured";
     }
@@ -161,8 +185,8 @@ export async function GET(req: NextRequest) {
         provider: "Google Drive",
         status: gdriveStatus,
         configured: isGDriveEnvConfigured && hasFolderIds,
-        primaryFolderConfigured: Boolean(primarySetting?.value),
-        secondaryFolderConfigured: Boolean(secondarySetting?.value),
+        primaryFolderConfigured: Boolean(primaryFolderId),
+        secondaryFolderConfigured: Boolean(secondaryFolderId),
         stalenessThresholdHours: 24,
         sub: gdriveStatus === "Healthy" ? "Dual Redundant Folders" : gdriveStatus === "Configured but not verified" ? "Destination linked, awaiting archive" : "Vault destination not configured"
       },

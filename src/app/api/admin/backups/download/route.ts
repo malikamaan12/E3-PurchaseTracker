@@ -9,8 +9,9 @@ import { R2Storage } from "@/lib/storage/r2";
 export async function GET(req: NextRequest) {
   try {
     const user = await getAuthenticatedUser(req);
-    if (!user || user.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Access Denied" }, { status: 403 });
+    const role = user?.role?.toLowerCase();
+    if (!user || (role !== "admin" && role !== "super_admin")) {
+      return NextResponse.json({ error: "Access Denied. Admin or Super Admin privileges required." }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);

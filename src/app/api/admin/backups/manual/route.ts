@@ -12,19 +12,23 @@ export const dynamic = "force-dynamic";
  */
 export async function POST(req: NextRequest) {
   try {
-    // 1. Auth Guard (Admin Only)
+    // 1. Auth Guard (Admin & Super Admin)
     const user = await getAuthenticatedUser(req);
-    if (!user || user.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Institutional Backup rights required" }, { status: 403 });
+    const role = user?.role?.toLowerCase();
+    if (!user || (role !== "admin" && role !== "super_admin")) {
+      return NextResponse.json({ error: "Institutional Backup rights required (Admin or Super Admin)" }, { status: 403 });
     }
 
-    // 2. Schedule Background Job (Vercel Timeout Bypass)
-    // waitUntil ensures the process continues even after the response is sent.
-    waitUntil(
-      BackupService.runBackupJob(true)
-        .then(() => console.log("[API_BACKUP] Background manual job successful"))
-        .catch((err) => console.error("[API_BACKUP] Background manual job FAILED:", err))
-    );
+    // 2. Schedule Background Job (Vercel Timeout Bypass with safe fallback)
+    const backupPromise = BackupService.runBackupJob(true)
+      .then(() => console.log("[API_BACKUP] Background manual job successful"))
+      .catch((err) => console.error("[API_BACKUP] Background manual job FAILED:", err));
+
+    try {
+      waitUntil(backupPromise);
+    } catch {
+      // In non-serverless environments where waitUntil is unsupported, the promise continues in background
+    }
 
     // 3. Immedate Acknowledgement
     return NextResponse.json({ 

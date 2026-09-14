@@ -6,7 +6,7 @@ import { notificationService } from "@/lib/services/NotificationService";
  * PATCH /api/notification-preferences/[id]
  * Update a specific notification preference for the authenticated user.
  */
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const user = await getAuthenticatedUser(req);
@@ -22,4 +22,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     console.error("[Notification Preferences API] PATCH Error:", error);
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
   }
+}
+
+/**
+ * POST /api/notification-preferences/[id]
+ * Compatibility alias for PATCH
+ */
+export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
+  return PATCH(req, context);
 }

@@ -19,8 +19,10 @@ import {
   ChevronRight,
   ExternalLink,
   Laptop,
-  RotateCw
+  RotateCw,
+  Mail
 } from "lucide-react";
+import { NotificationPreferencesModal } from "@/components/notifications/NotificationPreferencesModal";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "next-themes";
 import { usePerformance } from "@/context/PerformanceContext";
@@ -40,6 +42,7 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
   const isDark = resolvedTheme === "dark";
   const { highPerformanceMode, setHighPerformanceMode } = usePerformance();
   const { refreshAppAndData, isSyncing } = usePWA();
+  const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -178,6 +181,24 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
               <span className="text-xs font-bold text-primary">{isSyncing ? "Syncing..." : "Sync"}</span>
             </button>
 
+            {/* Email Notifications Button */}
+            <button
+              onClick={() => setIsPreferencesModalOpen(true)}
+              aria-label="Open email notification preferences"
+              className="w-full flex items-center justify-between p-3.5 rounded-2xl bg-card border border-border text-foreground hover:bg-secondary transition-all touch-target"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center">
+                  <Mail className="w-4 h-4" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-foreground">Email Notifications</p>
+                  <p className="text-xs text-muted-foreground font-medium">Configure Resend email alerts</p>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            </button>
+
             {/* Theme Toggle Button */}
             <button
               onClick={() => setTheme(isDark ? "light" : "dark")}
@@ -236,6 +257,12 @@ export function NavigationSheet({ isOpen, onClose }: NavigationSheetProps) {
           </div>
         </div>
       </div>
+
+      {/* Notification Preferences Modal */}
+      <NotificationPreferencesModal
+        isOpen={isPreferencesModalOpen}
+        onClose={() => setIsPreferencesModalOpen(false)}
+      />
     </div>
   );
 }

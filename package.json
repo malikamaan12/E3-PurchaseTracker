@@ -16,9 +16,12 @@
     "test:financials": "tsx tests/financial-metrics.test.ts",
     "test:quickcreate": "tsx tests/pr-vendor-quick-create-flow.test.ts",
     "test:notifications": "tsx tests/notification-formatter.test.ts",
+    "test:email-preferences": "tsx tests/email-notification-preferences.test.ts",
     "test:audit": "tsx tests/app-audit-remediations.test.ts",
     "test:department-approval": "tsx tests/department-approval-rbac.test.ts",
-    "test:all": "npm run test:security && npm run test:visibility && npm run test:financials && npm run test:onboarding && npm run test:quickcreate && npm run test:notifications && npm run test:audit && npm run test:department-approval && npm run test:e2e",
+    "test:po": "tsx tests/purchase-order-lifecycle.test.ts",
+    "test:po-e2e": "tsx tests/e2e-po-api-endpoints.test.ts",
+    "test:all": "npm run test:security && npm run test:visibility && npm run test:financials && npm run test:onboarding && npm run test:quickcreate && npm run test:notifications && npm run test:audit && npm run test:department-approval && npm run test:po && npm run test:po-e2e && npm run test:e2e",
     "db:push": "drizzle-kit push"
   },
   "dependencies": {
@@ -117,6 +120,7 @@
     "react-resizable-panels": "^2.1.4",
     "react-zoom-pan-pinch": "^3.6.1",
     "recharts": "^2.13.0",
+    "resend": "^6.28.0",
     "sharp": "^0.33.5",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.6.1",

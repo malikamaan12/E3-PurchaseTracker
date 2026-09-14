@@ -183,8 +183,10 @@ class ApiClient {
     markAsRead: (id: number) => this.request<any>(`/notifications/${id}/read`, { method: "PATCH" }),
     markAllRead: () => this.request<any>("/notifications/mark-all-read", { method: "PATCH" }),
     getUnreadCount: () => this.request<{ count: number}>("/notifications/unread-count"),
-    getPreferences: () => this.request<any[]>("/notification-preferences"),
+    getPreferences: () => this.request<{ masterEmailEnabled: boolean; userEmail: string; preferences: any[] }>("/notification-preferences"),
     updatePreference: (id: number, data: any) => this.request<any>(`/notification-preferences/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    updateAllPreferences: (data: { masterEmailEnabled?: boolean; preferences?: any[] }) => this.request<any>("/notification-preferences", { method: "PUT", body: JSON.stringify(data) }),
+    sendTestEmail: () => this.request<{ success: boolean; message?: string; id?: string; simulated?: boolean }>("/notification-preferences/test-email", { method: "POST" }),
     getMetadata: () => this.request<any>("/notification-preferences/metadata"),
   };
 
@@ -244,6 +246,10 @@ class ApiClient {
       create: (data: any) => this.request<any>("/admin/departments", { method: "POST", body: JSON.stringify(data) }),
       update: (id: number, data: any) => this.request<any>(`/admin/departments/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
       delete: (id: number) => this.request<any>(`/admin/departments/${id}`, { method: "DELETE" }),
+    },
+    resend: {
+      getStatus: () => this.request<{ connected: boolean; maskedApiKey?: string; fromEmail: string; source: string }>("/admin/resend"),
+      connect: (data: { apiKey: string; fromEmail?: string }) => this.request<{ success: boolean; message: string }>("/admin/resend", { method: "POST", body: JSON.stringify(data) })
     }
   };
 }

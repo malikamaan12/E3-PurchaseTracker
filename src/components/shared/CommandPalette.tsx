@@ -23,7 +23,8 @@ import {
   Settings, 
   Search,
   CheckSquare,
-  Sparkles
+  Sparkles,
+  Mail
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -89,6 +90,10 @@ export function CommandPalette() {
           <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/vendors?quickCreate=1"))}>
             <Sparkles className="mr-2 h-4 w-4 text-primary" />
             <span>Quick-Create Vendor</span>
+          </CommandItem>
+          <CommandItem onSelect={() => runCommand(() => router.push("/dashboard/settings/notifications"))}>
+            <Mail className="mr-2 h-4 w-4 text-sky-500" />
+            <span>Email Notification Preferences</span>
           </CommandItem>
         </CommandGroup>
 

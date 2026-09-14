@@ -28,7 +28,8 @@ import {
   PieChart,
   LayoutDashboard,
   ShieldAlert,
-  RotateCw
+  RotateCw,
+  Settings
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useState, useRef, useEffect } from "react";
@@ -57,6 +58,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/Sheet";
 import { Sidebar } from "./Sidebar";
+import { NotificationPreferencesModal } from "@/components/notifications/NotificationPreferencesModal";
 
 const NAV_ITEMS = [
   { name: "Purchases", path: "/dashboard/requests", icon: <ShoppingBag className="w-4 h-4" /> },
@@ -69,6 +71,7 @@ export default function TopNav() {
   const { unreadCount, isSyncing, refreshAppAndData, hasUpdate } = usePWA();
   const { highPerformanceMode, setHighPerformanceMode } = usePerformance();
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [isPreferencesOpen, setIsPreferencesOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
   const portalRef = useRef<HTMLDivElement>(null);
@@ -293,12 +296,25 @@ export default function TopNav() {
               >
                 <div className="p-4 border-b border-border flex items-center justify-between bg-secondary/30">
                   <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">Notifications</h3>
-                  <button
-                    onClick={() => markAllReadMutation.mutate()}
-                    className="text-[11px] font-bold text-primary hover:underline transition-colors uppercase tracking-wider"
-                  >
-                    Archive All
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setIsNotifOpen(false);
+                        setIsPreferencesOpen(true);
+                      }}
+                      title="Notification Preferences"
+                      aria-label="Notification Preferences"
+                      className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => markAllReadMutation.mutate()}
+                      className="text-[11px] font-bold text-primary hover:underline transition-colors uppercase tracking-wider"
+                    >
+                      Archive All
+                    </button>
+                  </div>
                 </div>
                 <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                   {isLoadingNotifs ? (
@@ -365,6 +381,12 @@ export default function TopNav() {
           </button>
         </div>
       </div>
+
+      {/* Notification Preferences Modal */}
+      <NotificationPreferencesModal
+        isOpen={isPreferencesOpen}
+        onClose={() => setIsPreferencesOpen(false)}
+      />
     </header>
   );
 }

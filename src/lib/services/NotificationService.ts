@@ -3,12 +3,86 @@ import {
   notifications,
   notificationPreferences,
   users,
+  purchaseRequests,
+  vendors,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_TYPES,
   type InsertNotification
 } from "@db/schema";
 import { eq, and, lt, desc, gte, or, SQL, sql, inArray } from "drizzle-orm";
 import { normalizeDepartmentAssignments, type AuthenticatedUser } from "@/lib/auth-shared";
+import { emailService } from "./EmailService";
+import { emailActionService } from "./EmailActionService";
+
+export const GLOBAL_EMAIL_PREFERENCE_TYPE = 'email_notifications_global';
+
+export interface NotificationTypeDefinition {
+  category: 'approvals' | 'requests' | 'vendors' | 'system';
+  type: string;
+  label: string;
+  description: string;
+  defaultEmail: boolean;
+  defaultInApp: boolean;
+}
+
+export const DEFAULT_NOTIFICATION_TYPES: NotificationTypeDefinition[] = [
+  {
+    category: 'approvals',
+    type: 'pending_approval',
+    label: 'Pending Approvals',
+    description: 'Requests waiting for your review and sign-off',
+    defaultEmail: false,
+    defaultInApp: true,
+  },
+  {
+    category: 'requests',
+    type: 'new_request',
+    label: 'New Purchase Requests',
+    description: 'Submissions made in your department or assigned areas',
+    defaultEmail: false,
+    defaultInApp: true,
+  },
+  {
+    category: 'approvals',
+    type: 'approval_granted',
+    label: 'Request Approved',
+    description: 'Sign-offs and approvals granted on your requests',
+    defaultEmail: false,
+    defaultInApp: true,
+  },
+  {
+    category: 'approvals',
+    type: 'approval_rejected',
+    label: 'Request Rejected',
+    description: 'Rejection notices and feedback on your requests',
+    defaultEmail: false,
+    defaultInApp: true,
+  },
+  {
+    category: 'requests',
+    type: 'changes_requested',
+    label: 'Changes Requested',
+    description: 'Modifications or information requested by approvers',
+    defaultEmail: false,
+    defaultInApp: true,
+  },
+  {
+    category: 'vendors',
+    type: 'vendor_status_change',
+    label: 'Vendor Onboarding & Status',
+    description: 'Vendor registration, banking updates, and status changes',
+    defaultEmail: false,
+    defaultInApp: true,
+  },
+  {
+    category: 'system',
+    type: 'system_update',
+    label: 'System & Policy Updates',
+    description: 'System maintenance, SLA warnings, and compliance alerts',
+    defaultEmail: false,
+    defaultInApp: true,
+  },
+];
 
 /**
  * Notification Priority Levels
@@ -251,7 +325,23 @@ export class NotificationService {
         .returning();
 
       if (results.length > 0) {
-        return results[0];
+        const created = results[0];
+
+        // Trigger asynchronous email notification dispatch (non-blocking, errors caught internally)
+        this.dispatchEmailNotificationIfEligible({
+          userId,
+          title,
+          message,
+          type,
+          requestId,
+          priority,
+          actionType,
+          link
+        }).catch(err => {
+          console.error(`[NotificationService] Asynchronous email dispatch failed for user ${userId}:`, err);
+        });
+
+        return created;
       }
 
       // Conflict occurred: retrieve existing record
@@ -825,97 +915,238 @@ export class NotificationService {
   }
 
   /**
-   * Get notification preferences for a user
+   * Map runtime notification types to user preference types
+   */
+  public static mapEventToPreferenceType(eventType: string): string {
+    switch (eventType) {
+      case 'approval_required':
+      case 'pending_approval':
+        return 'pending_approval';
+      case 'purchase_request_submitted':
+      case 'new_request':
+        return 'new_request';
+      case 'purchase_request_approved':
+      case 'approval_granted':
+        return 'approval_granted';
+      case 'purchase_request_rejected':
+      case 'approval_rejected':
+        return 'approval_rejected';
+      case 'purchase_request_changes_requested':
+      case 'changes_requested':
+        return 'changes_requested';
+      case 'vendor_created':
+      case 'vendor_updated':
+      case 'vendor_status_change':
+      case 'vendor_deactivated':
+        return 'vendor_status_change';
+      case 'system_maintenance':
+      case 'system_update':
+      case 'system_error':
+        return 'system_update';
+      default:
+        return eventType;
+    }
+  }
+
+  /**
+   * Get notification preferences for a user, ensuring master switch and defaults exist.
+   * Default state: email notifications are OFF (both master switch and all types).
    */
   public async getUserNotificationPreferences(userId: number) {
-    const preferences = await db
-      .select()
-      .from(notificationPreferences)
-      .where(eq(notificationPreferences.userId, userId))
-      .orderBy(notificationPreferences.category, notificationPreferences.type);
-
-    // If no preferences exist, create defaults
-    if (preferences.length === 0) {
-      const defaultPreferences = Object.keys(NOTIFICATION_CATEGORIES).flatMap(category =>
-        Object.keys(NOTIFICATION_TYPES)
-          .filter(type => type.startsWith(category.toLowerCase()))
-          .map(type => ({
-            userId,
-            category,
-            type,
-            enabled: true,
-            inAppEnabled: true,
-            emailEnabled: false,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          }))
-      );
-
-      const insertedPreferences = await db
-        .insert(notificationPreferences)
-        .values(defaultPreferences)
-        .returning();
-
-      return insertedPreferences;
-    }
-
-    return preferences;
-  }
-
-  /**
-   * Get a specific notification preference for a user
-   */
-  private async getUserNotificationPreference(userId: number, type: string) {
-    const [preference] = await db
-      .select()
-      .from(notificationPreferences)
-      .where(
-        and(
-          eq(notificationPreferences.userId, userId),
-          eq(notificationPreferences.type, type)
-        )
-      )
+    const [user] = await db
+      .select({ id: users.id, email: users.email, username: users.username })
+      .from(users)
+      .where(eq(users.id, userId))
       .limit(1);
 
-    return preference;
-  }
+    const userEmail = user?.email || "";
 
-  /**
-   * Create default notification preferences for a user
-   */
-  private async createDefaultNotificationPreferences(userId: number) {
-    const defaultPreferences = Object.keys(NOTIFICATION_CATEGORIES).flatMap(category =>
-      Object.keys(NOTIFICATION_TYPES)
-        .filter(type => type.startsWith(category.toLowerCase()))
-        .map(type => ({
+    const existingRows = await db
+      .select()
+      .from(notificationPreferences)
+      .where(eq(notificationPreferences.userId, userId));
+
+    const existingMap = new Map(existingRows.map(r => [r.type, r]));
+    const toInsert: Array<typeof notificationPreferences.$inferInsert> = [];
+
+    // 1. Ensure Global Master Email Switch row exists (default: emailEnabled = false)
+    if (!existingMap.has(GLOBAL_EMAIL_PREFERENCE_TYPE)) {
+      toInsert.push({
+        userId,
+        category: 'global',
+        type: GLOBAL_EMAIL_PREFERENCE_TYPE,
+        enabled: true,
+        inAppEnabled: true,
+        emailEnabled: false, // Default is OFF
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+    }
+
+    // 2. Ensure each default notification type row exists (default: emailEnabled = false)
+    for (const def of DEFAULT_NOTIFICATION_TYPES) {
+      if (!existingMap.has(def.type)) {
+        toInsert.push({
           userId,
-          category,
-          type,
+          category: def.category,
+          type: def.type,
           enabled: true,
-          inAppEnabled: true,
-          emailEnabled: false,
+          inAppEnabled: def.defaultInApp,
+          emailEnabled: def.defaultEmail, // Default is OFF
           createdAt: new Date(),
           updatedAt: new Date()
-        }))
-    );
+        });
+      }
+    }
 
-    const insertedPreferences = await db
-      .insert(notificationPreferences)
-      .values(defaultPreferences)
-      .returning();
+    if (toInsert.length > 0) {
+      const inserted = await db
+        .insert(notificationPreferences)
+        .values(toInsert)
+        .returning();
+      for (const row of inserted) {
+        existingMap.set(row.type, row);
+      }
+    }
 
-    return insertedPreferences;
+    // Extract master switch state
+    const globalRow = existingMap.get(GLOBAL_EMAIL_PREFERENCE_TYPE);
+    const masterEmailEnabled = Boolean(globalRow?.emailEnabled);
+
+    // Build enriched list of granular preferences with human-friendly label and description
+    const defMap = new Map(DEFAULT_NOTIFICATION_TYPES.map(d => [d.type, d]));
+    const preferences = Array.from(existingMap.values())
+      .filter(r => r.type !== GLOBAL_EMAIL_PREFERENCE_TYPE)
+      .map(r => {
+        const def = defMap.get(r.type);
+        return {
+          id: r.id,
+          userId: r.userId,
+          category: r.category,
+          type: r.type,
+          label: def?.label || r.type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+          description: def?.description || 'Receive alerts for this activity',
+          enabled: r.enabled,
+          inAppEnabled: r.inAppEnabled,
+          emailEnabled: r.emailEnabled,
+          createdAt: r.createdAt,
+          updatedAt: r.updatedAt
+        };
+      })
+      .sort((a, b) => {
+        const orderA = DEFAULT_NOTIFICATION_TYPES.findIndex(d => d.type === a.type);
+        const orderB = DEFAULT_NOTIFICATION_TYPES.findIndex(d => d.type === b.type);
+        if (orderA !== -1 && orderB !== -1) return orderA - orderB;
+        return a.label.localeCompare(b.label);
+      });
+
+    return {
+      masterEmailEnabled,
+      userEmail,
+      preferences
+    };
   }
 
   /**
-   * Update notification preference
+   * Update all preferences in one request (master toggle + granular toggles)
+   */
+  public async updateAllPreferences(userId: number, data: {
+    masterEmailEnabled?: boolean;
+    preferences?: Array<{
+      id?: number;
+      type: string;
+      emailEnabled?: boolean;
+      inAppEnabled?: boolean;
+      enabled?: boolean;
+    }>;
+  }) {
+    // 1. Update Master Email Switch
+    if (typeof data.masterEmailEnabled === 'boolean') {
+      const [existingGlobal] = await db
+        .select()
+        .from(notificationPreferences)
+        .where(and(
+          eq(notificationPreferences.userId, userId),
+          eq(notificationPreferences.type, GLOBAL_EMAIL_PREFERENCE_TYPE)
+        ))
+        .limit(1);
+
+      if (existingGlobal) {
+        await db
+          .update(notificationPreferences)
+          .set({
+            emailEnabled: data.masterEmailEnabled,
+            updatedAt: new Date()
+          })
+          .where(eq(notificationPreferences.id, existingGlobal.id));
+      } else {
+        await db
+          .insert(notificationPreferences)
+          .values({
+            userId,
+            category: 'global',
+            type: GLOBAL_EMAIL_PREFERENCE_TYPE,
+            enabled: true,
+            inAppEnabled: true,
+            emailEnabled: data.masterEmailEnabled,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          });
+      }
+    }
+
+    // 2. Update individual granular preferences
+    if (Array.isArray(data.preferences)) {
+      for (const item of data.preferences) {
+        if (!item.type) continue;
+
+        const updateData: { emailEnabled?: boolean; inAppEnabled?: boolean; enabled?: boolean; updatedAt: Date } = {
+          updatedAt: new Date()
+        };
+        if (typeof item.emailEnabled === 'boolean') updateData.emailEnabled = item.emailEnabled;
+        if (typeof item.inAppEnabled === 'boolean') updateData.inAppEnabled = item.inAppEnabled;
+        if (typeof item.enabled === 'boolean') updateData.enabled = item.enabled;
+
+        if (item.id) {
+          await db
+            .update(notificationPreferences)
+            .set(updateData)
+            .where(and(
+              eq(notificationPreferences.id, item.id),
+              eq(notificationPreferences.userId, userId)
+            ));
+        } else {
+          // Find by type
+          const [found] = await db
+            .select()
+            .from(notificationPreferences)
+            .where(and(
+              eq(notificationPreferences.userId, userId),
+              eq(notificationPreferences.type, item.type)
+            ))
+            .limit(1);
+
+          if (found) {
+            await db
+              .update(notificationPreferences)
+              .set(updateData)
+              .where(eq(notificationPreferences.id, found.id));
+          }
+        }
+      }
+    }
+
+    return this.getUserNotificationPreferences(userId);
+  }
+
+  /**
+   * Update a specific notification preference
    */
   public async updateNotificationPreference(preferenceId: number, userId: number, data: {
     enabled?: boolean;
     inAppEnabled?: boolean;
     emailEnabled?: boolean;
   }) {
-    // Verify preference belongs to user
     const [existing] = await db
       .select()
       .from(notificationPreferences)
@@ -941,6 +1172,179 @@ export class NotificationService {
       .returning();
 
     return updated;
+  }
+
+  /**
+   * Evaluates user preferences and dispatches an email via Resend if eligible.
+   * Completely non-blocking and safe against uncaught exceptions.
+   */
+  public async dispatchEmailNotificationIfEligible({
+    userId,
+    title,
+    message,
+    type,
+    requestId,
+    priority,
+    actionType,
+    link
+  }: {
+    userId: number;
+    title: string;
+    message: string;
+    type: string;
+    requestId?: number;
+    priority?: NotificationPriority;
+    actionType?: NotificationActionType;
+    link?: string | null;
+  }): Promise<void> {
+    try {
+      // 1. Fetch user email
+      const [user] = await db
+        .select({
+          id: users.id,
+          username: users.username,
+          email: users.email
+        })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+
+      if (!user || !user.email) {
+        return;
+      }
+
+      // 2. Check Master Email Switch (Default is OFF)
+      const [globalPref] = await db
+        .select()
+        .from(notificationPreferences)
+        .where(and(
+          eq(notificationPreferences.userId, userId),
+          eq(notificationPreferences.type, GLOBAL_EMAIL_PREFERENCE_TYPE)
+        ))
+        .limit(1);
+
+      if (!globalPref || !globalPref.emailEnabled) {
+        // Master switch is OFF: skip sending email
+        return;
+      }
+
+      // 3. Map event type to granular preference type
+      const prefType = NotificationService.mapEventToPreferenceType(type);
+
+      // 4. Check Granular Event Preference
+      const [eventPref] = await db
+        .select()
+        .from(notificationPreferences)
+        .where(and(
+          eq(notificationPreferences.userId, userId),
+          eq(notificationPreferences.type, prefType)
+        ))
+        .limit(1);
+
+      // If user hasn't explicitly enabled this event type, skip email
+      if (!eventPref || !eventPref.emailEnabled) {
+        return;
+      }
+
+      // 5. Gather request context if available
+      let requestNumber: string | undefined;
+      let requesterName: string | undefined;
+      let department: string | undefined;
+      let amount: number | string | undefined;
+      let currency: string | undefined;
+      let vendorName: string | undefined;
+      let paymentStructure: string | undefined;
+      let items: any[] | undefined;
+      let actions: { approveUrl: string; rejectUrl: string; changesUrl: string } | undefined;
+
+      if (requestId) {
+        try {
+          const [req] = await db
+            .select({
+              requestNumber: purchaseRequests.requestNumber,
+              department: purchaseRequests.department,
+              totalEstimatedCost: purchaseRequests.totalEstimatedCost,
+              currency: purchaseRequests.currency,
+              paymentStructure: purchaseRequests.paymentStructure,
+              items: purchaseRequests.items,
+              requesterId: purchaseRequests.requesterId,
+              vendorId: purchaseRequests.vendorId,
+            })
+            .from(purchaseRequests)
+            .where(eq(purchaseRequests.id, requestId))
+            .limit(1);
+
+          if (req) {
+            requestNumber = req.requestNumber;
+            department = req.department || undefined;
+            amount = req.totalEstimatedCost ?? undefined;
+            currency = req.currency || "QAR";
+            paymentStructure = req.paymentStructure || undefined;
+
+            try {
+              items = typeof req.items === "string" ? JSON.parse(req.items) : (req.items || []);
+            } catch {
+              items = undefined;
+            }
+
+            if (req.requesterId) {
+              const [reqUser] = await db
+                .select({ username: users.username })
+                .from(users)
+                .where(eq(users.id, req.requesterId))
+                .limit(1);
+              if (reqUser) requesterName = reqUser.username;
+            }
+
+            if (req.vendorId) {
+              const [ven] = await db
+                .select({ companyName: vendors.companyName })
+                .from(vendors)
+                .where(eq(vendors.id, req.vendorId))
+                .limit(1);
+              if (ven) vendorName = ven.companyName;
+            }
+
+            // If this notification is for an approver, generate personalized 1-click action URLs
+            if (type.includes("approval_required") || type.includes("pending_approval")) {
+              try {
+                actions = await emailActionService.generateActionUrls({
+                  requestId,
+                  approverId: userId,
+                });
+              } catch (tokenErr) {
+                console.warn("[NotificationService] Failed to generate email action token:", tokenErr);
+              }
+            }
+          }
+        } catch (ctxErr) {
+          console.warn("[NotificationService] Non-fatal error loading request context for email:", ctxErr);
+        }
+      }
+
+      // 6. Send email via Resend
+      await emailService.sendNotificationEmail({
+        to: user.email,
+        userName: user.username,
+        type,
+        title,
+        message,
+        requestId,
+        requestNumber,
+        requesterName,
+        department,
+        amount,
+        currency,
+        vendorName,
+        paymentStructure,
+        items,
+        actions,
+        actionUrl: link || undefined,
+        priority
+      });
+    } catch (err) {
+      console.error(`[NotificationService] Error in dispatchEmailNotificationIfEligible for user ${userId}:`, err);
+    }
   }
 
   /**
