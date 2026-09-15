@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
         }, { status: 400 });
       }
     } else if (fromEmail && typeof fromEmail === "string" && fromEmail.trim().length > 0) {
-      await SettingsService.setSetting("resend_from_email", fromEmail.trim(), user.id);
+      await emailService.setFromEmail(fromEmail.trim(), user.id);
     }
 
     const updatedStatus = await emailService.getStatus();

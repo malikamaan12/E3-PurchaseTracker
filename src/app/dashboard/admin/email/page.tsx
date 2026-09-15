@@ -41,11 +41,22 @@ export default function AdminEmailManagementPage() {
   const [isEditingCredentials, setIsEditingCredentials] = useState(false);
 
   // Test dispatcher state
-  const [testRecipient, setTestRecipient] = useState("amaanmalik12@gmail.com");
+  const [testRecipient, setTestRecipient] = useState("e3qatech@gmail.com");
   const [testSubject, setTestSubject] = useState("E3 Procurement • Transactional Email Verification");
   const [testTemplate, setTestTemplate] = useState("test_verification");
   const [testCustomMessage, setTestCustomMessage] = useState("");
   const [lastDispatchedInfo, setLastDispatchedInfo] = useState<any>(null);
+  const [sandboxError, setSandboxError] = useState<string | null>(null);
+
+  const isConnected = Boolean(config?.connected);
+  const isSandbox = Boolean(config?.fromEmail?.toLowerCase().includes("onboarding@resend.dev"));
+
+  // Automatically ensure test recipient is set appropriately based on gateway mode
+  React.useEffect(() => {
+    if (isSandbox && (!testRecipient || testRecipient === "amaanmalik12@gmail.com")) {
+      setTestRecipient("e3qatech@gmail.com");
+    }
+  }, [isSandbox]);
 
   // Save Config Mutation
   const saveConfigMutation = useMutation({
@@ -56,6 +67,7 @@ export default function AdminEmailManagementPage() {
       toast.success(data?.message || "Email gateway configuration saved successfully");
       setIsEditingCredentials(false);
       setApiKeyInput("");
+      setSandboxError(null);
     },
     onError: (err: any) => {
       toast.error(err?.message || "Failed to update email gateway configuration");
@@ -67,10 +79,18 @@ export default function AdminEmailManagementPage() {
     mutationFn: (payload: any) => apiClient.admin.email.sendTest(payload),
     onSuccess: (data) => {
       setLastDispatchedInfo(data);
+      setSandboxError(null);
       toast.success(`Test email successfully sent to ${data?.dispatchedTo || testRecipient}`);
     },
     onError: (err: any) => {
-      toast.error(err?.message || "Test email delivery failed");
+      const msg = err?.message || "Test email delivery failed";
+      if (
+        msg.toLowerCase().includes("only send testing emails to your own email address") ||
+        msg.toLowerCase().includes("verify a domain")
+      ) {
+        setSandboxError(msg);
+      }
+      toast.error(msg);
     },
   });
 
@@ -107,8 +127,6 @@ export default function AdminEmailManagementPage() {
       customMessage: testCustomMessage.trim() || undefined,
     });
   };
-
-  const isConnected = Boolean(config?.connected);
 
   return (
     <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-500">
@@ -150,11 +168,19 @@ export default function AdminEmailManagementPage() {
             <div className="flex items-center gap-3.5">
               <div className={cn(
                 "w-12 h-12 rounded-2xl flex items-center justify-center border shrink-0",
-                isConnected
-                  ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                  : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                !isConnected
+                  ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                  : isSandbox
+                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
               )}>
-                {isConnected ? <CheckCircle2 className="w-6 h-6" /> : <AlertTriangle className="w-6 h-6" />}
+                {!isConnected ? (
+                  <AlertTriangle className="w-6 h-6" />
+                ) : isSandbox ? (
+                  <AlertTriangle className="w-6 h-6 text-amber-500" />
+                ) : (
+                  <CheckCircle2 className="w-6 h-6" />
+                )}
               </div>
               <div>
                 <div className="flex items-center gap-2">
@@ -163,17 +189,21 @@ export default function AdminEmailManagementPage() {
                   </h3>
                   <span className={cn(
                     "text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full border",
-                    isConnected
-                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
-                      : "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                    !isConnected
+                      ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20"
+                      : isSandbox
+                      ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20"
+                      : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20"
                   )}>
-                    {isConnected ? "Operational" : "Not Configured"}
+                    {!isConnected ? "Not Configured" : isSandbox ? "Sandbox Mode" : "Production Ready"}
                   </span>
                 </div>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {isConnected
-                    ? "Outbound transactional emails are active and delivering via verified provider."
-                    : "No active API key detected. Please configure gateway credentials below."}
+                  {!isConnected
+                    ? "No active API key detected. Please configure gateway credentials below."
+                    : isSandbox
+                    ? "Outbound emails use onboarding@resend.dev. Delivery restricted to e3qatech@gmail.com."
+                    : "Outbound transactional emails are active and delivering via verified custom domain."}
                 </p>
               </div>
             </div>
@@ -279,11 +309,11 @@ export default function AdminEmailManagementPage() {
                 type="text"
                 value={fromEmailInput}
                 onChange={(e) => setFromEmailInput(e.target.value)}
-                placeholder="E3 Procurement <notifications@company.com>"
+                placeholder="Events & Entertainment Enterprises <notifications@eeeqa.com>"
                 className="w-full px-3.5 py-2.5 rounded-xl text-xs bg-background border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
               <p className="text-[11px] text-muted-foreground mt-1">
-                Displays as the sender name & address on all outgoing emails.
+                To send to all staff & vendors, verify your domain at <a href="https://resend.com/domains" target="_blank" rel="noopener noreferrer" className="text-primary underline font-semibold">resend.com/domains ↗</a>, then enter your verified address here (e.g. <code className="font-mono text-primary font-semibold">Events & Entertainment Enterprises &lt;procurement@eeeqa.com&gt;</code>).
               </p>
             </div>
           </div>
@@ -326,15 +356,99 @@ export default function AdminEmailManagementPage() {
               <Send className="w-4 h-4 text-primary" />
               <h3 className="text-base font-bold text-foreground">Live Delivery Test Dispatcher</h3>
             </div>
-            <p className="text-xs text-muted-foreground mb-5">
+            <p className="text-xs text-muted-foreground mb-4">
               Send an instant verification email to test deliverability, spam score, and formatting.
             </p>
 
+            {isSandbox && (
+              <div className="mb-4 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-2">
+                <div className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                  <span>Resend Sandbox Mode Active</span>
+                </div>
+                <p className="text-muted-foreground text-[11px] leading-relaxed">
+                  Your sender is <code className="font-mono text-foreground font-semibold">onboarding@resend.dev</code>. In sandbox mode, Resend strictly allows sending test emails to the account owner (<strong className="text-foreground">e3qatech@gmail.com</strong>).
+                </p>
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTestRecipient("e3qatech@gmail.com");
+                      setSandboxError(null);
+                    }}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-amber-500/20 hover:bg-amber-500/30 text-amber-700 dark:text-amber-300 transition-colors"
+                  >
+                    Fill: e3qatech@gmail.com
+                  </button>
+                  <a
+                    href="https://resend.com/domains"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-secondary hover:bg-secondary/80 text-foreground border border-border inline-flex items-center gap-1 transition-colors"
+                  >
+                    <span>Verify Domain at Resend ↗</span>
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {sandboxError && (
+              <div className="mb-4 p-3.5 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-xs space-y-2 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 font-bold">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                    <span>Recipient Blocked by Resend Sandbox</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSandboxError(null)}
+                    className="text-muted-foreground hover:text-foreground text-[11px]"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+                <p className="text-muted-foreground text-[11px] leading-relaxed">
+                  Resend blocked sending to <strong className="text-foreground font-mono">{testRecipient}</strong> because <code className="font-mono text-foreground">onboarding@resend.dev</code> is a sandbox domain that can only send to <strong className="text-foreground">e3qatech@gmail.com</strong>.
+                </p>
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTestRecipient("e3qatech@gmail.com");
+                      setSandboxError(null);
+                    }}
+                    className="px-3 py-1 rounded-lg text-[11px] font-bold bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                  >
+                    Switch to e3qatech@gmail.com
+                  </button>
+                  <a
+                    href="https://resend.com/domains"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-semibold text-primary underline"
+                  >
+                    Verify Custom Domain (eeeqa.com) ↗
+                  </a>
+                </div>
+              </div>
+            )}
+
             <form onSubmit={handleSendTestEmail} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-foreground mb-1">
-                  Recipient Email Address
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold text-foreground">
+                    Recipient Email Address
+                  </label>
+                  {isSandbox && (
+                    <button
+                      type="button"
+                      onClick={() => setTestRecipient("e3qatech@gmail.com")}
+                      className="text-[10px] text-primary hover:underline font-semibold"
+                    >
+                      Use e3qatech@gmail.com
+                    </button>
+                  )}
+                </div>
                 <input
                   type="email"
                   required

@@ -197,6 +197,23 @@ export class EmailService {
   }
 
   /**
+   * Update the sender (From) email address in memory, database, and local env
+   */
+  public async setFromEmail(fromEmail: string, userId?: number): Promise<void> {
+    const trimmed = fromEmail.trim();
+    if (!trimmed) return;
+    this.fromEmail = trimmed;
+    process.env.RESEND_FROM_EMAIL = trimmed;
+    try {
+      const { SettingsService } = await import("./SettingsService");
+      await SettingsService.setSetting("resend_from_email", trimmed, userId);
+    } catch (err) {
+      console.warn("[EmailService] Failed to save resend_from_email to DB:", err);
+    }
+    this.updateEnvFile("RESEND_FROM_EMAIL", trimmed);
+  }
+
+  /**
    * Helper to write or update a key in .env.local
    */
   private updateEnvFile(key: string, value: string): void {
