@@ -7,8 +7,8 @@ import { getAuthenticatedUser } from "@/lib/auth-next";
 export const dynamic = 'force-dynamic';
 
 const DEFAULT_BRANDING = {
-  headerTitle: "E3 MANAGEMENT SOLUTIONS & LOGISTICS",
-  headerSubtitle: "Official Commercial Purchase Order • Procurement Document",
+  headerTitle: "Events & Entertainment Enterprises W.L.L",
+  headerSubtitle: "Official Commercial Purchase Order",
   headerColor: "#5B4B8A",
   footerText: "CONFIDENTIAL",
   footerColor: "#2FB7B2",

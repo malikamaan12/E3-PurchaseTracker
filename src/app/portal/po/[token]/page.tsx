@@ -285,7 +285,7 @@ export default function VendorPoPortalPage() {
               <Truck className="w-4 h-4 text-indigo-400" />
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400">Shipping & Receiving</h2>
             </div>
-            <p className="font-bold text-white text-sm pt-1">{poData.billingCompany || "E3 Management Solutions & Logistics W.L.L"}</p>
+            <p className="font-bold text-white text-sm pt-1">{poData.billingCompany || "Events & Entertainment Enterprises W.L.L"}</p>
             <p className="text-xs text-slate-400">Delivery: {poData.deliveryAddress}</p>
             <p className="text-xs text-slate-400">Billing: {poData.billingAddress}</p>
             <p className="text-xs text-slate-400">Authorized: Finance Department</p>

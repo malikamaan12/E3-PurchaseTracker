@@ -164,9 +164,9 @@ export class PurchaseOrderService {
 
     const billingCompany = params.billingCompany?.trim() 
       || request.subPurpose?.name 
-      || "E3 Management Solutions & Logistics W.L.L";
+      || "Events & Entertainment Enterprises W.L.L";
     const deliveryAddress = params.deliveryAddress?.trim() || "E3 Headquarters, Logistics & Receiving Department, Doha, Qatar";
-    const billingAddress = params.billingAddress?.trim() || "E3 Management Solutions & Logistics W.L.L, Finance Department, Doha, Qatar";
+    const billingAddress = params.billingAddress?.trim() || "Events & Entertainment Enterprises W.L.L, Finance Department, Doha, Qatar";
     const paymentTerms = request.paymentStructure || "POST_PROJECT";
     const specialInstructions = params.specialInstructions?.trim() || "Please inspect items upon arrival. Official invoice referencing this PO number must accompany delivery.";
     const termsAndConditions = params.termsAndConditions?.trim() || "Standard E3 Procurement Terms Apply. Payment processed within agreed terms upon delivery inspection.";

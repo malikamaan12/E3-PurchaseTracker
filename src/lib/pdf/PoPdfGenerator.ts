@@ -104,7 +104,10 @@ function wrapMultiLineText(text: string, maxWidth: number, font: any, fontSize: 
 function sanitizePdfHeader(title?: string | null, fallback = ""): string {
   if (!title) return fallback;
   if (/purchase\s+management\s+system/i.test(title.trim())) return fallback;
-  return title.trim();
+  let cleaned = title.replace(/\s*•?\s*procurement\s+document/gi, "").trim();
+  if (/^•\s*/.test(cleaned)) cleaned = cleaned.replace(/^•\s*/, "").trim();
+  if (!cleaned) return fallback;
+  return cleaned;
 }
 
 function safeFormatDate(d: any, formatStr = "dd MMM yyyy"): string {
@@ -201,8 +204,8 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
         const titleY = PAGE_HEIGHT - bannerHeight - 24;
 
         // Left side: Billing Company / Document Identity
-        const rawCompany = poData.billingCompany || options.headerTitle || "E3 MANAGEMENT SOLUTIONS & LOGISTICS";
-        const companyName = sanitizePdfHeader(rawCompany, "E3 MANAGEMENT SOLUTIONS & LOGISTICS");
+        const rawCompany = poData.billingCompany || options.headerTitle || "Events & Entertainment Enterprises W.L.L";
+        const companyName = sanitizePdfHeader(rawCompany, "Events & Entertainment Enterprises W.L.L");
         if (companyName) {
           page.drawText(truncateToWidth(companyName.toUpperCase(), 290, fontBold, 11), {
             x: MARGIN,
@@ -213,7 +216,7 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
           });
         }
         const rawSubtitle = options.headerSubtitle;
-        const subTitleText = sanitizePdfHeader(rawSubtitle, "Official Commercial Purchase Order • Procurement Document");
+        const subTitleText = sanitizePdfHeader(rawSubtitle, "Official Commercial Purchase Order");
         page.drawText(truncateToWidth(subTitleText, 290, fontRegular, 7.5), {
           x: MARGIN,
           y: titleY - 12,
@@ -263,7 +266,7 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
             height: logoHeight,
           });
         } else {
-          const rawHeader = sanitizePdfHeader(options.headerTitle, "E3 MANAGEMENT SOLUTIONS & LOGISTICS");
+          const rawHeader = sanitizePdfHeader(options.headerTitle, "Events & Entertainment Enterprises W.L.L");
           page.drawText(rawHeader, {
             x: MARGIN,
             y: PAGE_HEIGHT - 50,
@@ -371,7 +374,7 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
         color: borderGray,
       });
 
-      const footerNotice = options.footerText || "Official Procurement Document • E3 Institutional Governance Engine • Strictly Confidential";
+      const footerNotice = options.footerText || "Official Commercial Purchase Order • E3 Institutional Governance Engine • Strictly Confidential";
       page.drawText(footerNotice, {
         x: MARGIN,
         y: 28,
@@ -574,8 +577,10 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
     color: indigo,
   });
 
+  const rawBillingComp = poData.billingCompany || "Events & Entertainment Enterprises W.L.L";
+  const cleanBillingComp = rawBillingComp.replace(/E3\s+Management\s+Solutions\s*(?:&\s*Logistics)?(?:\s*W\.?L\.?L)?/gi, "Events & Entertainment Enterprises W.L.L");
   const billingCompany = truncateToWidth(
-    poData.billingCompany || "E3 Management Solutions & Logistics W.L.L",
+    cleanBillingComp,
     maxAddrWidth,
     fontBold,
     9
@@ -602,8 +607,10 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
     color: darkGray,
   });
 
+  const rawBillingAddr = poData.billingAddress || "Events & Entertainment Enterprises W.L.L, Finance Department, Doha, Qatar";
+  const cleanBillingAddr = rawBillingAddr.replace(/E3\s+Management\s+Solutions\s*(?:&\s*Logistics)?(?:\s*W\.?L\.?L)?/gi, "Events & Entertainment Enterprises W.L.L");
   const billingStr = truncateToWidth(
-    `Billing: ${poData.billingAddress || "E3 Management Solutions & Logistics W.L.L, Finance Department, Doha, Qatar"}`,
+    `Billing: ${cleanBillingAddr}`,
     maxAddrWidth,
     fontRegular,
     7.5

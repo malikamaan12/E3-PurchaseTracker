@@ -25,7 +25,7 @@ interface GeneratePoModalProps {
 
 export function GeneratePoModal({ isOpen, onClose, request, onSuccess }: GeneratePoModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const defaultCompany = request?.subPurpose?.name || request?.project?.name || "E3 Management Solutions & Logistics W.L.L";
+  const defaultCompany = request?.subPurpose?.name || request?.project?.name || "Events & Entertainment Enterprises W.L.L";
   const [billingCompany, setBillingCompany] = useState(defaultCompany);
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(
     new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
@@ -34,7 +34,7 @@ export function GeneratePoModal({ isOpen, onClose, request, onSuccess }: Generat
     "E3 Headquarters, Logistics & Receiving Department, Doha, Qatar"
   );
   const [billingAddress, setBillingAddress] = useState(
-    "E3 Management Solutions & Logistics W.L.L, Finance Department, Doha, Qatar"
+    "Events & Entertainment Enterprises W.L.L, Finance Department, Doha, Qatar"
   );
   const [specialInstructions, setSpecialInstructions] = useState(
     "Please inspect all packages upon arrival. Official invoice and delivery challan referencing this PO number must accompany delivery."
@@ -207,7 +207,7 @@ export function GeneratePoModal({ isOpen, onClose, request, onSuccess }: Generat
                 value={billingCompany}
                 onChange={(e) => setBillingCompany(e.target.value)}
                 className="w-full bg-background border border-border/80 rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 font-medium"
-                placeholder="Company Name (e.g. E3 Management Solutions & Logistics W.L.L)"
+                placeholder="Company Name (e.g. Events & Entertainment Enterprises W.L.L)"
               />
             </div>
 
