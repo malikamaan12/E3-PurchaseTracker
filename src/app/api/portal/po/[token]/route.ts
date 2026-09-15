@@ -41,6 +41,7 @@ export async function GET(
         paymentTerms: data.po.paymentTerms,
         expectedDeliveryDate: data.po.expectedDeliveryDate,
         deliveryAddress: data.po.deliveryAddress,
+        billingCompany: data.po.billingCompany,
         billingAddress: data.po.billingAddress,
         specialInstructions: data.po.specialInstructions,
         termsAndConditions: data.po.termsAndConditions,

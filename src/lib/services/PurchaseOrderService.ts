@@ -20,6 +20,7 @@ export interface CreatePoParams {
   userRole: string;
   userDepartment?: string;
   expectedDeliveryDate?: Date | string | null;
+  billingCompany?: string;
   deliveryAddress?: string;
   billingAddress?: string;
   specialInstructions?: string;
@@ -29,6 +30,7 @@ export interface CreatePoParams {
 
 export interface UpdateDraftPoParams {
   expectedDeliveryDate?: Date | string | null;
+  billingCompany?: string;
   deliveryAddress?: string;
   billingAddress?: string;
   specialInstructions?: string;
@@ -94,12 +96,13 @@ export class PurchaseOrderService {
       throw new Error("Access denied: Only Finance officers or Administrators can create Purchase Orders.");
     }
 
-    // 1. Fetch Purchase Request with vendor details
+    // 1. Fetch Purchase Request with vendor and project details
     const request = await db.query.purchaseRequests.findFirst({
       where: eq(purchaseRequests.id, requestId),
       with: {
         vendor: true,
         requester: true,
+        subPurpose: true,
       },
     });
 
@@ -159,6 +162,9 @@ export class PurchaseOrderService {
     // Default 60-day expiry for vendor link
     const tokenExpiresAt = new Date(Date.now() + 60 * 24 * 60 * 60 * 1000);
 
+    const billingCompany = params.billingCompany?.trim() 
+      || request.subPurpose?.name 
+      || "E3 Management Solutions & Logistics W.L.L";
     const deliveryAddress = params.deliveryAddress?.trim() || "E3 Headquarters, Logistics & Receiving Department, Doha, Qatar";
     const billingAddress = params.billingAddress?.trim() || "E3 Management Solutions & Logistics W.L.L, Finance Department, Doha, Qatar";
     const paymentTerms = request.paymentStructure || "POST_PROJECT";
@@ -184,6 +190,7 @@ export class PurchaseOrderService {
         totalAmount: String(total),
         paymentTerms,
         expectedDeliveryDate,
+        billingCompany,
         deliveryAddress,
         billingAddress,
         specialInstructions,
@@ -296,6 +303,7 @@ export class PurchaseOrderService {
     if (updates.expectedDeliveryDate !== undefined) {
       updateFields.expectedDeliveryDate = updates.expectedDeliveryDate ? new Date(updates.expectedDeliveryDate) : null;
     }
+    if (updates.billingCompany !== undefined) updateFields.billingCompany = updates.billingCompany;
     if (updates.deliveryAddress !== undefined) updateFields.deliveryAddress = updates.deliveryAddress;
     if (updates.billingAddress !== undefined) updateFields.billingAddress = updates.billingAddress;
     if (updates.specialInstructions !== undefined) updateFields.specialInstructions = updates.specialInstructions;

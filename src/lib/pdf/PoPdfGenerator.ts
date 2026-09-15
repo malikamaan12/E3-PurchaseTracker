@@ -13,10 +13,27 @@ const COLOR_LIGHT_MUTED = { r: 241 / 255, g: 245 / 255, b: 249 / 255 }; // Slate
 
 export interface PoPdfOptions {
   logo?: Uint8Array | null;
+  headerImage?: Uint8Array | null;
+  footerImage?: Uint8Array | null;
   headerTitle?: string | null;
   headerSubtitle?: string | null;
+  headerColor?: string | null;
+  footerText?: string | null;
+  footerColor?: string | null;
   watermarkText?: string | null;
+  watermarkOpacity?: number | null;
   publicPortalUrl?: string | null;
+}
+
+function parseHexColor(hex?: string | null, defaultColor = COLOR_BRAND_BLUE) {
+  if (!hex || !hex.startsWith("#")) return rgb(defaultColor.r, defaultColor.g, defaultColor.b);
+  const clean = hex.replace("#", "");
+  if (clean.length !== 6) return rgb(defaultColor.r, defaultColor.g, defaultColor.b);
+  const r = parseInt(clean.substring(0, 2), 16) / 255;
+  const g = parseInt(clean.substring(2, 4), 16) / 255;
+  const b = parseInt(clean.substring(4, 6), 16) / 255;
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return rgb(defaultColor.r, defaultColor.g, defaultColor.b);
+  return rgb(r, g, b);
 }
 
 function wrapText(text: string, maxWidth: number, font: any, fontSize: number): string[] {
@@ -76,11 +93,23 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
     pdfDoc.embedFont(StandardFonts.Helvetica),
   ]);
 
-  const logoImg = options.logo
-    ? await pdfDoc.embedPng(options.logo).catch(async () => {
-        return await pdfDoc.embedJpg(options.logo!).catch(() => null);
-      })
-    : null;
+  const [headerImg, footerImg, logoImg] = await Promise.all([
+    options.headerImage
+      ? pdfDoc.embedPng(options.headerImage).catch(async () => {
+          return await pdfDoc.embedJpg(options.headerImage!).catch(() => null);
+        })
+      : null,
+    options.footerImage
+      ? pdfDoc.embedPng(options.footerImage).catch(async () => {
+          return await pdfDoc.embedJpg(options.footerImage!).catch(() => null);
+        })
+      : null,
+    options.logo
+      ? pdfDoc.embedPng(options.logo).catch(async () => {
+          return await pdfDoc.embedJpg(options.logo!).catch(() => null);
+        })
+      : null,
+  ]);
 
   const PAGE_HEIGHT = 841.89; // A4 height
   const PAGE_WIDTH = 595.28;  // A4 width
@@ -90,6 +119,8 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
   const black = rgb(COLOR_BLACK.r, COLOR_BLACK.g, COLOR_BLACK.b);
   const indigo = rgb(COLOR_INDIGO.r, COLOR_INDIGO.g, COLOR_INDIGO.b);
   const brandBlue = rgb(COLOR_BRAND_BLUE.r, COLOR_BRAND_BLUE.g, COLOR_BRAND_BLUE.b);
+  const headerAccentColor = parseHexColor(options.headerColor, COLOR_BRAND_BLUE);
+  const footerAccentColor = parseHexColor(options.footerColor, COLOR_BRAND_BLUE);
   const emerald = rgb(COLOR_EMERALD.r, COLOR_EMERALD.g, COLOR_EMERALD.b);
   const white = rgb(COLOR_WHITE.r, COLOR_WHITE.g, COLOR_WHITE.b);
   const lightBg = rgb(COLOR_LIGHT_BG.r, COLOR_LIGHT_BG.g, COLOR_LIGHT_BG.b);
@@ -101,130 +132,232 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
   let currentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   pages.push(currentPage);
 
-  let currentY = PAGE_HEIGHT - 40;
-
   const drawPageHeader = (page: any, isFirstPage: boolean) => {
-    // Watermark if status is draft or cancelled
-    if (poData.status === "draft" || poData.status === "cancelled") {
-      const watermark = poData.status.toUpperCase();
-      page.drawText(watermark, {
+    // 1. Watermark if status is draft or cancelled or custom
+    const watermark = poData.status === "draft"
+      ? "DRAFT"
+      : poData.status === "cancelled"
+      ? "CANCELLED"
+      : options.watermarkText && options.watermarkText !== "INTERNAL ONLY"
+      ? options.watermarkText
+      : null;
+
+    if (watermark) {
+      const opacityVal = (options.watermarkOpacity ?? 10) / 100;
+      page.drawText(watermark.toUpperCase(), {
         x: 120,
         y: PAGE_HEIGHT / 2 - 40,
         size: 55,
         font: fontBold,
         color: rgb(226 / 255, 232 / 255, 240 / 255),
         rotate: degrees(35),
-        opacity: 0.15,
+        opacity: Math.min(Math.max(opacityVal, 0.04), 0.25),
       });
     }
 
-    // Top Brand Accent Strip
-    page.drawRectangle({
-      x: 0,
-      y: PAGE_HEIGHT - 6,
-      width: PAGE_WIDTH,
-      height: 6,
-      color: brandBlue,
-    });
-
     if (isFirstPage) {
-      // Logo
-      if (logoImg) {
-        const logoWidth = 70;
-        const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
-        page.drawImage(logoImg, {
-          x: MARGIN,
-          y: PAGE_HEIGHT - 55 - (logoHeight > 35 ? logoHeight - 35 : 0),
-          width: logoWidth,
-          height: logoHeight,
+      if (headerImg) {
+        // Full-width E3 Corporate Letterhead Header Banner
+        const bannerHeight = 72;
+        page.drawImage(headerImg, {
+          x: 0,
+          y: PAGE_HEIGHT - bannerHeight,
+          width: PAGE_WIDTH,
+          height: bannerHeight,
         });
-      } else {
-        page.drawText("E3 HOLDINGS", {
+
+        // Document Identity Bar under letterhead
+        const titleY = PAGE_HEIGHT - bannerHeight - 24;
+
+        // Left side: Billing Company / Header Title from Settings
+        const companyName = poData.billingCompany || options.headerTitle || "E3 HOLDINGS";
+        page.drawText(companyName.toUpperCase(), {
           x: MARGIN,
-          y: PAGE_HEIGHT - 50,
+          y: titleY,
+          size: 12,
+          font: fontBold,
+          color: indigo,
+        });
+        page.drawText(options.headerSubtitle || "Official Commercial Purchase Order • Procurement Document", {
+          x: MARGIN,
+          y: titleY - 12,
+          size: 7.5,
+          font: fontRegular,
+          color: darkGray,
+        });
+
+        // Right side: Document Title & PO Number
+        const title = "PURCHASE ORDER";
+        const titleWidth = fontBold.widthOfTextAtSize(title, 16);
+        page.drawText(title, {
+          x: PAGE_WIDTH - MARGIN - titleWidth,
+          y: titleY + 1,
           size: 16,
           font: fontBold,
-          color: brandBlue,
+          color: headerAccentColor,
+        });
+
+        const poNum = poData.poNumber || "PO-DRAFT";
+        const poNumWidth = fontBold.widthOfTextAtSize(poNum, 11);
+        page.drawText(poNum, {
+          x: PAGE_WIDTH - MARGIN - poNumWidth,
+          y: titleY - 12,
+          size: 11,
+          font: fontBold,
+          color: headerAccentColor,
+        });
+      } else {
+        // Top Brand Accent Strip
+        page.drawRectangle({
+          x: 0,
+          y: PAGE_HEIGHT - 6,
+          width: PAGE_WIDTH,
+          height: 6,
+          color: headerAccentColor,
+        });
+
+        // Logo
+        if (logoImg) {
+          const logoWidth = 70;
+          const logoHeight = (logoImg.height / logoImg.width) * logoWidth;
+          page.drawImage(logoImg, {
+            x: MARGIN,
+            y: PAGE_HEIGHT - 55 - (logoHeight > 35 ? logoHeight - 35 : 0),
+            width: logoWidth,
+            height: logoHeight,
+          });
+        } else {
+          page.drawText(options.headerTitle || "E3 HOLDINGS", {
+            x: MARGIN,
+            y: PAGE_HEIGHT - 50,
+            size: 16,
+            font: fontBold,
+            color: headerAccentColor,
+          });
+        }
+
+        // Title & Document Badge
+        const title = "PURCHASE ORDER";
+        const titleWidth = fontBold.widthOfTextAtSize(title, 20);
+        page.drawText(title, {
+          x: PAGE_WIDTH - MARGIN - titleWidth,
+          y: PAGE_HEIGHT - 45,
+          size: 20,
+          font: fontBold,
+          color: indigo,
+        });
+
+        const poNum = poData.poNumber || "PO-DRAFT";
+        const poNumWidth = fontBold.widthOfTextAtSize(poNum, 11);
+        page.drawText(poNum, {
+          x: PAGE_WIDTH - MARGIN - poNumWidth,
+          y: PAGE_HEIGHT - 60,
+          size: 11,
+          font: fontBold,
+          color: headerAccentColor,
         });
       }
-
-      // Title & Document Badge
-      const title = "PURCHASE ORDER";
-      const titleWidth = fontBold.widthOfTextAtSize(title, 20);
-      page.drawText(title, {
-        x: PAGE_WIDTH - MARGIN - titleWidth,
-        y: PAGE_HEIGHT - 45,
-        size: 20,
-        font: fontBold,
-        color: indigo,
-      });
-
-      const poNum = poData.poNumber || "PO-DRAFT";
-      const poNumWidth = fontBold.widthOfTextAtSize(poNum, 11);
-      page.drawText(poNum, {
-        x: PAGE_WIDTH - MARGIN - poNumWidth,
-        y: PAGE_HEIGHT - 60,
-        size: 11,
-        font: fontBold,
-        color: brandBlue,
-      });
     } else {
-      // Small Header for continuation pages
-      page.drawText(`Purchase Order: ${poData.poNumber || ""}`, {
-        x: MARGIN,
-        y: PAGE_HEIGHT - 25,
-        size: 8,
-        font: fontBold,
-        color: darkGray,
-      });
-      page.drawText(`Reference PR: ${poData.request?.requestNumber || ""}`, {
-        x: PAGE_WIDTH - MARGIN - 120,
-        y: PAGE_HEIGHT - 25,
-        size: 8,
-        font: fontRegular,
-        color: darkGray,
-      });
-      page.drawLine({
-        start: { x: MARGIN, y: PAGE_HEIGHT - 32 },
-        end: { x: PAGE_WIDTH - MARGIN, y: PAGE_HEIGHT - 32 },
-        thickness: 0.5,
-        color: borderGray,
-      });
+      // Continuation pages header
+      if (headerImg) {
+        page.drawImage(headerImg, {
+          x: 0,
+          y: PAGE_HEIGHT - 36,
+          width: PAGE_WIDTH,
+          height: 36,
+        });
+        page.drawText(`Purchase Order: ${poData.poNumber || ""}`, {
+          x: MARGIN,
+          y: PAGE_HEIGHT - 48,
+          size: 8,
+          font: fontBold,
+          color: darkGray,
+        });
+        page.drawText(`Reference PR: ${poData.request?.requestNumber || ""}`, {
+          x: PAGE_WIDTH - MARGIN - 120,
+          y: PAGE_HEIGHT - 48,
+          size: 8,
+          font: fontRegular,
+          color: darkGray,
+        });
+      } else {
+        page.drawText(`Purchase Order: ${poData.poNumber || ""}`, {
+          x: MARGIN,
+          y: PAGE_HEIGHT - 25,
+          size: 8,
+          font: fontBold,
+          color: darkGray,
+        });
+        page.drawText(`Reference PR: ${poData.request?.requestNumber || ""}`, {
+          x: PAGE_WIDTH - MARGIN - 120,
+          y: PAGE_HEIGHT - 25,
+          size: 8,
+          font: fontRegular,
+          color: darkGray,
+        });
+        page.drawLine({
+          start: { x: MARGIN, y: PAGE_HEIGHT - 32 },
+          end: { x: PAGE_WIDTH - MARGIN, y: PAGE_HEIGHT - 32 },
+          thickness: 0.5,
+          color: borderGray,
+        });
+      }
     }
   };
 
   const drawFooter = (page: any, pageIndex: number, totalCount: number) => {
-    // Bottom border
-    page.drawLine({
-      start: { x: MARGIN, y: 40 },
-      end: { x: PAGE_WIDTH - MARGIN, y: 40 },
-      thickness: 0.5,
-      color: borderGray,
-    });
+    if (footerImg) {
+      // E3 Corporate Letterhead Footer Graphic
+      const footerH = 50;
+      page.drawImage(footerImg, {
+        x: 0,
+        y: 0,
+        width: PAGE_WIDTH,
+        height: footerH,
+      });
 
-    const footerNotice = "Official Procurement Document • E3 Institutional Governance Engine • Strictly Confidential";
-    page.drawText(footerNotice, {
-      x: MARGIN,
-      y: 28,
-      size: 7,
-      font: fontRegular,
-      color: darkGray,
-    });
+      const pageNumText = `Page ${pageIndex + 1} of ${totalCount}`;
+      const pageNumWidth = fontRegular.widthOfTextAtSize(pageNumText, 7.5);
+      page.drawText(pageNumText, {
+        x: PAGE_WIDTH - MARGIN - pageNumWidth,
+        y: footerH + 4,
+        size: 7.5,
+        font: fontRegular,
+        color: darkGray,
+      });
+    } else {
+      // Bottom border
+      page.drawLine({
+        start: { x: MARGIN, y: 40 },
+        end: { x: PAGE_WIDTH - MARGIN, y: 40 },
+        thickness: 0.5,
+        color: borderGray,
+      });
 
-    const pageNumText = `Page ${pageIndex + 1} of ${totalCount}`;
-    const pageNumWidth = fontRegular.widthOfTextAtSize(pageNumText, 8);
-    page.drawText(pageNumText, {
-      x: PAGE_WIDTH - MARGIN - pageNumWidth,
-      y: 28,
-      size: 8,
-      font: fontRegular,
-      color: darkGray,
-    });
+      const footerNotice = options.footerText || "Official Procurement Document • E3 Institutional Governance Engine • Strictly Confidential";
+      page.drawText(footerNotice, {
+        x: MARGIN,
+        y: 28,
+        size: 7,
+        font: fontRegular,
+        color: footerAccentColor,
+      });
+
+      const pageNumText = `Page ${pageIndex + 1} of ${totalCount}`;
+      const pageNumWidth = fontRegular.widthOfTextAtSize(pageNumText, 8);
+      page.drawText(pageNumText, {
+        x: PAGE_WIDTH - MARGIN - pageNumWidth,
+        y: 28,
+        size: 8,
+        font: fontRegular,
+        color: darkGray,
+      });
+    }
   };
 
   // Draw Page 1 header
   drawPageHeader(currentPage, true);
-  currentY = PAGE_HEIGHT - 85;
+  let currentY = headerImg ? PAGE_HEIGHT - 128 : PAGE_HEIGHT - 85;
 
   // ─────────────────────────────────────────────────────────────
   // 1. ORDER SUMMARY METADATA CARD (4 Columns)
@@ -373,32 +506,37 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
     font: fontBold,
     color: indigo,
   });
-  currentPage.drawText("E3 Management Solutions & Logistics", {
+  const billingCompany = poData.billingCompany || "E3 Management Solutions & Logistics W.L.L";
+  currentPage.drawText(billingCompany, {
     x: shipBoxX + 10,
     y: addressBoxY + 54,
-    size: 9.5,
+    size: 9,
     font: fontBold,
     color: black,
   });
-  currentPage.drawText(`Delivery: ${poData.deliveryAddress || "E3 Headquarters, Doha, Qatar"}`, {
+  const deliveryStr = `Delivery: ${poData.deliveryAddress || "E3 Headquarters, Logistics & Receiving Department, Doha, Qatar"}`;
+  const deliveryTrunc = deliveryStr.length > 52 ? deliveryStr.substring(0, 49) + "..." : deliveryStr;
+  currentPage.drawText(deliveryTrunc, {
     x: shipBoxX + 10,
-    y: addressBoxY + 38,
+    y: addressBoxY + 40,
     size: 7.5,
     font: fontRegular,
     color: darkGray,
   });
-  currentPage.drawText(`Billing: ${poData.billingAddress || "Finance Department, E3 Doha, Qatar"}`, {
+  const billingStr = `Billing: ${poData.billingAddress || "E3 Management Solutions & Logistics W.L.L, Finance Department, Doha, Qatar"}`;
+  const billingTrunc = billingStr.length > 52 ? billingStr.substring(0, 49) + "..." : billingStr;
+  currentPage.drawText(billingTrunc, {
     x: shipBoxX + 10,
-    y: addressBoxY + 24,
+    y: addressBoxY + 26,
     size: 7.5,
     font: fontRegular,
     color: darkGray,
   });
-  currentPage.drawText(`Authorized Officer: ${poData.createdBy?.username || "Finance Officer"}`, {
+  currentPage.drawText("Authorized Officer: Finance Department", {
     x: shipBoxX + 10,
-    y: addressBoxY + 10,
+    y: addressBoxY + 12,
     size: 7.5,
-    font: fontRegular,
+    font: fontBold,
     color: darkGray,
   });
 
@@ -689,7 +827,7 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
     y: signBoxY + signBoxHeight - 16,
     width: halfWidth,
     height: 16,
-    color: brandBlue,
+    color: headerAccentColor,
   });
   currentPage.drawText("AUTHORIZED FINANCE SIGNATURE", {
     x: authBoxX + 10,
@@ -706,17 +844,24 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
     font: fontBold,
     color: emerald,
   });
-  currentPage.drawText(`Issued By: ${poData.createdBy?.username || "E3 Finance Department"}`, {
+  currentPage.drawText("Issued By: Finance Department", {
     x: authBoxX + 10,
     y: signBoxY + signBoxHeight - 45,
     size: 7.5,
+    font: fontBold,
+    color: darkGray,
+  });
+  currentPage.drawText(`Role: Authorized Finance Officer`, {
+    x: authBoxX + 10,
+    y: signBoxY + signBoxHeight - 56,
+    size: 7,
     font: fontRegular,
     color: darkGray,
   });
   currentPage.drawText(`Timestamp: ${safeFormatDate(poData.issuedAt || new Date(), "dd MMM yyyy HH:mm")} AST`, {
     x: authBoxX + 10,
-    y: signBoxY + signBoxHeight - 57,
-    size: 7,
+    y: signBoxY + signBoxHeight - 66,
+    size: 6.5,
     font: fontRegular,
     color: darkGray,
   });

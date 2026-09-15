@@ -48,12 +48,23 @@ export async function GET(
     const settingsResult = await db.select().from(pdfSettings).limit(1);
     const settings = settingsResult[0] || null;
 
-    const logo = await fetchPdfAssetBuffer(settings?.logo || null, req.url);
+    const [headerImage, footerImage, logo] = await Promise.all([
+      fetchPdfAssetBuffer(settings?.headerImage || null, req.url),
+      fetchPdfAssetBuffer(settings?.footerImage || null, req.url),
+      fetchPdfAssetBuffer(settings?.logo || null, req.url),
+    ]);
 
     const pdfBytes = await generatePurchaseOrderPdf(po, {
       logo,
+      headerImage,
+      footerImage,
       headerTitle: settings?.headerTitle,
-      watermarkText: po.status === "draft" ? "DRAFT PO" : po.status === "cancelled" ? "CANCELLED" : undefined,
+      headerSubtitle: settings?.headerSubtitle,
+      headerColor: settings?.headerColor,
+      footerText: settings?.footerText,
+      footerColor: settings?.footerColor,
+      watermarkText: po.status === "draft" ? "DRAFT PO" : po.status === "cancelled" ? "CANCELLED" : settings?.watermarkText,
+      watermarkOpacity: settings?.watermarkOpacity,
     });
 
     return new Response(Buffer.from(pdfBytes), {

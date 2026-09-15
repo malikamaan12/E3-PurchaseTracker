@@ -95,6 +95,7 @@ export async function POST(
       userRole: user.role,
       userDepartment: user.department,
       expectedDeliveryDate: body.expectedDeliveryDate,
+      billingCompany: body.billingCompany,
       deliveryAddress: body.deliveryAddress,
       billingAddress: body.billingAddress,
       specialInstructions: body.specialInstructions,

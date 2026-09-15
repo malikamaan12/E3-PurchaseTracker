@@ -1644,6 +1644,7 @@ export const purchaseOrders = pgTable("purchase_orders", {
   // Terms & Delivery
   paymentTerms: text("payment_terms").notNull(),
   expectedDeliveryDate: timestamp("expected_delivery_date"),
+  billingCompany: text("billing_company"),
   deliveryAddress: text("delivery_address").notNull(),
   billingAddress: text("billing_address").notNull(),
   specialInstructions: text("special_instructions"),

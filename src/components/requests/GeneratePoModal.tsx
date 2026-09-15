@@ -25,6 +25,8 @@ interface GeneratePoModalProps {
 
 export function GeneratePoModal({ isOpen, onClose, request, onSuccess }: GeneratePoModalProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const defaultCompany = request?.subPurpose?.name || request?.project?.name || "E3 Management Solutions & Logistics W.L.L";
+  const [billingCompany, setBillingCompany] = useState(defaultCompany);
   const [expectedDeliveryDate, setExpectedDeliveryDate] = useState(
     new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split("T")[0]
   );
@@ -58,6 +60,7 @@ export function GeneratePoModal({ isOpen, onClose, request, onSuccess }: Generat
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           expectedDeliveryDate,
+          billingCompany,
           deliveryAddress,
           billingAddress,
           specialInstructions,
@@ -192,17 +195,56 @@ export function GeneratePoModal({ isOpen, onClose, request, onSuccess }: Generat
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
-              <Truck className="w-3.5 h-3.5 text-primary" /> Delivery & Receiving Address
-            </label>
-            <input
-              type="text"
-              value={deliveryAddress}
-              onChange={(e) => setDeliveryAddress(e.target.value)}
-              className="w-full bg-background border border-border/80 rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-              placeholder="Full shipping location..."
-            />
+          {/* Billing Entity & Addresses */}
+          <div className="space-y-3.5 p-4 rounded-2xl bg-secondary/30 border border-border/70">
+            <div>
+              <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
+                <Building2 className="w-3.5 h-3.5 text-primary" /> Billing Entity / Company Name
+                <span className="text-[10px] font-normal text-muted-foreground ml-auto">(Project Dependent)</span>
+              </label>
+              <input
+                type="text"
+                value={billingCompany}
+                onChange={(e) => setBillingCompany(e.target.value)}
+                className="w-full bg-background border border-border/80 rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 font-medium"
+                placeholder="Company Name (e.g. E3 Management Solutions & Logistics W.L.L)"
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
+                  <Truck className="w-3.5 h-3.5 text-primary" /> Ship To / Delivery Location
+                </label>
+                <input
+                  type="text"
+                  value={deliveryAddress}
+                  onChange={(e) => setDeliveryAddress(e.target.value)}
+                  className="w-full bg-background border border-border/80 rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  placeholder="Full shipping location..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-foreground mb-1.5 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-primary" /> Official Billing Address
+                </label>
+                <input
+                  type="text"
+                  value={billingAddress}
+                  onChange={(e) => setBillingAddress(e.target.value)}
+                  className="w-full bg-background border border-border/80 rounded-xl px-3 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  placeholder="Full billing address..."
+                />
+              </div>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-2 text-xs text-primary">
+              <ShieldCheck className="w-4 h-4 shrink-0 text-primary" />
+              <span className="text-[11px] leading-tight">
+                <strong>Authorized Officer:</strong> Will be certified and stamped as <strong>Finance Department</strong>.
+              </span>
+            </div>
           </div>
 
           <div>
@@ -220,7 +262,7 @@ export function GeneratePoModal({ isOpen, onClose, request, onSuccess }: Generat
 
           <div>
             <label className="block text-xs font-bold text-foreground mb-1.5">
-              Terms & Conditions Clause
+              Standard Purchase Terms & Conditions
             </label>
             <textarea
               rows={2}
