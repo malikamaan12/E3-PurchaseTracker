@@ -12,7 +12,9 @@ import {
   AlertCircle,
   Archive,
   ArrowRight,
-  Briefcase
+  Briefcase,
+  Mail,
+  Bell
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -262,6 +264,20 @@ export default function AdminOverviewPage() {
             path: "/dashboard/admin/purposes",
             icon: <BarChart3 className="w-5 h-5" />,
             colorClass: "bg-emerald-500/10 border-emerald-500/20 text-emerald-500"
+          },
+          {
+            title: "Email Gateway",
+            sub: "Delivery & Test Dispatcher",
+            path: "/dashboard/admin/email",
+            icon: <Mail className="w-5 h-5" />,
+            colorClass: "bg-indigo-500/10 border-indigo-500/20 text-indigo-500"
+          },
+          {
+            title: "Broadcast Alerts",
+            sub: "Dashboard Ticker & Notices",
+            path: "/dashboard/admin/alerts",
+            icon: <Bell className="w-5 h-5" />,
+            colorClass: "bg-sky-500/10 border-sky-500/20 text-sky-500"
           },
           {
             title: "System Diagnostics",

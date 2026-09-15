@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { Switch } from "@/components/ui/Switch";
@@ -49,6 +50,20 @@ interface PreferenceItem {
 export function NotificationPreferencesModal({ isOpen, onClose }: NotificationPreferencesModalProps) {
   const queryClient = useQueryClient();
   const { user, isAdmin, isSuperAdmin } = useAuth();
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   const [activeTab, setActiveTab] = useState<"in_app" | "email">("in_app");
 
@@ -210,22 +225,22 @@ export function NotificationPreferencesModal({ isOpen, onClose }: NotificationPr
     }
   };
 
-  if (!isOpen) return null;
+  if (!isOpen || !isMounted) return null;
 
   const userEmail = data?.userEmail || "";
   const inAppActiveCount = preferences.filter((p) => p.inAppEnabled).length;
   const emailActiveCount = preferences.filter((p) => p.emailEnabled && masterEmailEnabled).length;
 
-  return (
-    <div className="fixed inset-0 z-[100001] flex items-center justify-center p-3 sm:p-4 animate-fade-in">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-        onClick={onClose}
-      />
-
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100005] flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/60 backdrop-blur-sm animate-fade"
+      onClick={onClose}
+    >
       {/* Modal Container */}
-      <div className="relative w-full max-w-2xl bg-card border border-border rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[92dvh] overflow-hidden animate-scale-up z-10">
+      <div
+        className="relative w-full max-w-2xl bg-card border border-border rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col my-auto max-h-[85vh] sm:max-h-[88dvh] overflow-hidden z-10 animate-fade-scale-in"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="p-4 sm:p-5 border-b border-border bg-secondary/30 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -689,6 +704,7 @@ export function NotificationPreferencesModal({ isOpen, onClose }: NotificationPr
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import TopNav from "@/components/layout/TopNav";
+import { SystemAlertTicker } from "@/components/alerts/SystemAlertTicker";
 import { MobileBottomNavigation } from "@/components/mobile/MobileBottomNavigation";
 import { useAuth } from "@/context/AuthContext";
 import { LoadingState } from "@/components/shared/LoadingState";
@@ -29,6 +30,8 @@ export default function DashboardLayout({
     <div className="flex flex-col min-h-screen bg-background transition-colors duration-300">
       {/* Global Top Nav - Handles header and search */}
       <TopNav />
+      {/* Subtle Broadcast Alert Ticker */}
+      <SystemAlertTicker />
       <CommandPalette />
       
       {/* Scrollable Page Content */}

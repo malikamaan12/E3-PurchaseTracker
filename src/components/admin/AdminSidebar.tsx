@@ -15,7 +15,9 @@ import {
   Building2,
   PanelLeftClose,
   PanelLeft,
-  Archive
+  Archive,
+  Mail,
+  Bell
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -48,6 +50,8 @@ const adminNavGroups: AdminNavGroup[] = [
     items: [
       { name: "User Management", path: "/dashboard/admin/users", icon: Users },
       { name: "Account Requests", path: "/dashboard/admin/account-requests", icon: Shield },
+      { name: "Email Management", path: "/dashboard/admin/email", icon: Mail },
+      { name: "System Alerts", path: "/dashboard/admin/alerts", icon: Bell },
       { name: "Enterprise Backups", path: "/dashboard/admin/backups", icon: Archive },
       { name: "PDF Settings", path: "/dashboard/admin/pdf-settings", icon: Settings },
     ]

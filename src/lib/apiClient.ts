@@ -251,7 +251,23 @@ class ApiClient {
     resend: {
       getStatus: () => this.request<{ connected: boolean; maskedApiKey?: string; fromEmail: string; source: string }>("/admin/resend"),
       connect: (data: { apiKey: string; fromEmail?: string }) => this.request<{ success: boolean; message: string }>("/admin/resend", { method: "POST", body: JSON.stringify(data) })
+    },
+    alerts: {
+      list: () => this.request<any[]>("/admin/alerts"),
+      save: (data: any) => this.request<any>("/admin/alerts", { method: "POST", body: JSON.stringify(data) }),
+      toggleActive: (id: string, active: boolean) => this.request<any>("/admin/alerts", { method: "PATCH", body: JSON.stringify({ id, active }) }),
+      delete: (id: string) => this.request<any>(`/admin/alerts?id=${encodeURIComponent(id)}`, { method: "DELETE" }),
+    },
+    email: {
+      getConfig: () => this.request<any>("/admin/email/config"),
+      updateConfig: (data: any) => this.request<any>("/admin/email/config", { method: "POST", body: JSON.stringify(data) }),
+      sendTest: (data: { to: string; subject?: string; templateType?: string; customMessage?: string }) =>
+        this.request<any>("/admin/email/test", { method: "POST", body: JSON.stringify(data) }),
     }
+  };
+
+  alerts = {
+    getActive: () => this.request<any[]>("/alerts/active"),
   };
 }
 
