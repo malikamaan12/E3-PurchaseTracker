@@ -132,6 +132,7 @@ class ApiClient {
       this.request<any>(`/vendors/${vendorId}/completion-link`, { method: "POST", body: JSON.stringify({ action: "log_event", eventType, metadata }) }),
     onboard: (data: any) => this.request<any>("/vendors", { method: "POST", body: JSON.stringify(data) }),
     update: (id: number, data: any) => this.request<any>(`/vendors/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    delete: (id: number) => this.request<any>(`/vendors/${id}`, { method: "DELETE" }),
     rate: (id: number, rating: number) => 
       this.request<any>(`/vendors/${id}/rate`, { method: "POST", body: JSON.stringify({ rating }) }),
     listComplianceCases: (vendorId: number) =>

@@ -7,9 +7,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/apiClient";
 import { toast } from "sonner";
 import * as Dialog from "@radix-ui/react-dialog";
-import { X, Building2, User, Phone, Mail, Globe, Landmark, FileCheck, CreditCard, Loader2 } from "lucide-react";
+import { X, Building2, User, Phone, Mail, Globe, Landmark, FileCheck, CreditCard, Loader2, DollarSign, Tag, Activity } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { z } from "zod";
 import { cn } from "@/lib/utils";
 
@@ -24,14 +24,15 @@ interface VendorManagementModalProps {
 export function VendorManagementModal({ open, onOpenChange, vendor }: VendorManagementModalProps) {
   const queryClient = useQueryClient();
   const [step, setStep] = useState(1);
-  const step3EnteredAt = useRef(0);
 
   const { register, handleSubmit, formState: { errors }, reset } = useForm<VendorFormValues>({
     resolver: zodResolver(vendorFormSchema),
     defaultValues: {
       status: "active",
       category: "general",
-      payment_currency: "QAR"
+      payment_currency: "QAR",
+      vendorType: "company",
+      engagementType: "permanent",
     }
   });
 
@@ -53,37 +54,27 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
         rating: vendor.rating || 0,
         status: vendor.status || "active",
         category: vendor.category || "general",
-        payment_currency: vendor.payment_currency || "QAR"
+        payment_currency: vendor.payment_currency || "QAR",
+        vendorType: vendor.vendorType || "company",
+        engagementType: vendor.engagementType || "permanent",
       });
       setStep(1);
     }
   }, [open, vendor, reset]);
-
-  useEffect(() => {
-    if (step === 3) {
-      step3EnteredAt.current = Date.now();
-    }
-  }, [step]);
 
   const mutation = useMutation({
     mutationFn: (data: any) => apiClient.vendors.update(vendor.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin_vendors"] });
       queryClient.invalidateQueries({ queryKey: ["vendors"] });
-      toast.success("Vendor details updated successfully");
+      queryClient.invalidateQueries({ queryKey: ["vendor_matrix"] });
+      toast.success(`Vendor "${vendor?.companyName || 'Supplier'}" details updated`);
       onOpenChange(false);
     },
     onError: (err: any) => toast.error(err.message || "Failed to update vendor details"),
   });
 
   const onSubmit = (data: any) => {
-    if (step !== 3) {
-      setStep(s => Math.min(3, s + 1));
-      return;
-    }
-    if (Date.now() - step3EnteredAt.current < 500) {
-      return;
-    }
     mutation.mutate(data);
   };
 
@@ -108,10 +99,10 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                 </div>
                 <div>
                   <Dialog.Title className="text-xl md:text-2xl font-bold text-foreground tracking-tight">
-                    Modify Supplier
+                    Modify Supplier Details
                   </Dialog.Title>
                   <Dialog.Description className="text-xs md:text-sm text-muted-foreground mt-1 font-medium">
-                    Update existing supplier credentials and financial data.
+                    Edit {vendor.companyName} profile, financial credentials, and status.
                   </Dialog.Description>
                 </div>
               </div>
@@ -122,29 +113,65 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
 
             <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto flex flex-col custom-scrollbar relative">
               <div className="p-6 md:p-8 flex-1">
-                {/* Stepper Header */}
-                <div className="flex gap-2 sm:gap-6 mb-8 bg-secondary/30 backdrop-blur-sm p-3 rounded-2xl border border-border/50 relative overflow-hidden flex-wrap sm:flex-nowrap">
-                  <StepIndicator current={step} target={1} label="Identity" />
-                  <StepIndicator current={step} target={2} label="Finance" />
-                  <StepIndicator current={step} target={3} label="Compliance" />
+                {/* Stepper / Tab Navigation */}
+                <div className="flex gap-2 sm:gap-4 mb-8 bg-secondary/30 backdrop-blur-sm p-2 rounded-2xl border border-border/50 relative overflow-hidden flex-wrap sm:flex-nowrap">
+                  <StepIndicator current={step} target={1} label="Identity" onClick={() => setStep(1)} />
+                  <StepIndicator current={step} target={2} label="Banking" onClick={() => setStep(2)} />
+                  <StepIndicator current={step} target={3} label="Compliance & Ops" onClick={() => setStep(3)} />
                 </div>
 
                 <AnimatePresence mode="wait">
                   {step === 1 && (
                     <motion.div 
                       key="step1"
-                      initial={{ opacity: 0, x: 20 }}
+                      initial={{ opacity: 0, x: 10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.2 }}
-                      className="grid grid-cols-1 sm:grid-cols-2 gap-6"
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.15 }}
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-5"
                     >
-                      <FormField icon={Building2} label="Company Name" name="companyName" register={register} error={errors.companyName} placeholder="e.g. Acme Tech Solutions" />
-                      <FormField icon={User} label="Contact Person" name="contactPerson" register={register} error={errors.contactPerson} placeholder="Full Name" />
-                      <FormField icon={Mail} label="Business Email" name="email" register={register} error={errors.email} placeholder="vendor@example.com" />
-                      <FormField icon={Phone} label="Contact Number" name="contactNumber" register={register} error={errors.contactNumber} placeholder="+974 ..." />
+                      <FormField icon={Building2} label="Company Name *" name="companyName" register={register} error={errors.companyName} placeholder="e.g. Acme Tech Solutions" />
+                      <FormField icon={User} label="Contact Person *" name="contactPerson" register={register} error={errors.contactPerson} placeholder="Full Name" />
+                      <FormField icon={Mail} label="Business Email *" name="email" register={register} error={errors.email} placeholder="vendor@example.com" />
+                      <FormField icon={Phone} label="Contact Number *" name="contactNumber" register={register} error={errors.contactNumber} placeholder="+974 ..." />
                       <div className="sm:col-span-2">
-                         <FormField icon={Globe} label="Headquarters Address" name="address" register={register} error={errors.address} placeholder="Street, City, Country" />
+                        <FormField icon={Globe} label="Headquarters Address *" name="address" register={register} error={errors.address} placeholder="Street, City, Country" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-foreground tracking-wide flex items-center gap-1.5">
+                          <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+                          Category
+                        </label>
+                        <select
+                          {...register("category")}
+                          className="w-full bg-background/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                        >
+                          <option value="general">General</option>
+                          <option value="it_equipment">IT Equipment</option>
+                          <option value="office_supplies">Office Supplies</option>
+                          <option value="consulting">Consulting</option>
+                          <option value="logistics">Logistics</option>
+                          <option value="marketing">Marketing</option>
+                          <option value="facilities">Facilities</option>
+                          <option value="construction">Construction</option>
+                          <option value="hospitality">Hospitality</option>
+                        </select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-foreground tracking-wide flex items-center gap-1.5">
+                          <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
+                          Payment Currency
+                        </label>
+                        <select
+                          {...register("payment_currency")}
+                          className="w-full bg-background/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                        >
+                          <option value="QAR">QAR (Qatari Riyal)</option>
+                          <option value="USD">USD (US Dollar)</option>
+                          <option value="EUR">EUR (Euro)</option>
+                          <option value="AED">AED (UAE Dirham)</option>
+                          <option value="CNY">CNY (Chinese Yuan)</option>
+                        </select>
                       </div>
                     </motion.div>
                   )}
@@ -152,34 +179,49 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                   {step === 2 && (
                     <motion.div 
                       key="step2"
-                      initial={{ opacity: 0, x: 20 }}
+                      initial={{ opacity: 0, x: 10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.2 }}
-                      className="grid grid-cols-1 sm:grid-cols-2 gap-6"
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.15 }}
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-5"
                     >
                       <FormField icon={Landmark} label="Bank Name" name="bankName" register={register} error={errors.bankName} placeholder="Official bank title" />
                       <FormField icon={Landmark} label="Branch Name" name="branchName" register={register} error={errors.branchName} placeholder="Branch location" />
-                      <FormField icon={CreditCard} label="Account Number" name="accountNumber" register={register} error={errors.accountNumber} />
-                      <FormField icon={CreditCard} label="IBAN Number" name="ibanNumber" register={register} error={errors.ibanNumber} />
+                      <FormField icon={CreditCard} label="Account Number" name="accountNumber" register={register} error={errors.accountNumber} placeholder="Account #" />
+                      <FormField icon={CreditCard} label="IBAN Number" name="ibanNumber" register={register} error={errors.ibanNumber} placeholder="IBAN code" />
                     </motion.div>
                   )}
 
                   {step === 3 && (
                     <motion.div 
                       key="step3"
-                      initial={{ opacity: 0, x: 20 }}
+                      initial={{ opacity: 0, x: 10 }}
                       animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: -20 }}
-                      transition={{ duration: 0.2 }}
-                      className="grid grid-cols-1 sm:grid-cols-2 gap-6"
+                      exit={{ opacity: 0, x: -10 }}
+                      transition={{ duration: 0.15 }}
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-5"
                     >
-                      <FormField icon={FileCheck} label="VAT Number" name="taxNumber" register={register} error={errors.taxNumber} />
-                      <FormField icon={FileCheck} label="Comm. Reg #" name="registrationNumber" register={register} error={errors.registrationNumber} />
-                      <FormField icon={FileCheck} label="Remarks" name="remarks" register={register} error={errors.remarks} placeholder="Notes..." />
+                      <FormField icon={FileCheck} label="Tax / VAT Number" name="taxNumber" register={register} error={errors.taxNumber} placeholder="e.g. 000123456" />
+                      <FormField icon={FileCheck} label="Commercial Reg. #" name="registrationNumber" register={register} error={errors.registrationNumber} placeholder="CR number" />
+                      
                       <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-foreground tracking-wide flex items-center gap-2">
-                          Vendor Reputation Index
+                        <label className="text-xs font-medium text-foreground tracking-wide flex items-center gap-1.5">
+                          <Activity className="w-3.5 h-3.5 text-muted-foreground" />
+                          Operational Status
+                        </label>
+                        <select
+                          {...register("status")}
+                          className="w-full bg-background/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-1 focus:ring-primary transition-all"
+                        >
+                          <option value="active">Active (Permitted for PRs & POs)</option>
+                          <option value="frozen">Frozen (Hold procurement temporarily)</option>
+                          <option value="blocked">Blocked (Restricted completely)</option>
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-xs font-medium text-foreground tracking-wide flex items-center gap-1.5">
+                          Vendor Reputation Rating (0 - 5)
                         </label>
                         <input 
                           type="number"
@@ -190,46 +232,49 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
                           className="w-full bg-background/50 border border-border/50 rounded-xl px-4 py-2.5 text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary transition-all"
                         />
                       </div>
+
+                      <div className="sm:col-span-2">
+                        <FormField icon={FileCheck} label="Internal Governance Remarks" name="remarks" register={register} error={errors.remarks} placeholder="Internal procurement notes..." />
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
 
-              {/* Actions */}
-              <div className="p-6 md:p-8 border-t border-border/20 bg-background/50 backdrop-blur-md shrink-0 flex justify-between items-center mt-auto">
+              {/* Actions Footer */}
+              <div className="p-6 md:p-8 border-t border-border/20 bg-background/50 backdrop-blur-md shrink-0 flex justify-between items-center mt-auto gap-4">
                 <button 
                   type="button"
                   onClick={() => setStep(s => Math.max(1, s - 1))}
                   className={cn(
-                    "px-6 py-2.5 rounded-xl font-medium text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all",
+                    "px-5 py-2.5 rounded-xl font-medium text-xs sm:text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-all",
                     step === 1 ? "opacity-0 pointer-events-none" : "opacity-100"
                   )}
                 >
-                  Previous Step
+                  Previous
                 </button>
-                <div className="flex gap-4">
-                  {step < 3 ? (
+                <div className="flex items-center gap-3">
+                  {step < 3 && (
                     <button 
                       type="button"
                       onClick={() => setStep(s => Math.min(3, s + 1))}
-                      className="bg-secondary text-foreground font-medium px-8 py-2.5 rounded-xl hover:bg-secondary/80 transition-all flex items-center gap-2"
+                      className="bg-secondary text-foreground font-medium px-5 py-2.5 rounded-xl hover:bg-secondary/80 transition-all text-xs sm:text-sm"
                     >
-                      Next: {step === 1 ? 'Financials' : 'Compliance'}
-                    </button>
-                  ) : (
-                    <button 
-                      type="submit"
-                      disabled={mutation.isPending}
-                      className="bg-primary text-primary-foreground font-bold px-8 py-2.5 rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {mutation.isPending ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span>Processing...</span>
-                        </>
-                      ) : "Update Details"}
+                      Next: {step === 1 ? 'Banking' : 'Compliance'}
                     </button>
                   )}
+                  <button 
+                    type="submit"
+                    disabled={mutation.isPending}
+                    className="bg-primary text-primary-foreground font-bold px-6 py-2.5 rounded-xl hover:bg-primary/90 transition-all shadow-lg shadow-primary/20 disabled:opacity-50 flex items-center gap-2 text-xs sm:text-sm"
+                  >
+                    {mutation.isPending ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span>Saving...</span>
+                      </>
+                    ) : "Save Changes"}
+                  </button>
                 </div>
               </div>
             </form>
@@ -240,22 +285,30 @@ export function VendorManagementModal({ open, onOpenChange, vendor }: VendorMana
   );
 }
 
-function StepIndicator({ current, target, label }: any) {
-  const active = current >= target;
+function StepIndicator({ current, target, label, onClick }: any) {
+  const active = current === target;
+  const passed = current > target;
   return (
-    <div className="flex items-center gap-3">
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex-1 flex items-center gap-2.5 p-2 rounded-xl text-left transition-all",
+        active ? "bg-background shadow-xs border border-border" : "hover:bg-background/40"
+      )}
+    >
       <div className={cn(
-        "w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold transition-all duration-300",
-        active ? "bg-primary text-primary-foreground shadow-md shadow-primary/20" : "bg-background text-muted-foreground border border-border/50"
+        "w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold transition-all shrink-0",
+        active ? "bg-primary text-primary-foreground shadow-sm shadow-primary/20" : 
+        passed ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold" : "bg-muted text-muted-foreground"
       )}>
         {target}
       </div>
       <span className={cn(
-        "text-xs font-semibold tracking-wide",
-        active ? "text-foreground" : "text-muted-foreground"
+        "text-xs font-semibold tracking-wide truncate",
+        active ? "text-foreground font-bold" : "text-muted-foreground"
       )}>{label}</span>
-      {target < 3 && <div className="hidden sm:block w-8 h-px bg-border ml-2" />}
-    </div>
+    </button>
   );
 }
 

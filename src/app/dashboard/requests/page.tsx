@@ -826,10 +826,10 @@ function SpendAnalytics({
       />
       <AnalyticsCard
         label="Awaiting Sign-offs"
-        value={pendingCount}
+        value={overview?.awaitingSignOffsCount != null ? overview.awaitingSignOffsCount : pendingCount}
         suffix="REQ"
-        subValue={pendingCount}
-        subLabel={(isApprover || isAdmin || isSuperAdmin) ? "awaiting your sign-off" : "awaiting decision"}
+        subValue={overview?.awaitingSignOffsCount != null ? overview.awaitingSignOffsCount : pendingCount}
+        subLabel={(isApprover || isAdmin || isSuperAdmin) ? "awaiting sign-off action" : "awaiting decision"}
         icon={<Clock className="text-amber-500 w-5 h-5" />}
         gradient="from-orange-500/10 via-orange-500/5 to-transparent"
         iconBg="bg-orange-500/10 border-orange-500/20"

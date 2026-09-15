@@ -187,33 +187,47 @@ export function BudgetSavingsChart({ data }: { data: any[] }) {
   )
 }
 
+const DONUT_COLORS = [
+  "#2FB7B2", // Teal
+  "#5B4B8A", // Purple
+  "#3B82F6", // Royal Blue
+  "#10B981", // Emerald
+  "#F59E0B", // Amber
+  "#EC4899", // Rose
+  "#8B5CF6", // Violet
+  "#06B6D4", // Cyan
+];
+
 // ─── COMPONENT 3: TWIN DONUT CHARTS ───────────────────────────────────────
 export function DistributionDonut({ data, name }: { data: any[], name: string }) {
   const { highPerformanceMode } = usePerformance()
+  const validData = Array.isArray(data) ? data.filter(d => d && Number(d.value) > 0) : [];
 
   return (
-    <div className="h-full w-full flex flex-col items-center justify-center">
-      <p className="text-[10px] font-black tracking-[0.3em] uppercase opacity-40 mb-6">{name}</p>
-      {(!data || data.length === 0) ? (
-        <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-widest border border-dashed border-border/50 rounded-xl">No Data for Period</div>
+    <div className="h-full w-full flex flex-col items-center justify-center min-h-[220px]">
+      <p className="text-[10px] font-black tracking-[0.25em] uppercase opacity-70 mb-3 text-foreground">{name}</p>
+      {validData.length === 0 ? (
+        <div className="flex h-[200px] w-full items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-widest border border-dashed border-border/50 rounded-2xl bg-secondary/10">
+          No Distribution Data
+        </div>
       ) : (
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height={220}>
         <PieChart>
           <Pie
-            data={data}
-            innerRadius="60%"
-            outerRadius="80%"
-            paddingAngle={8}
+            data={validData}
+            innerRadius="58%"
+            outerRadius="82%"
+            paddingAngle={5}
             dataKey="value"
             isAnimationActive={!highPerformanceMode}
             minAngle={15}
             stroke="none"
           >
-            {data.map((entry, index) => (
+            {validData.map((entry, index) => (
               <Cell 
                 key={`cell-${index}`} 
-                fill={index % 2 === 0 ? COLOR_PRIMARY : COLOR_SECONDARY}
-                style={{ filter: "drop-shadow(0px 8px 16px rgba(0,0,0,0.4))" }}
+                fill={DONUT_COLORS[index % DONUT_COLORS.length]}
+                style={{ filter: "drop-shadow(0px 4px 10px rgba(0,0,0,0.15))" }}
               />
             ))}
           </Pie>
@@ -230,10 +244,10 @@ export function ComplianceRadar({ data }: { data: any }) {
   const { highPerformanceMode } = usePerformance()
   
   const formattedData = [
-    { subject: 'Adherence', value: data.budgetAdherence, fullMark: 100 },
-    { subject: 'On-Time', value: data.paymentOnTime, fullMark: 100 },
-    { subject: 'Efficiency', value: 95, fullMark: 100 },
-    { subject: 'Accuracy', value: 88, fullMark: 100 },
+    { subject: 'Adherence', value: Number(data?.budgetAdherence ?? 100), fullMark: 100 },
+    { subject: 'On-Time Pay', value: Number(data?.paymentOnTime ?? 100), fullMark: 100 },
+    { subject: 'Vendor Health', value: Number(data?.vendorComplianceRate ?? 100), fullMark: 100 },
+    { subject: 'Approval SLA', value: Number(data?.approvalFulfillment ?? 100), fullMark: 100 },
   ]
 
   return (
@@ -242,18 +256,18 @@ export function ComplianceRadar({ data }: { data: any }) {
          <div className="flex h-full w-full items-center justify-center text-xs font-bold text-muted-foreground uppercase tracking-widest border border-dashed border-border/50 rounded-xl">No Data for Period</div>
       ) : (
       <ResponsiveContainer width="100%" height={300}>
-        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={formattedData}>
+        <RadarChart cx="50%" cy="50%" outerRadius="78%" data={formattedData}>
           <PolarGrid stroke={COLOR_BORDER} />
           <PolarAngleAxis 
             dataKey="subject" 
-            tick={{ fill: COLOR_MUTED_FOREGROUND, fontSize: 10, fontWeight: 900 }} 
+            tick={{ fill: COLOR_MUTED_FOREGROUND, fontSize: 10, fontWeight: 800 }} 
           />
           <Radar
-            name="Compliance"
+            name="Compliance Index"
             dataKey="value"
             stroke={COLOR_SECONDARY}
             fill={COLOR_SECONDARY}
-            fillOpacity={0.4}
+            fillOpacity={0.35}
             isAnimationActive={!highPerformanceMode}
             dot={{ r: 4, fill: COLOR_SECONDARY, strokeWidth: 2, stroke: COLOR_FOREGROUND }}
           />

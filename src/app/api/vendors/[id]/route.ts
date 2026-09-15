@@ -122,14 +122,15 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     const user = await getAuthenticatedUser(req);
     if (!user) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
 
-    if (user.role !== 'admin' && user.role !== 'super_admin') {
-      return NextResponse.json({ error: "Strictly Admin only deletion permitted." }, { status: 403 });
+    const isAuthorized = user.role === 'admin' || user.role === 'super_admin' || user.canManageVendors === true;
+    if (!isAuthorized) {
+      return NextResponse.json({ error: "Access denied. Admin or Vendor Management rights required to delete vendors." }, { status: 403 });
     }
 
     const vendorId = parseInt(paramId);
     if (isNaN(vendorId)) return NextResponse.json({ error: "Invalid vendor ID" }, { status: 400 });
 
-    // DELETION SHIELD check
+    // Verify vendor exists
     const [existingVendor] = await db
       .select()
       .from(vendors)
@@ -138,34 +139,54 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     if (!existingVendor) return NextResponse.json({ error: "Vendor not found" }, { status: 404 });
 
-    // Check for historical dependencies using concurrent queries for speed
-    const [requestCount, paymentCount, performanceCount] = await Promise.all([
+    // Check for historical / active dependencies concurrently
+    const [requestCount, poCount, paymentCount, performanceCount] = await Promise.all([
       db.execute(sql`SELECT COUNT(*) AS count FROM purchase_requests WHERE vendor_id = ${vendorId}`),
-      db.execute(sql`SELECT COUNT(*) AS count FROM vendor_payments WHERE vendor_id = ${vendorId}`),
+      db.execute(sql`SELECT COUNT(*) AS count FROM purchase_orders WHERE vendor_id = ${vendorId}`),
+      db.execute(sql`SELECT COUNT(*) AS count FROM payment_installments WHERE vendor_id = ${vendorId}`),
       db.execute(sql`SELECT COUNT(*) AS count FROM vendor_performance WHERE vendor_id = ${vendorId}`)
     ]);
 
-    const reqCount = parseInt((requestCount.rows[0] as any).count);
-    const payCount = parseInt((paymentCount.rows[0] as any).count);
-    const perfCount = parseInt((performanceCount.rows[0] as any).count);
+    const reqCount = parseInt((requestCount.rows[0] as any)?.count || "0");
+    const poCnt = parseInt((poCount.rows[0] as any)?.count || "0");
+    const payCount = parseInt((paymentCount.rows[0] as any)?.count || "0");
+    const perfCount = parseInt((performanceCount.rows[0] as any)?.count || "0");
 
-    if (reqCount > 0 || payCount > 0 || perfCount > 0) {
+    if (reqCount > 0 || poCnt > 0 || payCount > 0 || perfCount > 0) {
       const dependencies = [];
-      if (reqCount > 0) dependencies.push(`${reqCount} Purchase Requests`);
-      if (payCount > 0) dependencies.push(`${payCount} Payments`);
-      if (perfCount > 0) dependencies.push(`${perfCount} Performance Reviews`);
+      if (reqCount > 0) dependencies.push(`${reqCount} Purchase Request${reqCount > 1 ? 's' : ''}`);
+      if (poCnt > 0) dependencies.push(`${poCnt} Purchase Order${poCnt > 1 ? 's' : ''}`);
+      if (payCount > 0) dependencies.push(`${payCount} Payment Installment${payCount > 1 ? 's' : ''}`);
+      if (perfCount > 0) dependencies.push(`${perfCount} Performance Review${perfCount > 1 ? 's' : ''}`);
 
       return NextResponse.json({
         error: "Deletion Restricted",
-        message: `This vendor cannot be deleted as it is linked to historical data: ${dependencies.join(', ')}. To preserve the audit timeline, please update the vendor status to "Blocked" or "Frozen" instead.`,
+        message: `This vendor cannot be deleted because it is linked to project records: ${dependencies.join(', ')}. Only unassigned vendors can be deleted. To restrict this vendor, update their status to "Blocked" or "Frozen".`,
       }, { status: 400 });
     }
 
-    await db.delete(vendors).where(eq(vendors.id, vendorId));
+    // Clean up auxiliary vendor records safely in a transaction before deleting vendor
+    await db.transaction(async (tx) => {
+      await tx.execute(sql`DELETE FROM vendor_to_categories WHERE vendor_id = ${vendorId}`);
+      await tx.execute(sql`DELETE FROM vendor_documents WHERE vendor_id = ${vendorId}`);
+      await tx.execute(sql`DELETE FROM vendor_assigned_requirements WHERE vendor_id = ${vendorId}`);
+      await tx.execute(sql`DELETE FROM vendor_requirement_submissions WHERE vendor_id = ${vendorId}`);
+      await tx.execute(sql`DELETE FROM vendor_banking_submissions WHERE vendor_id = ${vendorId}`);
+      await tx.execute(sql`DELETE FROM vendor_compliance_score_history WHERE vendor_id = ${vendorId}`);
+      await tx.execute(sql`DELETE FROM vendor_portal_events WHERE vendor_id = ${vendorId}`);
+      await tx.execute(sql`DELETE FROM vendor_compliance_cases WHERE vendor_id = ${vendorId}`);
+      await tx.execute(sql`DELETE FROM vendor_compliance_overrides WHERE vendor_id = ${vendorId}`);
+      await tx.execute(sql`DELETE FROM vendor_upload_intents WHERE vendor_id = ${vendorId}`);
+      await tx.execute(sql`DELETE FROM vendor_change_requests WHERE vendor_id = ${vendorId}`);
+      await tx.execute(sql`DELETE FROM vendor_onboarding_tokens WHERE vendor_id = ${vendorId}`);
+      await tx.execute(sql`UPDATE vendor_onboarding_drafts SET promoted_vendor_id = NULL WHERE promoted_vendor_id = ${vendorId}`);
+      
+      await tx.delete(vendors).where(eq(vendors.id, vendorId));
+    });
 
-    return NextResponse.json({ success: true, message: "Vendor deleted successfully" });
+    return NextResponse.json({ success: true, message: `Vendor "${existingVendor.companyName}" deleted successfully` });
   } catch (error: any) {
     console.error("[Native API] Vendor DELETE Error:", error);
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }

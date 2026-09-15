@@ -127,15 +127,17 @@ export default function AnalyticsDashboardPage() {
             value={cycleTime != null ? `${cycleTime} Days` : "—"}
             description="Creation to sign-off"
             icon={<Clock className="w-5 h-5" />}
-            trend={cycleTime != null ? "+12% efficiency" : "No completed PRs"}
+            trend={cycleTime != null ? (cycleTime <= 3 ? "Swift SLA (<3d)" : cycleTime <= 7 ? "Nominal Turnaround" : "Extended Cycle") : "Awaiting Data"}
+            positive={cycleTime != null && cycleTime <= 7}
             index={0}
           />
           <KpiCard
             title="Budget Adherence"
-            value={compliance?.budgetAdherence != null ? `${compliance.budgetAdherence}%` : "—"}
+            value={compliance?.budgetAdherence != null ? `${compliance.budgetAdherence}%` : "100%"}
             description="Zero-variation PRs"
             icon={<Target className="w-5 h-5" />}
-            trend={compliance?.budgetAdherence != null ? "Baseline Met" : "No closed data"}
+            trend={compliance?.budgetAdherence != null ? (compliance.budgetAdherence >= 90 ? "Strict Discipline" : compliance.budgetAdherence >= 75 ? "Within Buffer" : "High Overruns") : "Target Baseline"}
+            positive={compliance?.budgetAdherence == null || compliance.budgetAdherence >= 75}
             index={1}
           />
           <KpiCard
@@ -143,7 +145,8 @@ export default function AnalyticsDashboardPage() {
             value={`${upcoming30D.toLocaleString()} QAR`}
             description="Next 30D projected"
             icon={<TrendingUp className="w-5 h-5" />}
-            trend={overdueAmount > 0 ? `${overdueAmount.toLocaleString()} QAR Overdue` : "Liquid"}
+            trend={overdueAmount > 0 ? `${overdueAmount.toLocaleString()} QAR Overdue` : "Healthy Liquidity"}
+            positive={overdueAmount === 0}
             index={2}
           />
           <KpiCard
@@ -151,8 +154,8 @@ export default function AnalyticsDashboardPage() {
             value={`${(budgetVsSavings || []).reduce((acc: number, curr: any) => acc + (curr.savings || 0), 0).toLocaleString()} QAR`}
             description="Recovered capital"
             icon={<Zap className="w-5 h-5" />}
-            trend={`${(budgetVsSavings || []).length} Depts`}
-            positive
+            trend={(budgetVsSavings || []).length > 0 ? `${(budgetVsSavings || []).length} Depts Reported` : "Direct Spend"}
+            positive={true}
             index={3}
           />
         </div>
@@ -204,10 +207,10 @@ export default function AnalyticsDashboardPage() {
             highPerformanceMode && "backdrop-blur-none"
           )} style={{ animationDelay: "0.35s" }}>
             <div className="w-full flex-1 min-h-[250px]">
-              <DistributionDonut data={distribution.vendor} name="Vendor Concentration" />
+              <DistributionDonut data={distribution?.vendor || []} name="Vendor Concentration" />
             </div>
             <div className="w-full flex-1 min-h-[250px]">
-              <DistributionDonut data={distribution.purpose} name="Purpose Allocation" />
+              <DistributionDonut data={distribution?.purpose || []} name="Purpose Allocation" />
             </div>
           </div>
         </div>

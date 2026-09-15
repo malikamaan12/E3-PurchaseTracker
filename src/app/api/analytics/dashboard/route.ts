@@ -120,13 +120,40 @@ export async function GET(req: NextRequest) {
     const totalPaymentsCount = Number(onTimePayments[0]?.total || 0);
     const onTimePaymentsCount = Number(onTimePayments[0]?.onTime || 0);
 
+    // Real vendor compliance rate across active vendor base
+    const vendorComplianceStats = await db.select({
+      total: count(),
+      compliant: sql`SUM(CASE WHEN ${vendors.complianceStatus} = 'compliant' THEN 1 ELSE 0 END)`
+    }).from(vendors).where(eq(vendors.status, 'active'));
+
+    const totalVendors = Number(vendorComplianceStats[0]?.total || 0);
+    const compliantVendors = Number(vendorComplianceStats[0]?.compliant || 0);
+
+    // Real approval SLA fulfillment rate
+    const approvalStats = await db.select({
+      total: count(),
+      approved: sql`SUM(CASE WHEN ${purchaseRequests.status} = 'approved' THEN 1 ELSE 0 END)`
+    }).from(purchaseRequests).where(and(
+      sql`${purchaseRequests.status} NOT IN ('cancelled', 'rejected')`,
+      baseWhere
+    ));
+
+    const totalActivePRs = Number(approvalStats[0]?.total || 0);
+    const approvedActivePRs = Number(approvalStats[0]?.approved || 0);
+
     const complianceScore = {
       budgetAdherence: totalPRCount > 0
         ? Math.round(((totalPRCount - variedPRCount) / totalPRCount) * 100)
-        : null,
+        : 100,
       paymentOnTime: totalPaymentsCount > 0
         ? Math.round((onTimePaymentsCount / totalPaymentsCount) * 100)
-        : null
+        : 100,
+      vendorComplianceRate: totalVendors > 0
+        ? Math.round((compliantVendors / totalVendors) * 100)
+        : 100,
+      approvalFulfillment: totalActivePRs > 0
+        ? Math.round((approvedActivePRs / totalActivePRs) * 100)
+        : 100
     };
 
     // ─── AGGREGATION 4: RESOURCE UTILIZATION INDEX (RUI) ─────────────────────
@@ -159,7 +186,7 @@ export async function GET(req: NextRequest) {
 
     // ─── AGGREGATION 6: DISTRIBUTION ────────────────────────────────────────
     const vendorDist = await db.select({
-      name: vendors.companyName,
+      name: sql`COALESCE(${vendors.companyName}, 'General Supplier')`,
       value: sql`SUM(COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0)))`
     })
     .from(purchaseRequests)
@@ -167,16 +194,19 @@ export async function GET(req: NextRequest) {
     .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
     .where(baseWhere)
     .groupBy(vendors.companyName)
-    .limit(5);
+    .orderBy(desc(sql`2`))
+    .limit(6);
 
     const purposeDist = await db.select({
-      name: purchaseRequests.purposeType,
+      name: sql`COALESCE(${purchaseRequests.purposeType}, 'General Procurement')`,
       value: sql`SUM(COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0)))`
     })
     .from(purchaseRequests)
     .leftJoin(users, eq(purchaseRequests.requesterId, users.id))
     .where(baseWhere)
-    .groupBy(purchaseRequests.purposeType);
+    .groupBy(purchaseRequests.purposeType)
+    .orderBy(desc(sql`2`))
+    .limit(6);
 
     const overview = await FinancialMetricsService.getGlobalFinancialMetrics(filterDeptName);
 

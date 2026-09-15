@@ -19,9 +19,15 @@ import {
   Wallet,
   ChevronRight,
   Globe,
-  Clock
+  Clock,
+  Edit3,
+  Trash2,
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
+import * as Dialog from "@radix-ui/react-dialog";
+import { VendorManagementModal } from "@/components/vendors/VendorManagementModal";
 import { VendorDocumentsModal } from "@/components/vendors/VendorDocumentsModal";
 import { VendorInviteModal } from "@/components/vendors/VendorInviteModal";
 import { VendorDraftReviewDrawer } from "@/components/vendors/VendorDraftReviewDrawer";
@@ -76,6 +82,10 @@ export default function VendorsDashboard() {
   const [selectedVendorForDocs, setSelectedVendorForDocs] = useState<any>(null);
   const [selectedVendorForCases, setSelectedVendorForCases] = useState<any>(null);
   const [selectedVendorForGrace, setSelectedVendorForGrace] = useState<any>(null);
+  const [selectedVendorForEdit, setSelectedVendorForEdit] = useState<any>(null);
+  const [vendorToDelete, setVendorToDelete] = useState<any>(null);
+
+  const canManageVendors = isAdmin || isSuperAdmin || (user as any)?.canManageVendors === true;
 
   const { data: drafts = [], refetch: refetchDrafts } = useQuery({
     queryKey: ["vendor_drafts"],
@@ -115,6 +125,21 @@ export default function VendorsDashboard() {
       toast.success("Vendor rated successfully");
     },
     onError: (err: any) => toast.error(err.message || "Failed to submit rating"),
+  });
+
+  const deleteVendorMutation = useMutation({
+    mutationFn: (id: number) => apiClient.vendors.delete(id),
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["vendors"] });
+      queryClient.invalidateQueries({ queryKey: ["admin_vendors"] });
+      queryClient.invalidateQueries({ queryKey: ["vendor_matrix"] });
+      toast.success(data?.message || "Vendor deleted successfully");
+      setVendorToDelete(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to delete vendor", { duration: 6000 });
+      setVendorToDelete(null);
+    },
   });
 
   const filteredVendors = useMemo(() => {
@@ -358,6 +383,9 @@ export default function VendorsDashboard() {
                   index={idx}
                   isAdmin={isAdmin}
                   isSuperAdmin={isSuperAdmin}
+                  canManage={canManageVendors}
+                  onEdit={() => setSelectedVendorForEdit(vendor)}
+                  onDelete={() => setVendorToDelete(vendor)}
                   onStatusChange={(status) => statusMutation.mutate({ id: vendor.id, status })}
                   onRate={(r) => rateMutation.mutate({ id: vendor.id, rating: r })}
                   onOpenDocs={() => setSelectedVendorForDocs(vendor)}
@@ -371,6 +399,9 @@ export default function VendorsDashboard() {
               <VendorListView
                 vendors={filteredVendors}
                 isAdmin={isAdmin}
+                canManage={canManageVendors}
+                onEdit={(vendor) => setSelectedVendorForEdit(vendor)}
+                onDelete={(vendor) => setVendorToDelete(vendor)}
                 onStatusChange={(id, status) => statusMutation.mutate({ id, status: status as any })}
                 onRate={(id, r) => rateMutation.mutate({ id, rating: r })}
               />
@@ -406,6 +437,71 @@ export default function VendorsDashboard() {
           vendorName={selectedVendorForGrace.companyName}
           currentDeadline={selectedVendorForGrace.gracePeriodDeadline}
         />
+      )}
+
+      {selectedVendorForEdit && (
+        <VendorManagementModal
+          open={!!selectedVendorForEdit}
+          onOpenChange={(open: boolean) => !open && setSelectedVendorForEdit(null)}
+          vendor={selectedVendorForEdit}
+        />
+      )}
+
+      {vendorToDelete && (
+        <Dialog.Root open={!!vendorToDelete} onOpenChange={(open) => !open && setVendorToDelete(null)}>
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] transition-all" />
+            <Dialog.Content className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[92vw] sm:max-w-md bg-card p-6 md:p-7 border border-border rounded-3xl shadow-2xl z-[101] focus:outline-none">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20 flex items-center justify-center shrink-0 shadow-sm">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <Dialog.Title className="text-lg font-bold text-foreground tracking-tight">
+                    Delete Supplier
+                  </Dialog.Title>
+                  <Dialog.Description className="text-xs text-muted-foreground leading-relaxed">
+                    Are you sure you want to remove <strong className="text-foreground">{vendorToDelete.companyName}</strong> from the system?
+                  </Dialog.Description>
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-secondary/40 rounded-2xl border border-border/50 text-xs text-muted-foreground leading-relaxed">
+                <p className="font-semibold text-foreground mb-1">Audit Protection Policy:</p>
+                Vendors that are already assigned to active Purchase Requests, Purchase Orders, or Payments cannot be deleted to maintain compliance records. Only unassigned or mistaken vendors will be deleted.
+              </div>
+
+              <div className="flex justify-end gap-3 mt-6">
+                <button
+                  type="button"
+                  disabled={deleteVendorMutation.isPending}
+                  onClick={() => setVendorToDelete(null)}
+                  className="px-4 py-2.5 rounded-xl text-xs font-bold text-muted-foreground hover:text-foreground bg-secondary hover:bg-secondary/80 transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={deleteVendorMutation.isPending}
+                  onClick={() => deleteVendorMutation.mutate(vendorToDelete.id)}
+                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 shadow-md shadow-rose-600/20 transition-all flex items-center gap-2"
+                >
+                  {deleteVendorMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete Vendor</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </Dialog.Content>
+          </Dialog.Portal>
+        </Dialog.Root>
       )}
 
       <VendorInviteModal
@@ -464,6 +560,9 @@ function VendorCard({
   vendor,
   isAdmin,
   isSuperAdmin,
+  canManage = false,
+  onEdit,
+  onDelete,
   onStatusChange,
   onRate,
   onOpenDocs,
@@ -474,6 +573,9 @@ function VendorCard({
   vendor: any;
   isAdmin: boolean;
   isSuperAdmin: boolean;
+  canManage?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
   onStatusChange: (s: any) => void;
   onRate: (r: number) => void;
   onOpenDocs: () => void;
@@ -589,6 +691,30 @@ function VendorCard({
             >
               <Clock className="w-3.5 h-3.5" />
               <span>Extend Grace</span>
+            </button>
+          )}
+
+          {canManage && onEdit && (
+            <button
+              type="button"
+              onClick={onEdit}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold text-foreground hover:text-primary bg-secondary/80 hover:bg-secondary border border-border transition-colors flex items-center gap-1.5 shadow-2xs"
+              title="Edit Vendor Details"
+            >
+              <Edit3 className="w-3.5 h-3.5 text-primary" />
+              <span>Edit</span>
+            </button>
+          )}
+
+          {canManage && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-bold text-rose-600 dark:text-rose-400 hover:text-rose-700 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition-colors flex items-center gap-1.5 shadow-2xs"
+              title="Delete Vendor (if not assigned to projects)"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Delete</span>
             </button>
           )}
         </div>

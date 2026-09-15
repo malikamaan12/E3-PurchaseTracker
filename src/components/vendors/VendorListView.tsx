@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Building2, Mail, Phone, MapPin, ShieldCheck, Wallet, Globe, FileText } from "lucide-react";
+import { Building2, Mail, Phone, MapPin, ShieldCheck, Wallet, Globe, FileText, Edit3, Trash2 } from "lucide-react";
 import { StarRating } from "@/components/shared/StarRating";
 import { VendorDocumentsModal } from "@/components/vendors/VendorDocumentsModal";
 
@@ -11,9 +11,12 @@ interface VendorListViewProps {
   onStatusChange: (id: number, status: string) => void;
   onRate: (id: number, rating: number) => void;
   isAdmin: boolean;
+  canManage?: boolean;
+  onEdit?: (vendor: any) => void;
+  onDelete?: (vendor: any) => void;
 }
 
-export function VendorListView({ vendors, onStatusChange, onRate, isAdmin }: VendorListViewProps) {
+export function VendorListView({ vendors, onStatusChange, onRate, isAdmin, canManage = false, onEdit, onDelete }: VendorListViewProps) {
   const container = {
     hidden: { opacity: 0 },
     show: {
@@ -148,15 +151,35 @@ export function VendorListView({ vendors, onStatusChange, onRate, isAdmin }: Ven
                 </td>
 
                 <td className="px-8 py-5 text-right">
-                  <div className="flex items-center justify-end gap-4">
-                    <div className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider border shadow-sm ${
+                  <div className="flex items-center justify-end gap-3">
+                    <div className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider border shadow-xs ${
                       vendor.status === 'active' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' : 
                       vendor.status === 'blocked' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
                     }`}>
                       {vendor.status}
                     </div>
-                    {isAdmin && (
-                      <div className="opacity-0 group-hover:opacity-100 transition-all scale-95 group-hover:scale-100 translate-x-1 group-hover:translate-x-0">
+                    {(canManage || isAdmin) && (
+                      <div className="flex items-center gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
+                        {onEdit && (
+                          <button
+                            type="button"
+                            onClick={() => onEdit(vendor)}
+                            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary border border-border/50 transition-colors"
+                            title="Edit Vendor Details"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        {onDelete && (
+                          <button
+                            type="button"
+                            onClick={() => onDelete(vendor)}
+                            className="p-1.5 rounded-lg text-rose-600 dark:text-rose-400 hover:text-rose-700 hover:bg-rose-500/15 border border-rose-500/20 transition-colors"
+                            title="Delete Vendor (if not assigned to projects)"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         <StatusToggleMini 
                           current={vendor.status} 
                           onChange={(s) => onStatusChange(vendor.id, s)} 
