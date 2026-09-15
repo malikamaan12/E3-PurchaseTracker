@@ -34,7 +34,7 @@ export default function NotificationSettingsPage() {
             Email & Notification Settings
           </h1>
           <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-            Manage your email alerts powered by Resend and workflow notifications
+            Manage your workflow notifications and corporate email delivery preferences
           </p>
         </div>
       </div>
@@ -48,7 +48,7 @@ export default function NotificationSettingsPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-bold text-foreground">Resend Email Delivery</h2>
+                <h2 className="text-base sm:text-lg font-bold text-foreground">Email Service Delivery</h2>
                 <span
                   className={cn(
                     "text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full border",
@@ -62,7 +62,7 @@ export default function NotificationSettingsPage() {
               </div>
               <p className="text-xs text-muted-foreground mt-1 max-w-xl leading-relaxed">
                 {masterEmailEnabled
-                  ? `Email notifications are active with ${activeEmailCount} event categories enabled. Notifications are dispatched directly to ${preferencesData?.userEmail || "your email"}.`
+                  ? `Email delivery is active with ${activeEmailCount} event categories enabled. Notifications are dispatched directly to ${preferencesData?.userEmail || "your email"}.`
                   : "Email notifications are currently switched off. Turn them on to receive instant updates when requests are submitted, approved, or require your review."}
               </p>
             </div>

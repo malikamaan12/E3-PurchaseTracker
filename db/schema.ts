@@ -491,7 +491,7 @@ export const vendorComplianceCases = pgTable("vendor_compliance_cases", {
 
 export const vendorComplianceOverrides = pgTable("vendor_compliance_overrides", {
   id: serial("id").primaryKey(),
-  requestId: integer("request_id").notNull().references(() => purchaseRequests.id, { onDelete: "restrict" }),
+  requestId: integer("request_id").notNull().references(() => purchaseRequests.id, { onDelete: "cascade" }),
   vendorId: integer("vendor_id").notNull().references(() => vendors.id, { onDelete: "restrict" }),
   caseId: integer("case_id").references(() => vendorComplianceCases.id, { onDelete: "set null" }),
   status: text("status").notNull().default("pending"), // 'pending' | 'approved' | 'rejected' | 'consumed' | 'revoked'
@@ -1615,7 +1615,7 @@ export const purchaseOrders = pgTable("purchase_orders", {
   poNumber: text("po_number").unique().notNull(), // e.g. PO-2026-00001
   requestId: integer("request_id")
     .notNull()
-    .references(() => purchaseRequests.id, { onDelete: "restrict" }),
+    .references(() => purchaseRequests.id, { onDelete: "cascade" }),
   vendorId: integer("vendor_id")
     .notNull()
     .references(() => vendors.id, { onDelete: "restrict" }),

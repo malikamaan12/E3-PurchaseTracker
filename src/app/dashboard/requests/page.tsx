@@ -189,12 +189,19 @@ function RequestsDashboardContent() {
   const deleteMutation = useMutation({
     mutationFn: (id: number) => apiClient.requests.delete(id),
     onSuccess: () => {
+      setDeleteRequest(null);
       queryClient.invalidateQueries({ queryKey: ["requests"] });
       queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
       toast.success("Request deleted successfully");
-      setDeleteRequest(null);
     },
-    onError: (err: any) => toast.error(err.message || "Failed to delete request"),
+    onError: (err: any) => {
+      setDeleteRequest(null);
+      toast.error(err.message || "Failed to delete request");
+    },
+    onSettled: () => {
+      setDeleteRequest(null);
+    }
   });
 
   const approveMutation = useMutation({

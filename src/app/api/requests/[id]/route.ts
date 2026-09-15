@@ -12,7 +12,12 @@ import {
   auditLogs,
   approvalAuditLogs,
   departments,
-  paymentInstallments
+  paymentInstallments,
+  purchaseOrders,
+  purchaseOrderEvents,
+  vendorComplianceOverrides,
+  purchaseRequestComplianceSnapshots,
+  notifications
 } from "@db/schema";
 import { eq, and, or, inArray, desc, count, asc } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
@@ -682,7 +687,22 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
       timestamp: new Date(),
     });
 
-    // Final Action: Delete Request (Cascading starts here for approvals, items, attachments)
+    // Clean up dependent child records before deleting the purchase request
+    const linkedPos = await db.select({ id: purchaseOrders.id }).from(purchaseOrders).where(eq(purchaseOrders.requestId, requestId));
+    if (linkedPos.length > 0) {
+      const poIds = linkedPos.map(p => p.id);
+      await db.delete(purchaseOrderEvents).where(inArray(purchaseOrderEvents.poId, poIds));
+      await db.delete(purchaseOrders).where(eq(purchaseOrders.requestId, requestId));
+    }
+
+    await db.delete(vendorComplianceOverrides).where(eq(vendorComplianceOverrides.requestId, requestId));
+    await db.delete(purchaseRequestComplianceSnapshots).where(eq(purchaseRequestComplianceSnapshots.requestId, requestId));
+    await db.delete(fileAttachments).where(eq(fileAttachments.requestId, requestId));
+    await db.delete(notifications).where(eq(notifications.requestId, requestId));
+    await db.delete(paymentInstallments).where(eq(paymentInstallments.requestId, requestId));
+    await db.delete(approvals).where(eq(approvals.requestId, requestId));
+
+    // Final Action: Delete Request
     await db.delete(purchaseRequests).where(eq(purchaseRequests.id, requestId));
 
     return NextResponse.json({ message: "Request deleted successfully" });

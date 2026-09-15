@@ -169,11 +169,20 @@ export default function RequestDetailPage() {
   const deleteMutation = useMutation({
     mutationFn: () => apiClient.requests.delete(requestId),
     onSuccess: () => {
+      setShowDeleteDialog(false);
       queryClient.invalidateQueries({ queryKey: ["requests"] });
+      queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
       toast.success("Request deleted successfully");
       router.push("/dashboard/requests");
     },
-    onError: (err: any) => toast.error(err.message || "Failed to delete request"),
+    onError: (err: any) => {
+      setShowDeleteDialog(false);
+      toast.error(err.message || "Failed to delete request");
+    },
+    onSettled: () => {
+      setShowDeleteDialog(false);
+    }
   });
 
   if (isLoading) return <LoadingState />;
@@ -1184,8 +1193,11 @@ export default function RequestDetailPage() {
         requestId={requestId}
         onSuccess={() => {
           queryClient.invalidateQueries({ queryKey: ["request", requestId] });
+          queryClient.invalidateQueries({ queryKey: ["requests"] });
+          queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
+          queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
           setShowEditModal(false);
-          toast.success("Request updated.");
+          toast.success("Request updated successfully.");
         }}
       />
 
@@ -1252,29 +1264,6 @@ export default function RequestDetailPage() {
           </div>
         </div>
       )}
-
-      {showEditModal && (
-        <CreateRequestModal
-          isOpen={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          requestId={requestId}
-          onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ["request", requestId] });
-            queryClient.invalidateQueries({ queryKey: ["requests"] });
-            queryClient.invalidateQueries({ queryKey: ["requests-analytics"] });
-            queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
-            setShowEditModal(false);
-          }}
-        />
-      )}
-
-      <DeleteRequestDialog
-        isOpen={showDeleteDialog}
-        onOpenChange={(open) => setShowDeleteDialog(open)}
-        onConfirm={() => deleteMutation.mutate()}
-        isLoading={deleteMutation.isPending}
-        requestNumber={request?.requestNumber}
-      />
     </div>
   );
 }
