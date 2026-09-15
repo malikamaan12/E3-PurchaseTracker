@@ -151,13 +151,17 @@ export default function VendorPoPortalPage() {
   const isAcknowledged = poData.status === "acknowledged";
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 py-10 px-4 sm:px-6 lg:px-8 font-sans">
+    <div className="dark min-h-screen bg-slate-950 text-slate-100 py-10 px-4 sm:px-6 lg:px-8 font-sans">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Top Branding & Status Banner */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-xl">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-black text-xl">
-              E3
+            <div className="h-12 flex items-center px-1">
+              <img
+                src={poData.companyLogo || "/images/e3-white-logo.png"}
+                alt="E3 Logo"
+                className="h-8 sm:h-9 max-h-10 w-auto object-contain drop-shadow"
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">
@@ -178,24 +182,28 @@ export default function VendorPoPortalPage() {
 
           {/* Top Actions */}
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadPdf}
-              disabled={isDownloadingPdf}
-              className="rounded-xl text-xs font-bold border-slate-700 hover:bg-slate-800 text-slate-200 gap-1.5 flex-1 sm:flex-none"
+            <a
+              href={`/api/portal/po/${rawToken}/pdf`}
+              target="_blank"
+              rel="noopener noreferrer"
+              download={`E3-${poData.poNumber || "PurchaseOrder"}.pdf`}
+              onClick={() => {
+                toast.info("Downloading Purchase Order PDF...");
+              }}
+              className="rounded-xl text-xs font-bold bg-slate-800/90 hover:bg-slate-700 text-white border border-slate-700 hover:border-slate-600 px-4 py-2.5 gap-2 flex items-center justify-center shadow-lg hover:shadow-indigo-500/10 transition-all flex-1 sm:flex-none cursor-pointer group"
+              title="Download and view Official Purchase Order PDF"
             >
-              {isDownloadingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5 text-indigo-400" />}
-              Download Official PDF
-            </Button>
+              <Download className="w-4 h-4 text-indigo-400 group-hover:text-indigo-300 transition-colors" />
+              <span className="text-white font-bold tracking-tight">Download Official PDF</span>
+            </a>
 
             {!isAcknowledged && (
               <Button
                 size="sm"
                 onClick={() => setShowAckModal(true)}
-                className="rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 shadow-lg shadow-emerald-950 flex-1 sm:flex-none"
+                className="rounded-xl text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white gap-1.5 shadow-lg shadow-emerald-950 px-4 py-2.5 flex-1 sm:flex-none"
               >
-                <CheckCircle2 className="w-3.5 h-3.5" />
+                <CheckCircle2 className="w-4 h-4" />
                 Acknowledge Receipt
               </Button>
             )}

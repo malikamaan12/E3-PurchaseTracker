@@ -31,6 +31,7 @@ export async function GET(
       success: true,
       data: {
         poNumber: data.po.poNumber,
+        companyLogo: "/images/e3-white-logo.png",
         status: data.po.status,
         currency: data.po.currency,
         itemsSnapshot: data.po.itemsSnapshot,

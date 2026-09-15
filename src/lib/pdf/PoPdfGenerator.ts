@@ -76,6 +76,37 @@ function wrapText(text: string, maxWidth: number, font: any, fontSize: number): 
   return lines;
 }
 
+function truncateToWidth(text: string, maxWidth: number, font: any, fontSize: number): string {
+  if (!text) return "";
+  if (font.widthOfTextAtSize(text, fontSize) <= maxWidth) return text;
+  let truncated = text;
+  while (truncated.length > 3 && font.widthOfTextAtSize(truncated + "...", fontSize) > maxWidth) {
+    truncated = truncated.slice(0, -1);
+  }
+  return truncated + "...";
+}
+
+function wrapMultiLineText(text: string, maxWidth: number, font: any, fontSize: number): string[] {
+  if (!text) return [];
+  const paragraphs = text.split(/\r?\n/);
+  const result: string[] = [];
+  for (const p of paragraphs) {
+    const trimmed = p.trim();
+    if (!trimmed) {
+      result.push("");
+    } else {
+      result.push(...wrapText(trimmed, maxWidth, font, fontSize));
+    }
+  }
+  return result;
+}
+
+function sanitizePdfHeader(title?: string | null, fallback = ""): string {
+  if (!title) return fallback;
+  if (/purchase\s+management\s+system/i.test(title.trim())) return fallback;
+  return title.trim();
+}
+
 function safeFormatDate(d: any, formatStr = "dd MMM yyyy"): string {
   if (!d) return "N/A";
   try {
@@ -169,16 +200,21 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
         // Document Identity Bar under letterhead
         const titleY = PAGE_HEIGHT - bannerHeight - 24;
 
-        // Left side: Billing Company / Header Title from Settings
-        const companyName = poData.billingCompany || options.headerTitle || "E3 HOLDINGS";
-        page.drawText(companyName.toUpperCase(), {
-          x: MARGIN,
-          y: titleY,
-          size: 12,
-          font: fontBold,
-          color: indigo,
-        });
-        page.drawText(options.headerSubtitle || "Official Commercial Purchase Order • Procurement Document", {
+        // Left side: Billing Company / Document Identity
+        const rawCompany = poData.billingCompany || options.headerTitle || "E3 MANAGEMENT SOLUTIONS & LOGISTICS";
+        const companyName = sanitizePdfHeader(rawCompany, "E3 MANAGEMENT SOLUTIONS & LOGISTICS");
+        if (companyName) {
+          page.drawText(truncateToWidth(companyName.toUpperCase(), 290, fontBold, 11), {
+            x: MARGIN,
+            y: titleY,
+            size: 11,
+            font: fontBold,
+            color: indigo,
+          });
+        }
+        const rawSubtitle = options.headerSubtitle;
+        const subTitleText = sanitizePdfHeader(rawSubtitle, "Official Commercial Purchase Order • Procurement Document");
+        page.drawText(truncateToWidth(subTitleText, 290, fontRegular, 7.5), {
           x: MARGIN,
           y: titleY - 12,
           size: 7.5,
@@ -227,7 +263,8 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
             height: logoHeight,
           });
         } else {
-          page.drawText(options.headerTitle || "E3 HOLDINGS", {
+          const rawHeader = sanitizePdfHeader(options.headerTitle, "E3 MANAGEMENT SOLUTIONS & LOGISTICS");
+          page.drawText(rawHeader, {
             x: MARGIN,
             y: PAGE_HEIGHT - 50,
             size: 16,
@@ -378,11 +415,13 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
     { label: "DATE OF ISSUE", val: safeFormatDate(poData.issuedAt || poData.createdAt) },
     { label: "EXPECTED DELIVERY", val: safeFormatDate(poData.expectedDeliveryDate) },
     { label: "PAYMENT TERMS", val: (poData.paymentTerms || "Standard").replace(/_/g, " ") },
-    { label: "REQUEST REF", val: poData.request?.requestNumber || `REQ-${poData.requestId}` },
+    { label: "REFERENCE PR", val: poData.request?.requestNumber || (poData.requestId ? `REQ-${poData.requestId}` : "N/A") },
   ];
 
   metaCols.forEach((col, idx) => {
     const colX = MARGIN + idx * colWidth + 12;
+    const maxValWidth = colWidth - 20;
+
     currentPage.drawText(col.label, {
       x: colX,
       y: metaCardY + 34,
@@ -390,13 +429,22 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
       font: fontBold,
       color: darkGray,
     });
-    currentPage.drawText(col.val, {
+
+    const rawVal = String(col.val || "N/A");
+    let valSize = 8.5;
+    while (valSize > 6.5 && fontBold.widthOfTextAtSize(rawVal, valSize) > maxValWidth) {
+      valSize -= 0.5;
+    }
+    const safeVal = truncateToWidth(rawVal, maxValWidth, fontBold, valSize);
+
+    currentPage.drawText(safeVal, {
       x: colX,
       y: metaCardY + 16,
-      size: 9,
+      size: valSize,
       font: fontBold,
       color: black,
     });
+
     if (idx < 3) {
       currentPage.drawLine({
         start: { x: MARGIN + (idx + 1) * colWidth, y: metaCardY + 8 },
@@ -414,8 +462,9 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
   // ─────────────────────────────────────────────────────────────
   const vendor = poData.vendor || {};
   const halfWidth = (CONTENT_WIDTH - 15) / 2;
-  const addressBoxHeight = 90;
+  const addressBoxHeight = 102;
   const addressBoxY = currentY - addressBoxHeight;
+  const maxAddrWidth = halfWidth - 20;
 
   // VENDOR BOX
   currentPage.drawRectangle({
@@ -442,43 +491,61 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
     font: fontBold,
     color: indigo,
   });
-  currentPage.drawText(vendor.companyName || "Vendor Name Not Set", {
+
+  const vendorName = truncateToWidth(vendor.companyName || "Vendor Name Not Set", maxAddrWidth, fontBold, 9);
+  currentPage.drawText(vendorName, {
     x: MARGIN + 10,
-    y: addressBoxY + 54,
-    size: 9.5,
+    y: addressBoxY + 68,
+    size: 9,
     font: fontBold,
     color: black,
   });
-  currentPage.drawText(`Contact: ${vendor.contactPerson || "Procurement Dept"} • ${vendor.contactNumber || ""}`, {
+
+  const contactStr = truncateToWidth(
+    `Contact: ${vendor.contactPerson || "Procurement Dept"}${vendor.contactNumber ? ` • ${vendor.contactNumber}` : ""}`,
+    maxAddrWidth,
+    fontRegular,
+    7.5
+  );
+  currentPage.drawText(contactStr, {
+    x: MARGIN + 10,
+    y: addressBoxY + 54,
+    size: 7.5,
+    font: fontRegular,
+    color: darkGray,
+  });
+
+  const emailStr = truncateToWidth(`Email: ${vendor.email || "N/A"}`, maxAddrWidth, fontRegular, 7.5);
+  currentPage.drawText(emailStr, {
     x: MARGIN + 10,
     y: addressBoxY + 40,
     size: 7.5,
     font: fontRegular,
     color: darkGray,
   });
-  currentPage.drawText(`Email: ${vendor.email || "N/A"}`, {
+
+  const addrStr = truncateToWidth(`Address: ${vendor.address || "Doha, Qatar"}`, maxAddrWidth, fontRegular, 7.5);
+  currentPage.drawText(addrStr, {
     x: MARGIN + 10,
-    y: addressBoxY + 28,
+    y: addressBoxY + 26,
     size: 7.5,
     font: fontRegular,
     color: darkGray,
   });
-  currentPage.drawText(`Address: ${vendor.address || "Doha, Qatar"}`, {
+
+  const crStr = truncateToWidth(
+    `CR / Tax ID: ${vendor.registrationNumber || vendor.taxNumber || "N/A"}`,
+    maxAddrWidth,
+    fontRegular,
+    7.5
+  );
+  currentPage.drawText(crStr, {
     x: MARGIN + 10,
-    y: addressBoxY + 16,
+    y: addressBoxY + 12,
     size: 7.5,
     font: fontRegular,
     color: darkGray,
   });
-  if (vendor.taxNumber || vendor.registrationNumber) {
-    currentPage.drawText(`CR / Tax ID: ${vendor.registrationNumber || vendor.taxNumber || "N/A"}`, {
-      x: MARGIN + 10,
-      y: addressBoxY + 4,
-      size: 7,
-      font: fontRegular,
-      color: darkGray,
-    });
-  }
 
   // SHIP-TO / BILL-TO BOX
   const shipBoxX = MARGIN + halfWidth + 15;
@@ -506,32 +573,58 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
     font: fontBold,
     color: indigo,
   });
-  const billingCompany = poData.billingCompany || "E3 Management Solutions & Logistics W.L.L";
+
+  const billingCompany = truncateToWidth(
+    poData.billingCompany || "E3 Management Solutions & Logistics W.L.L",
+    maxAddrWidth,
+    fontBold,
+    9
+  );
   currentPage.drawText(billingCompany, {
     x: shipBoxX + 10,
-    y: addressBoxY + 54,
+    y: addressBoxY + 68,
     size: 9,
     font: fontBold,
     color: black,
   });
-  const deliveryStr = `Delivery: ${poData.deliveryAddress || "E3 Headquarters, Logistics & Receiving Department, Doha, Qatar"}`;
-  const deliveryTrunc = deliveryStr.length > 52 ? deliveryStr.substring(0, 49) + "..." : deliveryStr;
-  currentPage.drawText(deliveryTrunc, {
+
+  const deliveryStr = truncateToWidth(
+    `Delivery: ${poData.deliveryAddress || "E3 Headquarters, Logistics & Receiving Department, Doha, Qatar"}`,
+    maxAddrWidth,
+    fontRegular,
+    7.5
+  );
+  currentPage.drawText(deliveryStr, {
+    x: shipBoxX + 10,
+    y: addressBoxY + 54,
+    size: 7.5,
+    font: fontRegular,
+    color: darkGray,
+  });
+
+  const billingStr = truncateToWidth(
+    `Billing: ${poData.billingAddress || "E3 Management Solutions & Logistics W.L.L, Finance Department, Doha, Qatar"}`,
+    maxAddrWidth,
+    fontRegular,
+    7.5
+  );
+  currentPage.drawText(billingStr, {
     x: shipBoxX + 10,
     y: addressBoxY + 40,
     size: 7.5,
     font: fontRegular,
     color: darkGray,
   });
-  const billingStr = `Billing: ${poData.billingAddress || "E3 Management Solutions & Logistics W.L.L, Finance Department, Doha, Qatar"}`;
-  const billingTrunc = billingStr.length > 52 ? billingStr.substring(0, 49) + "..." : billingStr;
-  currentPage.drawText(billingTrunc, {
+
+  const govStr = truncateToWidth("Governance: Institutional Electronic Procurement", maxAddrWidth, fontRegular, 7.5);
+  currentPage.drawText(govStr, {
     x: shipBoxX + 10,
     y: addressBoxY + 26,
     size: 7.5,
     font: fontRegular,
     color: darkGray,
   });
+
   currentPage.drawText("Authorized Officer: Finance Department", {
     x: shipBoxX + 10,
     y: addressBoxY + 12,
@@ -762,26 +855,34 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
   });
 
   const specialNotes = poData.specialInstructions || "Please reference the PO Number on all delivery challans, packages, and invoices. Deliveries must be made to the specified address during official working hours.";
-  const noteLines = wrapText(specialNotes, notesWidth - 16, fontRegular, 7.5);
-  let noteTextY = notesY + totalsBoxHeight - 28;
-  noteLines.slice(0, 4).forEach((nl) => {
-    currentPage.drawText(nl, { x: MARGIN + 8, y: noteTextY, size: 7.5, font: fontRegular, color: darkGray });
+  const maxNotesWidth = notesWidth - 16;
+  const noteLines = wrapMultiLineText(specialNotes, maxNotesWidth, fontRegular, 7);
+  let noteTextY = notesY + totalsBoxHeight - 27;
+  const maxNoteLines = 5;
+  for (let i = 0; i < Math.min(noteLines.length, maxNoteLines); i++) {
+    let line = noteLines[i];
+    if (i === maxNoteLines - 1 && noteLines.length > maxNoteLines) {
+      line = truncateToWidth(line, maxNotesWidth - 12, fontRegular, 7) + "...";
+    } else {
+      line = truncateToWidth(line, maxNotesWidth, fontRegular, 7);
+    }
+    currentPage.drawText(line, { x: MARGIN + 8, y: noteTextY, size: 7, font: fontRegular, color: darkGray });
     noteTextY -= 11;
-  });
+  }
 
   currentY = totalsBoxY - 20;
 
   // ─────────────────────────────────────────────────────────────
   // 5. TERMS, SIGNATURES & VERIFICATION SEAL
   // ─────────────────────────────────────────────────────────────
-  if (currentY - 95 < 60) {
+  if (currentY - 100 < 60) {
     currentPage = pdfDoc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
     pages.push(currentPage);
     drawPageHeader(currentPage, false);
     currentY = PAGE_HEIGHT - 60;
   }
 
-  const signBoxHeight = 80;
+  const signBoxHeight = 86;
   const signBoxY = currentY - signBoxHeight;
 
   // Left side: Standard Legal Terms
@@ -795,20 +896,36 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
     borderColor: borderGray,
     borderWidth: 1,
   });
+  currentPage.drawRectangle({
+    x: MARGIN,
+    y: signBoxY + signBoxHeight - 18,
+    width: termsWidth,
+    height: 18,
+    color: lightMuted,
+  });
   currentPage.drawText("STANDARD PURCHASE TERMS", {
     x: MARGIN + 10,
-    y: signBoxY + signBoxHeight - 14,
+    y: signBoxY + signBoxHeight - 13,
     size: 7,
     font: fontBold,
     color: indigo,
   });
+
   const legalClause = poData.termsAndConditions || "1. Goods subject to final inspection and approval at destination. 2. Invoices must reference this PO number to be processed for payment. 3. This Purchase Order is electronically authenticated under E3 Corporate Governance.";
-  const legalLines = wrapText(legalClause, termsWidth - 20, fontRegular, 6.5);
-  let lY = signBoxY + signBoxHeight - 26;
-  legalLines.slice(0, 4).forEach((ll) => {
-    currentPage.drawText(ll, { x: MARGIN + 10, y: lY, size: 6.5, font: fontRegular, color: darkGray });
-    lY -= 9;
-  });
+  const maxTermsWidth = termsWidth - 20;
+  const legalLines = wrapMultiLineText(legalClause, maxTermsWidth, fontRegular, 6.5);
+  let lY = signBoxY + signBoxHeight - 28;
+  const maxLegalLines = 5;
+  for (let i = 0; i < Math.min(legalLines.length, maxLegalLines); i++) {
+    let line = legalLines[i];
+    if (i === maxLegalLines - 1 && legalLines.length > maxLegalLines) {
+      line = truncateToWidth(line, maxTermsWidth - 10, fontRegular, 6.5) + "...";
+    } else {
+      line = truncateToWidth(line, maxTermsWidth, fontRegular, 6.5);
+    }
+    currentPage.drawText(line, { x: MARGIN + 10, y: lY, size: 6.5, font: fontRegular, color: darkGray });
+    lY -= 10;
+  }
 
   // Right side: Authorization & Seal
   const authBoxX = MARGIN + termsWidth + 15;
@@ -824,18 +941,20 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
 
   currentPage.drawRectangle({
     x: authBoxX,
-    y: signBoxY + signBoxHeight - 16,
+    y: signBoxY + signBoxHeight - 18,
     width: halfWidth,
-    height: 16,
+    height: 18,
     color: headerAccentColor,
   });
   currentPage.drawText("AUTHORIZED FINANCE SIGNATURE", {
     x: authBoxX + 10,
-    y: signBoxY + signBoxHeight - 12,
+    y: signBoxY + signBoxHeight - 13,
     size: 7,
     font: fontBold,
     color: white,
   });
+
+  const maxAuthWidth = halfWidth - 20;
 
   currentPage.drawText("Digitally Signed & Certified for Issuance", {
     x: authBoxX + 10,
@@ -853,24 +972,31 @@ export async function generatePurchaseOrderPdf(poData: any, options: PoPdfOption
   });
   currentPage.drawText(`Role: Authorized Finance Officer`, {
     x: authBoxX + 10,
-    y: signBoxY + signBoxHeight - 56,
+    y: signBoxY + signBoxHeight - 57,
     size: 7,
     font: fontRegular,
     color: darkGray,
   });
-  currentPage.drawText(`Timestamp: ${safeFormatDate(poData.issuedAt || new Date(), "dd MMM yyyy HH:mm")} AST`, {
+  const timeText = truncateToWidth(
+    `Timestamp: ${safeFormatDate(poData.issuedAt || new Date(), "dd MMM yyyy HH:mm")} AST`,
+    maxAuthWidth,
+    fontRegular,
+    6.5
+  );
+  currentPage.drawText(timeText, {
     x: authBoxX + 10,
-    y: signBoxY + signBoxHeight - 66,
+    y: signBoxY + signBoxHeight - 68,
     size: 6.5,
     font: fontRegular,
     color: darkGray,
   });
 
   if (poData.tokenHash) {
-    currentPage.drawText(`Auth Hash: ${poData.tokenHash.substring(0, 24)}...`, {
+    const hashText = truncateToWidth(`Auth Hash: ${poData.tokenHash.substring(0, 24)}...`, maxAuthWidth, fontRegular, 6);
+    currentPage.drawText(hashText, {
       x: authBoxX + 10,
-      y: signBoxY + 8,
-      size: 6.5,
+      y: signBoxY + 7,
+      size: 6,
       font: fontRegular,
       color: darkGray,
     });
