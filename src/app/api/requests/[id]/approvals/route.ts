@@ -98,17 +98,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       .where(eq(approvals.requestId, requestId))
       .orderBy(approvals.id);
 
+    const isActionableSlot = (s: string) => s === 'pending' || s === 'changes_requested';
+
     if (user.role === 'super_admin') {
       if (requestedApprovalId) {
         targetApproval = allApprovalsForReq.find(a => a.id === Number(requestedApprovalId));
       } else if (requestedDept) {
         targetApproval = allApprovalsForReq.find(a => a.department.toLowerCase().trim() === requestedDept.toLowerCase().trim());
       } else {
-        // Match user's own department first, otherwise pick the first pending approval slot
+        // Match user's own department first, otherwise pick the first pending/actionable approval slot
         const userDept = (user.department || '').toLowerCase().trim();
-        targetApproval = allApprovalsForReq.find(a => a.department.toLowerCase().trim() === userDept && a.status === 'pending')
+        targetApproval = allApprovalsForReq.find(a => a.department.toLowerCase().trim() === userDept && isActionableSlot(a.status))
           || allApprovalsForReq.find(a => a.department.toLowerCase().trim() === userDept)
-          || allApprovalsForReq.find(a => a.status === 'pending')
+          || allApprovalsForReq.find(a => isActionableSlot(a.status))
           || allApprovalsForReq[0];
       }
     } else {
@@ -117,8 +119,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       } else if (requestedDept) {
         targetApproval = allApprovalsForReq.find(a => a.department.toLowerCase().trim() === requestedDept.toLowerCase().trim() && canApproveInDepartment(user, a.department));
       } else {
-        // Find first pending slot where user has active approval authority
-        targetApproval = allApprovalsForReq.find(a => canApproveInDepartment(user, a.department) && a.status === 'pending')
+        // Find first pending or changes_requested slot where user has active approval authority
+        targetApproval = allApprovalsForReq.find(a => canApproveInDepartment(user, a.department) && isActionableSlot(a.status))
           || allApprovalsForReq.find(a => canApproveInDepartment(user, a.department));
       }
     }
@@ -174,14 +176,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     }
 
     // ── ALREADY-PROCESSED GUARD ──────────────────────────────────────────────
-    // Prevent double-approving. If the slot is not pending, block the action.
-    if (targetApproval.status !== 'pending') {
+    // Prevent double-approving. An approval stage is finalized if it is 'approved' or 'rejected'.
+    // 'changes_requested' is an active review stage awaiting resolution or approval.
+    if (targetApproval.status === 'approved' || targetApproval.status === 'rejected') {
       return NextResponse.json(
         {
           error: `This approval stage is already ${targetApproval.status}.`,
           hint: targetApproval.status === 'approved'
             ? "Contact an admin to revoke this approval if it was made in error."
-            : "The request may have been rejected or changes were requested."
+            : "This approval stage was already rejected."
         },
         { status: 409 }
       );

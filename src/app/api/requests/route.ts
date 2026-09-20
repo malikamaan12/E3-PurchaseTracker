@@ -98,7 +98,7 @@ export async function GET(req: NextRequest) {
                 sql`EXISTS (
                   SELECT 1 FROM ${approvals} 
                   WHERE ${approvals.requestId} = ${purchaseRequests.id} 
-                  AND ${approvals.status} = 'pending' 
+                  AND ${approvals.status} IN ('pending', 'changes_requested') 
                   AND LOWER(TRIM(${approvals.department})) IN (${deptListSql})
                 )`,
                 sql`(${purchaseRequests.status} = 'pending_dept_head' AND LOWER(TRIM(COALESCE(${purchaseRequests.department}, ${users.department}))) IN (${deptListSql}))`
@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
         } else {
           whereConditions.push(
             or(
-              sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.status} = 'pending')`,
+              sql`EXISTS (SELECT 1 FROM ${approvals} WHERE ${approvals.requestId} = ${purchaseRequests.id} AND ${approvals.status} IN ('pending', 'changes_requested'))`,
               sql`${purchaseRequests.status} = 'pending_dept_head'`
             )
           );

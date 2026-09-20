@@ -41,7 +41,7 @@ export function getRequestApprovalContext(
     (approvalsList.length > 0 && approvalsList.every((a: any) => a.status === "approved"));
 
   // Check if request is actionable in the approval workflow
-  const isActionable = ["pending", "partially_approved", "pending_dept_head", "variation_pending"].includes(rawStatus);
+  const isActionable = ["pending", "partially_approved", "pending_dept_head", "variation_pending", "changes_requested"].includes(rawStatus);
 
   const myPendingDepartments: string[] = [];
   const myApprovedDepartments: string[] = [];
@@ -57,7 +57,7 @@ export function getRequestApprovalContext(
     }
   }
 
-  // If request is rejected, cancelled, draft, changes_requested, approved, or fully_paid,
+  // If request is rejected, cancelled, draft, approved, or fully_paid,
   // it is NEVER awaiting any sign-off!
   if (!isActionable) {
     return {
@@ -86,7 +86,7 @@ export function getRequestApprovalContext(
       const deptName = app.department || "Department";
       const isMine = isSuperAdmin || canApproveInDepartment(deptName);
 
-      if (app.status === "pending") {
+      if (app.status === "pending" || app.status === "changes_requested") {
         allPendingDepartments.push(deptName);
         if (isMine) {
           if (!myPendingDepartments.includes(deptName)) {

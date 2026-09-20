@@ -356,5 +356,31 @@ describe("Departmental Approval RBAC & Cross-Department Security Test Suite", ()
     );
     assert.strictEqual(rejectedSuperAdminCtx.isAwaitingMyAction, false, "Super Admin cannot have action on rejected request");
     assert.deepStrictEqual(rejectedSuperAdminCtx.myPendingDepartments, []);
+
+    // 6. Request with changes_requested stage is actionable for the reviewing department
+    const changesReq = {
+      id: 997,
+      status: "partially_approved",
+      approvals: [
+        { id: 1, department: "Finance", status: "approved" },
+        { id: 2, department: "Logistics", status: "changes_requested" }
+      ]
+    };
+    const logisticsUser: AuthenticatedUser = {
+      id: 36,
+      username: "Quasain",
+      role: "approver",
+      department: "Logistics",
+      assignedDepartments: [],
+      departmentAssignments: []
+    };
+    const logisticsCtx = getRequestApprovalContext(
+      changesReq,
+      logisticsUser,
+      false,
+      (dept: string) => canApproveInDepartment(logisticsUser, dept)
+    );
+    assert.strictEqual(logisticsCtx.isAwaitingMyAction, true, "changes_requested stage must be awaiting action");
+    assert.deepStrictEqual(logisticsCtx.myPendingDepartments, ["Logistics"]);
   });
 });

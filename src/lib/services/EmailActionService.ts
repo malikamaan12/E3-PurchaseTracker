@@ -321,22 +321,24 @@ export class EmailActionService {
     if (approvalId) {
       targetApproval = allApprovalsForReq.find((a) => a.id === approvalId);
     }
+    const isActionableSlot = (s: string) => s === "pending" || s === "changes_requested";
+
     if (!targetApproval) {
       targetApproval = allApprovalsForReq.find(
-        (a) => a.department.toLowerCase() === user.department.toLowerCase() && a.status === "pending"
+        (a) => a.department.toLowerCase() === user.department.toLowerCase() && isActionableSlot(a.status)
       ) || allApprovalsForReq.find(
         (a) => a.department.toLowerCase() === user.department.toLowerCase()
       );
     }
     if (!targetApproval && user.role === "super_admin") {
-      targetApproval = allApprovalsForReq.find((a) => a.status === "pending") || allApprovalsForReq[0];
+      targetApproval = allApprovalsForReq.find((a) => isActionableSlot(a.status)) || allApprovalsForReq[0];
     }
 
     if (!targetApproval) {
       throw new Error(`No approval slot found for department "${user.department}" on this request.`);
     }
 
-    if (targetApproval.status !== "pending") {
+    if (targetApproval.status === "approved" || targetApproval.status === "rejected") {
       return {
         success: true,
         message: `This stage was already marked as ${targetApproval.status}. No further action needed.`,

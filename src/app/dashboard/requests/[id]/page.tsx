@@ -188,8 +188,8 @@ export default function RequestDetailPage() {
   if (isLoading) return <LoadingState />;
   if (queryError || !request) return <ErrorState error={queryError} />;
 
-  // Pending approval slots
-  const pendingApprovals = request.approvals?.filter((a: any) => a.status === "pending") || [];
+  // Pending and actionable approval slots (pending or changes_requested awaiting resolution)
+  const pendingApprovals = request.approvals?.filter((a: any) => a.status === "pending" || a.status === "changes_requested") || [];
 
   // Active approver departments for current user (primary department + active assigned departments with approver or both role)
   const userApprovalDepts = (!isSupervisor && (isSuperAdmin || isAdmin || isApprover)) ? [
@@ -199,7 +199,7 @@ export default function RequestDetailPage() {
       .map((a: any) => a.department)
   ].filter(Boolean).map((d: string) => d.toLowerCase().trim()) : [];
 
-  // Pending approval slots the current user is authorized to act on
+  // Actionable approval slots the current user is authorized to act on
   const eligiblePendingApprovals = isSuperAdmin
     ? pendingApprovals
     : pendingApprovals.filter((a: any) => canApproveInDepartment(a.department));
@@ -213,15 +213,15 @@ export default function RequestDetailPage() {
 
   // canAct:
   // - Supervisors and regular users NEVER have approval power!
-  // - Super Admin can act on ANY pending approval slot
-  // - Admin & Approver can act only if their authorized department slot is pending
+  // - Super Admin can act on ANY pending/actionable approval slot
+  // - Admin & Approver can act only if their authorized department slot is pending/changes_requested
   // - If request is pending_dept_head, only the supervisor's Department Head or Super Admin can act!
   const isSupervisorGate = request.status === "pending_dept_head";
   const isMyDeptPending = eligiblePendingApprovals.length > 0;
   const isDeptHeadForStage1 = isSupervisorGate && isMyDeptPending && (isAdmin || isApprover) && !isSupervisor;
 
   const canAct = !isSupervisor && (
-    ((request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING") &&
+    ((request.status === "pending" || request.status === "partially_approved" || request.status === "VARIATION_PENDING" || request.status === "changes_requested") &&
       ((isSuperAdmin && pendingApprovals.length > 0) || (isMyDeptPending && (isAdmin || isApprover)))) ||
     (isSupervisorGate && (isSuperAdmin || isDeptHeadForStage1))
   );
@@ -404,7 +404,7 @@ export default function RequestDetailPage() {
                       >
                         {eligiblePendingApprovals.map((pa: any) => (
                           <option key={pa.id} value={pa.id}>
-                            {pa.department} Approval (Pending)
+                            {pa.department} Approval {pa.status === 'changes_requested' ? '(Changes Requested)' : '(Pending)'}
                           </option>
                         ))}
                       </select>
@@ -978,6 +978,7 @@ export default function RequestDetailPage() {
 
                   return sortedApprovals.map((approval: any) => {
                     const isPending = approval.status === 'pending';
+                    const isChangesRequested = approval.status === 'changes_requested';
                     const isApproved = approval.status === 'approved';
                     const isRejected = approval.status === 'rejected';
                     
@@ -989,9 +990,14 @@ export default function RequestDetailPage() {
                         title={
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span>{approval.department} Approval</span>
-                            {isMyAuthorizedDept && isPending && (
-                              <span className="text-[9px] font-black uppercase tracking-wider text-amber-700 dark:text-amber-300 bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-xs animate-pulse">
-                                <span>👉</span> Your Department
+                            {isMyAuthorizedDept && (isPending || isChangesRequested) && (
+                              <span className={cn(
+                                "text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full inline-flex items-center gap-1 shadow-xs border animate-pulse",
+                                isChangesRequested
+                                  ? "text-amber-800 dark:text-amber-200 bg-amber-500/20 border-amber-500/40"
+                                  : "text-amber-700 dark:text-amber-300 bg-amber-500/15 border-amber-500/30"
+                              )}>
+                                <span>👉</span> Your Department {isChangesRequested ? "(Changes Requested)" : ""}
                               </span>
                             )}
                             {isMyAuthorizedDept && isApproved && (
@@ -1004,7 +1010,13 @@ export default function RequestDetailPage() {
                         desc={
                           <div className="space-y-1.5 mt-0.5">
                             <div className="font-medium text-foreground/90">
-                              {isApproved ? `Approved by ${approval.approver?.username || "Approver"}` : isRejected ? "Rejected" : "Pending Action"}
+                              {isApproved
+                                ? `Approved by ${approval.approver?.username || "Approver"}`
+                                : isRejected
+                                ? "Rejected"
+                                : isChangesRequested
+                                ? `Changes Requested by ${approval.approver?.username || "Approver"}`
+                                : "Pending Action"}
                             </div>
                             {approval.comments && (
                               <div className="text-[11px] bg-muted/40 border border-border/40 rounded-xl p-2.5 text-foreground/90 font-normal whitespace-pre-line">
@@ -1014,7 +1026,7 @@ export default function RequestDetailPage() {
                           </div>
                         }
                         time={approval.processedAt ? safeFormatDate(approval.processedAt, "MMM dd, yyyy") : undefined}
-                        status={isApproved ? 'completed' : isRejected ? 'error' : isPending ? 'current' : 'pending'}
+                        status={isApproved ? 'completed' : isRejected ? 'error' : isChangesRequested ? 'warning' : isPending ? 'current' : 'pending'}
                         actions={isApproved && (isSuperAdmin || approval.approverId === user?.id) ? (
                           <div className="flex items-center gap-2 pt-1 flex-wrap">
                             {/* Approver / Super Admin Add Clarification Button */}
@@ -1379,6 +1391,7 @@ function TimelineItem({
     completed: "bg-emerald-500 border-emerald-200 dark:border-emerald-900 shadow-[0_0_0_4px_rgba(16,185,129,0.15)]",
     error: "bg-destructive border-red-200 dark:border-red-900 shadow-[0_0_0_4px_rgba(239,68,68,0.15)]",
     current: "bg-primary border-primary/20 shadow-[0_0_0_4px_rgba(59,130,246,0.25)] animate-pulse",
+    warning: "bg-amber-500 border-amber-200 dark:border-amber-900 shadow-[0_0_0_4px_rgba(245,158,11,0.2)] animate-pulse",
     pending: "bg-background border-border shadow-none",
   };
   const config = configs[status as keyof typeof configs] || configs.pending;
