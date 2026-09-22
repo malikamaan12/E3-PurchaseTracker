@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { emailActionService } from "@/lib/services/EmailActionService";
+import { durableRateLimiter } from "@/lib/services/DurableRateLimitService";
 
 /**
  * GET /api/requests/[id]/email-action?token=...
@@ -11,6 +12,16 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ip = durableRateLimiter.extractClientIp(req);
+    const ipHash = durableRateLimiter.hashIp(ip);
+    const rateCheck = await durableRateLimiter.consume(`email_action_get:${ipHash}`, 30, 60);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { valid: false, error: "Too many requests. Please wait a moment." },
+        { status: 429 }
+      );
+    }
+
     const { id: paramId } = await params;
     const requestId = parseInt(paramId, 10);
     if (isNaN(requestId)) {
@@ -60,6 +71,16 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const ip = durableRateLimiter.extractClientIp(req);
+    const ipHash = durableRateLimiter.hashIp(ip);
+    const rateCheck = await durableRateLimiter.consume(`email_action_post:${ipHash}`, 10, 60);
+    if (!rateCheck.allowed) {
+      return NextResponse.json(
+        { success: false, error: "Too many submission attempts. Please wait a moment." },
+        { status: 429 }
+      );
+    }
+
     const { id: paramId } = await params;
     const requestId = parseInt(paramId, 10);
     if (isNaN(requestId)) {

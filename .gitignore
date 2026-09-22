@@ -19,3 +19,12 @@ strix/
 .env*
 !.env.example
 .uat_credentials.json
+script*.ts
+script*.js
+script*.cjs
+reset.ts
+test_*.ts
+test_*.js
+*.pem
+*.key
+

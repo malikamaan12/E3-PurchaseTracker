@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { BackupService } from "@/lib/services/BackupService";
+import crypto from "crypto";
+
+export const dynamic = "force-dynamic";
 
 /**
  * GET /api/cron/daily-backup
@@ -8,10 +11,27 @@ import { BackupService } from "@/lib/services/BackupService";
  */
 export async function GET(req: NextRequest) {
   try {
-    const authHeader = req.headers.get("Authorization");
-    
-    // Verify Vercel Cron Secret
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    const authHeader = req.headers.get("authorization");
+    const cronSecret = process.env.CRON_SECRET?.trim();
+
+    // 1. Fail closed if CRON_SECRET is not configured
+    if (!cronSecret) {
+      console.error("[CRON_BACKUP] Security Error: CRON_SECRET is not configured.");
+      return NextResponse.json(
+        { error: "Cron authorization not configured." },
+        { status: 500 }
+      );
+    }
+
+    // 2. Timing-safe comparison to prevent timing attacks and undefined matches
+    const expectedHeader = `Bearer ${cronSecret}`;
+    const providedBuffer = Buffer.from(authHeader || "");
+    const expectedBuffer = Buffer.from(expectedHeader);
+
+    if (
+      providedBuffer.length !== expectedBuffer.length ||
+      !crypto.timingSafeEqual(providedBuffer, expectedBuffer)
+    ) {
       console.warn("[CRON_BACKUP] Unauthorized attempt detected.");
       return NextResponse.json({ error: "Access Denied" }, { status: 401 });
     }

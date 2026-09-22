@@ -5,12 +5,14 @@ import { eq } from "drizzle-orm";
 import { PurchaseOrderService } from "@/lib/services/PurchaseOrderService";
 import { generatePurchaseOrderPdf } from "@/lib/pdf/PoPdfGenerator";
 import { fetchPdfAssetBuffer } from "@/lib/pdf/image-loader";
+import { durableRateLimiter } from "@/lib/services/DurableRateLimitService";
 
 export const dynamic = "force-dynamic";
 
 /**
  * GET /api/portal/po/[token]/pdf
  * Public endpoint for vendor to download the official Purchase Order PDF.
+ * Rate limited to prevent denial-of-service / CPU exhaustion.
  */
 export async function GET(
   req: NextRequest,
@@ -20,7 +22,18 @@ export async function GET(
     const { token } = await params;
     if (!token) return NextResponse.json({ error: "Token is required" }, { status: 400 });
 
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const ip = durableRateLimiter.extractClientIp(req);
+    const ipHash = durableRateLimiter.hashIp(ip);
+    
+    // Rate limit: maximum 15 PDF generations per 10 minutes per IP
+    const rateLimit = await durableRateLimiter.consume(`po_pdf_${ipHash}`, 15, 600);
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { error: "Too many PDF download requests. Please wait a few minutes." },
+        { status: 429 }
+      );
+    }
+
     const data = await PurchaseOrderService.getPurchaseOrderByToken(token, ip);
 
     // Asynchronously record download event

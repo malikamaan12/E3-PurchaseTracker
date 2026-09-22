@@ -49,10 +49,43 @@ async function fetchFromR2(urlOrKey: string): Promise<Uint8Array | null> {
   return null;
 }
 
+export function isSafeRemoteUrl(urlStr: string): boolean {
+  try {
+    const u = new URL(urlStr);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    const host = u.hostname.toLowerCase();
+
+    // Block loopback and local hostnames
+    if (host === "localhost" || host.endsWith(".localhost") || host === "127.0.0.1" || host === "::1" || host === "0.0.0.0") {
+      return false;
+    }
+
+    // Block AWS / Cloud metadata service
+    if (host === "169.254.169.254" || host.startsWith("169.254.")) {
+      return false;
+    }
+
+    // Block RFC1918 private IPv4 subnets
+    if (/^10\./.test(host)) return false;
+    if (/^192\.168\./.test(host)) return false;
+    if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host)) return false;
+
+    // Block private/internal TLDs
+    if (host.endsWith(".local") || host.endsWith(".internal") || host.endsWith(".corp") || host.endsWith(".lan")) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
- * Universal PDF Asset Buffer Loader
+ * Universal PDF Asset Buffer Loader (Hardened)
  * Reliably loads images from Base64 Data URLs, Local Filesystem (public/uploads),
  * Relative URLs, Cloudflare R2 direct S3 storage, or Remote HTTP(S) Endpoints.
+ * Mitigates Path Traversal (CWE-22) and SSRF (CWE-918).
  */
 export async function fetchPdfAssetBuffer(url: string | null, reqUrl?: string): Promise<Uint8Array | null> {
   if (!url) return null;
@@ -72,12 +105,14 @@ export async function fetchPdfAssetBuffer(url: string | null, reqUrl?: string): 
       if (r2Buf) return r2Buf;
     }
 
-    // 3. Local File System Path (e.g. /uploads/pdf-settings/header.png or uploads/...)
+    // 3. Local File System Path (Strict Path Traversal Protection)
     if (url.startsWith('/') || url.startsWith('uploads/')) {
       const cleanPath = url.startsWith('/') ? url.substring(1) : url;
-      const localFilePath = path.join(process.cwd(), 'public', cleanPath);
+      const publicDir = path.resolve(process.cwd(), 'public');
+      const localFilePath = path.resolve(publicDir, cleanPath);
       
-      if (fs.existsSync(localFilePath)) {
+      // Ensure path cannot escape public directory
+      if (localFilePath.startsWith(publicDir) && fs.existsSync(localFilePath)) {
         const fileBuf = fs.readFileSync(localFilePath);
         return new Uint8Array(fileBuf);
       }
@@ -96,8 +131,13 @@ export async function fetchPdfAssetBuffer(url: string | null, reqUrl?: string): 
       if (r2Buf) return r2Buf;
     }
 
-    // 6. Remote HTTP/HTTPS fetch
+    // 6. Remote HTTP/HTTPS fetch with SSRF Guard
     if (fetchUrl.startsWith('http://') || fetchUrl.startsWith('https://')) {
+      if (!isSafeRemoteUrl(fetchUrl)) {
+        console.warn(`[PDF Asset Loader] Blocked SSRF attempt to restricted host: ${fetchUrl}`);
+        return null;
+      }
+
       const response = await fetch(fetchUrl, {
         signal: AbortSignal.timeout(10000),
         redirect: 'follow',

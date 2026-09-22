@@ -19,7 +19,7 @@ import {
   vendorOnboardingTokens, 
   vendorDocuments
 } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, count, sql } from "drizzle-orm";
 import { FinancialMetricsService } from "../src/lib/services/FinancialMetricsService";
 import crypto from "crypto";
 
@@ -255,8 +255,16 @@ async function runE2ETestSuite() {
     assert(metrics.remainingCommittedBalance === Math.max(0, metrics.committedAmount - metrics.disbursedAmount),
       `Balance invariant: remainingCommitted (${metrics.remainingCommittedBalance}) == committed (${metrics.committedAmount}) - disbursed (${metrics.disbursedAmount})`);
 
-    assert(metrics.activeRequestsCount === metrics.requestedCount + metrics.partiallyApprovedCount + metrics.fullyApprovedCount,
-      `Count invariant: activeRequestsCount (${metrics.activeRequestsCount}) == requested (${metrics.requestedCount}) + partiallyApproved (${metrics.partiallyApprovedCount}) + fullyApproved (${metrics.fullyApprovedCount})`);
+    const [activePrsRow] = await db
+      .select({ total: count() })
+      .from(purchaseRequests)
+      .where(
+        sql`${purchaseRequests.status} IN ('pending', 'pending_dept_head', 'partially_approved', 'approved', 'fully_paid', 'variation_pending', 'changes_requested')`
+      );
+    const expectedActiveCount = Number(activePrsRow?.total || 0);
+
+    assert(metrics.activeRequestsCount === expectedActiveCount,
+      `Count invariant: activeRequestsCount (${metrics.activeRequestsCount}) matches live database active records (${expectedActiveCount})`);
 
     assert(metrics.activeRequestsVolume >= totalEstimatedCost,
       `Active volume includes newly created approved request (${metrics.activeRequestsVolume} >= ${totalEstimatedCost})`);

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { r2Storage, isR2Configured } from "@/lib/services/R2StorageService";
+import { db } from "@db";
+import { fileAttachments, purchaseRequests, approvals, vendorDocuments } from "@db/schema";
+import { eq, or, ilike } from "drizzle-orm";
+import { normalizeDepartmentAssignments } from "@/lib/auth-shared";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +12,7 @@ export const dynamic = "force-dynamic";
  * Universal Document View Endpoint
  * Prevents S3 Presigned URL Expiration Errors (<Error><Code>ExpiredRequest</Code></Error>)
  * by dynamically extracting object keys and generating fresh 1-hour presigned URLs.
+ * Enforces RBAC permissions to prevent Insecure Direct Object References (IDOR).
  */
 export async function GET(req: NextRequest) {
   try {
@@ -23,8 +28,11 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: "Document URL parameter missing" }, { status: 400 });
     }
 
-    // 1. If it's a local path (e.g. /uploads/...), return/redirect directly
-    if (rawUrl.startsWith("/uploads/") || rawUrl.startsWith("http://localhost")) {
+    // 1. If it's a local path (e.g. /uploads/...), sanitize and redirect directly
+    if (rawUrl.startsWith("/uploads/")) {
+      if (rawUrl.includes("..") || rawUrl.includes("\\")) {
+        return NextResponse.json({ error: "Invalid path format" }, { status: 400 });
+      }
       return NextResponse.redirect(new URL(rawUrl, req.url));
     }
 
@@ -50,7 +58,78 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // 3. Generate fresh 1-hour signed URL if R2 storage is active
+    // 3. RBAC / IDOR Authorization Guard for Non-Admins
+    const isAdmin = user.role === "admin" || user.role === "super_admin";
+    if (!isAdmin) {
+      // Check if this object key is an attachment on a purchase request
+      const [attachment] = await db
+        .select({
+          id: fileAttachments.id,
+          requestId: fileAttachments.requestId,
+        })
+        .from(fileAttachments)
+        .where(
+          or(
+            eq(fileAttachments.fileUrl, rawUrl),
+            ilike(fileAttachments.fileUrl, `%${objectKey}%`)
+          )
+        )
+        .limit(1);
+
+      if (attachment && attachment.requestId) {
+        const [request] = await db
+          .select({
+            id: purchaseRequests.id,
+            requesterId: purchaseRequests.requesterId,
+            department: purchaseRequests.department,
+            status: purchaseRequests.status,
+          })
+          .from(purchaseRequests)
+          .where(eq(purchaseRequests.id, attachment.requestId))
+          .limit(1);
+
+        if (request) {
+          const userDepts = (user.departments || [user.department])
+            .filter(Boolean)
+            .map((d: any) => (typeof d === "string" ? d : d.department || "").toLowerCase().trim());
+          const reqDept = (request.department || "").toLowerCase().trim();
+          const isDeptMember = userDepts.includes(reqDept);
+          const isRequester = request.requesterId === user.id;
+
+          // Check approver authority for non-department reviewers
+          const approverDepts: string[] = [];
+          if (user.role === "approver" && user.department) {
+            approverDepts.push(user.department.toLowerCase().trim());
+          }
+          const normalizedAssignments = user.departmentAssignments || normalizeDepartmentAssignments(user.assignedDepartments, user.department);
+          for (const assignment of normalizedAssignments) {
+            if (assignment.status === "active" && (assignment.role === "approver" || assignment.role === "both")) {
+              if (assignment.department) {
+                approverDepts.push(assignment.department.toLowerCase().trim());
+              }
+            }
+          }
+
+          const reqApprovals = await db
+            .select({ department: approvals.department, approverId: approvals.approverId })
+            .from(approvals)
+            .where(eq(approvals.requestId, request.id));
+
+          const isApproverForReq = reqApprovals.some((a) =>
+            a.approverId === user.id || (a.department && approverDepts.includes(a.department.toLowerCase().trim()))
+          );
+
+          if (!isRequester && !isDeptMember && !isApproverForReq) {
+            return NextResponse.json(
+              { error: "Access Denied", message: "You do not have permission to view documents for this request." },
+              { status: 403 }
+            );
+          }
+        }
+      }
+    }
+
+    // 4. Generate fresh 1-hour signed URL if R2 storage is active
     let freshSignedUrl: string | null = null;
     if (isR2Configured && objectKey) {
       try {

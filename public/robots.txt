@@ -1,0 +1,40 @@
+# robots.txt for PurchaseTracker
+# Restrict search engine bots, web crawlers, and AI scrapers from indexing private institutional data.
+
+User-agent: *
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /requests/
+Disallow: /portal/
+Disallow: /vendor/
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /_next/
+
+# Allow essential static assets
+Allow: /assets/
+Allow: /images/
+Allow: /favicon.ico
+Allow: /manifest.json
+
+# Explicitly disallow aggressive AI training scrapers
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Scrapy
+Disallow: /

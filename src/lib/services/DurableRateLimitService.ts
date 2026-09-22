@@ -24,11 +24,37 @@ export class DurableRateLimitService {
   }
 
   /**
+   * Extracts clean, edge-sanitized client IP from NextRequest or headers.
+   */
+  public extractClientIp(req: { headers: { get(name: string): string | null } }): string {
+    const xRealIp = req.headers.get("x-real-ip");
+    if (xRealIp?.trim()) return xRealIp.trim();
+
+    const xForwardedFor = req.headers.get("x-forwarded-for");
+    if (xForwardedFor) {
+      const firstIp = xForwardedFor.split(",")[0]?.trim();
+      if (firstIp) return firstIp;
+    }
+
+    return "unknown-source";
+  }
+
+  /**
    * Hashes an IP address using SHA-256 with a salt to maintain privacy
    * while allowing durable abuse correlation.
    */
   public hashIp(ip: string | null | undefined): string {
-    const cleanIp = (ip || "unknown-source").trim().toLowerCase();
+    if (!ip) return crypto.createHash("sha256").update(`${RATE_LIMIT_SALT}:unknown-source`).digest("hex");
+
+    // Normalize: extract primary IP if comma-separated list, strip port if IPv4
+    let cleanIp = ip.split(",")[0]?.trim().toLowerCase() || "unknown-source";
+    if (cleanIp.includes(":") && !cleanIp.includes("::")) {
+      const parts = cleanIp.split(":");
+      if (parts.length === 2 && !isNaN(Number(parts[1]))) {
+        cleanIp = parts[0];
+      }
+    }
+
     return crypto
       .createHash("sha256")
       .update(`${RATE_LIMIT_SALT}:${cleanIp}`)

@@ -1,7 +1,7 @@
 import { FinancialMetricsService, getQatarDateOnly, addCalendarDays } from "../src/lib/services/FinancialMetricsService";
 import { db } from "../db";
 import { purchaseRequests, subPurposes, paymentInstallments } from "../db/schema";
-import { count } from "drizzle-orm";
+import { count, sql } from "drizzle-orm";
 
 /**
  * Pure evaluation function matching FinancialMetricsService rules for isolated testing.
@@ -103,8 +103,14 @@ async function verifyFinancialMetrics() {
     allPassed = false;
   }
 
-  // 5. Active Requests Count Invariant
-  const expectedActiveCount = metrics.requestedCount + metrics.partiallyApprovedCount + metrics.fullyApprovedCount;
+  // 5. Active Requests Count Invariant (Active requests exclude drafts)
+  const [activePrsRow] = await db
+    .select({ total: count() })
+    .from(purchaseRequests)
+    .where(
+      sql`${purchaseRequests.status} IN ('pending', 'pending_dept_head', 'partially_approved', 'approved', 'fully_paid', 'variation_pending', 'changes_requested')`
+    );
+  const expectedActiveCount = Number(activePrsRow?.total || 0);
   if (metrics.activeRequestsCount === expectedActiveCount) {
     console.log(`✅ [PASS] Active requests count invariant dynamically verified (count: ${metrics.activeRequestsCount})`);
   } else {

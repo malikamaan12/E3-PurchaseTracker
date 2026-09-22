@@ -374,13 +374,17 @@ export class PurchaseOrderService {
       throw new Error("This Purchase Order link has expired. Please contact the procurement department.");
     }
 
-    // Asynchronously log the view event (vendor portal access)
-    db.insert(purchaseOrderEvents).values({
-      poId: po.id,
-      eventType: "VIEWED",
-      actorType: "vendor",
-      metadata: { ip, userAgent, timestamp: new Date().toISOString() },
-    }).catch((err) => console.error("[PO View Log] Failed:", err));
+    // Log the view event (vendor portal access)
+    try {
+      await db.insert(purchaseOrderEvents).values({
+        poId: po.id,
+        eventType: "VIEWED",
+        actorType: "vendor",
+        metadata: { ip, userAgent, timestamp: new Date().toISOString() },
+      });
+    } catch (err) {
+      console.error("[PO View Log] Failed:", err);
+    }
 
     return {
       po,

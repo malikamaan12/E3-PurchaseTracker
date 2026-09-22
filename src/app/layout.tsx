@@ -4,7 +4,7 @@ import { Inter, Outfit } from "next/font/google"; // High-quality Google Fonts
 import Providers from "@/components/shared/Providers";
 import { cookies } from "next/headers";
 import { TOKEN_COOKIE_NAME } from "@/lib/utils/config";
-import { decodeJwtPayload } from "@/lib/utils/jwt";
+import { getAuthenticatedUser } from "@/lib/auth-next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/react";
 
@@ -34,21 +34,15 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // SERVER-SIDE IDENTITY HYDRATION
-  // No cryptographic check here - handled by SWR background fetch in AuthProvider.
-  // This just eliminates the client-side "Verifying Identity" waterfall.
-  const cookieStore = await cookies();
-  const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
-  
-  const initialUser = token ? decodeJwtPayload(token) : null;
+  // SERVER-SIDE CRYPTOGRAPHIC IDENTITY HYDRATION
+  // Validates JWT signature server-side to prevent forged role/session state in SSR
+  const initialUser = await getAuthenticatedUser();
   const traceId = Math.random().toString(36).substring(7);
 
   if (initialUser) {
     console.log(`[SSR][${traceId}] HYDRATION_SUCCESS: ${initialUser.username} | Role: ${initialUser.role}`);
-  } else if (token) {
-    console.warn(`[SSR][${traceId}] HYDRATION_FAILED: Token present but invalid payload.`);
   } else {
-    console.log(`[SSR][${traceId}] ANONYMOUS: No session cookie found.`);
+    console.log(`[SSR][${traceId}] ANONYMOUS: No active or valid session found.`);
   }
 
   return (
