@@ -40,6 +40,7 @@ interface RequestFiltersProps {
     pending?: number;
     approved?: number;
     rejected?: number;
+    draft?: number;
     myQueue?: number;
   };
 }
@@ -187,7 +188,7 @@ export function RequestFilters({ filters, setFilters, metadata, counts }: Reques
               </button>
             )}
 
-            {statusOptions.slice(0, 4).map(status => {
+            {statusOptions.slice(0, 5).map(status => {
               const count = counts ? (counts as any)[status] : undefined;
               const isActive = filters.status === status;
               return (

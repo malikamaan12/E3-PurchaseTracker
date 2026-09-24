@@ -26,6 +26,7 @@ import {
   Building2,
   Copy,
   CheckCircle2,
+  Search,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useQuery } from "@tanstack/react-query";
@@ -45,6 +46,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select";
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from "@/components/ui/Popover";
 import { Textarea } from "@/components/ui/Textarea";
 
 const requestSchema = z.object({
@@ -172,11 +178,30 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     return () => { isMounted = false; };
   }, [formCurrency]);
 
-  const selectedVendorCompliance = useMemo(() => {
+  const [isVendorPopoverOpen, setIsVendorPopoverOpen] = useState(false);
+  const [vendorSearchQuery, setVendorSearchQuery] = useState("");
+
+  const selectedVendor = useMemo(() => {
     if (!vendorId || vendors.length === 0) return null;
-    const v = vendors.find(vend => vend.id === Number(vendorId));
-    return v ? { score: v.complianceScore, name: v.companyName, status: v.complianceStatus } : null;
+    return vendors.find((v: any) => v.id === Number(vendorId)) || null;
   }, [vendorId, vendors]);
+
+  const filteredVendors = useMemo(() => {
+    const active = vendors.filter((v: any) => !v.status || v.status === "active");
+    if (!vendorSearchQuery.trim()) return active;
+    const q = vendorSearchQuery.toLowerCase().trim();
+    return active.filter((v: any) =>
+      (v.companyName || "").toLowerCase().includes(q) ||
+      (v.commercialRegNo || "").toLowerCase().includes(q) ||
+      (v.contactPerson || "").toLowerCase().includes(q) ||
+      (v.email || "").toLowerCase().includes(q)
+    );
+  }, [vendors, vendorSearchQuery]);
+
+  const selectedVendorCompliance = useMemo(() => {
+    if (!selectedVendor) return null;
+    return { score: selectedVendor.complianceScore, name: selectedVendor.companyName, status: selectedVendor.complianceStatus };
+  }, [selectedVendor]);
 
   const isNonCompliant = selectedVendorCompliance && selectedVendorCompliance.score < 50;
 
@@ -315,6 +340,8 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
     if (newVendor?.id) {
       setVendors((prev) => [newVendor, ...(Array.isArray(prev) ? prev.filter((v: any) => v.id !== newVendor.id) : [])]);
       setValue("vendorId", newVendor.id.toString(), { shouldValidate: true, shouldDirty: true, shouldTouch: true });
+      setVendorSearchQuery("");
+      setIsVendorPopoverOpen(false);
     }
     try {
       const data = await apiClient.vendors.list();
@@ -660,55 +687,200 @@ export default function CreateRequestModal({ isOpen, onClose, onSuccess, request
                           </div>
                           <div className="relative group">
                             <Truck className={cn(
-                              "absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors z-10",
-                              isNonCompliant ? "text-rose-500" : "text-muted-foreground/30 group-focus-within:text-primary "
+                              "absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 transition-colors z-10 pointer-events-none",
+                              isNonCompliant ? "text-rose-500" : "text-muted-foreground/40 group-focus-within:text-primary"
                             )} />
                             <Controller
                               name="vendorId"
                               control={control}
-                              render={({ field }) => (
-                                <Select 
-                                  onValueChange={(val) => {
-                                    if (val === "quick_create" || val === "add_new") {
-                                      setIsVendorQuickCreateOpen(true);
-                                    } else {
-                                      field.onChange(val);
-                                    }
-                                  }} 
-                                  value={(field.value?.toString() === "quick_create" || field.value?.toString() === "add_new") ? undefined : field.value?.toString()}
-                                >
-                                  <SelectTrigger className={cn(
-                                    "pl-9 h-10 text-sm transition-all",
-                                    errors.vendorId ? "border-rose-500 ring-1 ring-rose-500/20" : "",
-                                    isNonCompliant ? "border-rose-500/50 bg-rose-500/[0.02] text-rose-600" : ""
-                                  )}>
-                                    <SelectValue placeholder="Select active vendor..." />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    <SelectItem value="quick_create" className="font-medium text-primary focus:text-primary focus:bg-primary/10 mb-1 border-b border-border/50 pb-2 cursor-pointer">
-                                      <div className="flex items-center gap-2">
-                                        <Sparkles className="w-4 h-4 text-primary" />
-                                        <span>Quick-Create Vendor</span>
-                                      </div>
-                                    </SelectItem>
-                                    {vendors
-                                      .filter((v) => !v.status || v.status === "active")
-                                      .map((v) => (
-                                        <SelectItem key={v.id} value={v.id.toString()}>
-                                          <div className="flex items-center justify-between w-full gap-4">
-                                            <span>{v.companyName}</span>
-                                            <span className={cn(
-                                              "text-[9px] font-bold px-1.5 py-0.5 rounded",
-                                              v.complianceScore < 50 ? "bg-rose-500 text-white" : "bg-brand-secondary/20 text-brand-secondary"
-                                            )}>
-                                              {v.complianceScore}%
+                              render={({ field }) => {
+                                const isSelected = !!field.value && Number(field.value) > 0;
+                                const currentVendor = selectedVendor;
+
+                                return (
+                                  <Popover open={isVendorPopoverOpen} onOpenChange={setIsVendorPopoverOpen}>
+                                    <PopoverTrigger asChild>
+                                      <div
+                                        role="combobox"
+                                        aria-expanded={isVendorPopoverOpen}
+                                        tabIndex={0}
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter" || e.key === " ") {
+                                            e.preventDefault();
+                                            setIsVendorPopoverOpen(prev => !prev);
+                                          }
+                                        }}
+                                        className={cn(
+                                          "flex items-center justify-between w-full h-10 px-3 pl-10 rounded-xl border border-input bg-background text-sm cursor-pointer select-none transition-all shadow-xs",
+                                          errors.vendorId ? "border-rose-500 ring-1 ring-rose-500/20" : "hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20",
+                                          isNonCompliant ? "border-rose-500/50 bg-rose-500/[0.02] text-rose-600" : ""
+                                        )}
+                                      >
+                                        <div className="flex items-center gap-2 min-w-0 flex-1 mr-2">
+                                          {currentVendor ? (
+                                            <>
+                                              <span className="font-semibold text-foreground truncate">
+                                                {currentVendor.companyName}
+                                              </span>
+                                              <span className={cn(
+                                                "text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0",
+                                                (currentVendor.complianceScore ?? 0) < 50 
+                                                  ? "bg-rose-500 text-white" 
+                                                  : "bg-brand-secondary/20 text-brand-secondary"
+                                              )}>
+                                                {currentVendor.complianceScore ?? 0}%
+                                              </span>
+                                            </>
+                                          ) : (
+                                            <span className="text-muted-foreground truncate">
+                                              Search & select active vendor...
                                             </span>
+                                          )}
+                                        </div>
+
+                                        <div className="flex items-center gap-1 shrink-0 text-muted-foreground">
+                                          {isSelected && (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                field.onChange("");
+                                              }}
+                                              className="p-1 hover:text-foreground rounded-md transition-colors"
+                                              title="Clear vendor selection"
+                                              aria-label="Clear vendor selection"
+                                            >
+                                              <X className="w-3.5 h-3.5" />
+                                            </button>
+                                          )}
+                                          <ChevronRight className={cn("w-4 h-4 transition-transform duration-200", isVendorPopoverOpen ? "rotate-90" : "")} />
+                                        </div>
+                                      </div>
+                                    </PopoverTrigger>
+
+                                    <PopoverContent 
+                                      className="w-[calc(100vw-2rem)] sm:w-[480px] p-0 z-[1100] border border-border bg-card shadow-2xl rounded-2xl overflow-hidden" 
+                                      align="start"
+                                      sideOffset={6}
+                                    >
+                                      {/* Active Search Bar Header */}
+                                      <div className="p-3 border-b border-border/60 bg-muted/20">
+                                        <div className="relative flex items-center">
+                                          <Search className="absolute left-3 w-4 h-4 text-muted-foreground pointer-events-none" />
+                                          <Input
+                                            autoFocus
+                                            placeholder="Type vendor name, CR #, or contact to search..."
+                                            value={vendorSearchQuery}
+                                            onChange={(e) => setVendorSearchQuery(e.target.value)}
+                                            className="pl-9 pr-8 h-10 text-sm rounded-xl bg-background border-border/80 focus-visible:ring-primary/30"
+                                          />
+                                          {vendorSearchQuery && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setVendorSearchQuery("")}
+                                              className="absolute right-2.5 p-1 text-muted-foreground hover:text-foreground rounded"
+                                            >
+                                              <X className="w-3.5 h-3.5" />
+                                            </button>
+                                          )}
+                                        </div>
+                                      </div>
+
+                                      {/* Quick-Create Vendor Action */}
+                                      <div className="p-1.5 border-b border-border/40 bg-secondary/30">
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setIsVendorPopoverOpen(false);
+                                            setIsVendorQuickCreateOpen(true);
+                                          }}
+                                          className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-primary hover:bg-primary/10 transition-colors"
+                                        >
+                                          <div className="flex items-center gap-2">
+                                            <div className="w-6 h-6 rounded-lg bg-primary/15 flex items-center justify-center">
+                                              <Sparkles className="w-3.5 h-3.5 text-primary" />
+                                            </div>
+                                            <span>Quick-Create New Vendor</span>
                                           </div>
-                                        </SelectItem>
-                                      ))}
-                                  </SelectContent>
-                                </Select>
-                              )}
+                                          <span className="text-[10px] uppercase font-semibold text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded">
+                                            + Add
+                                          </span>
+                                        </button>
+                                      </div>
+
+                                      {/* Vendors List */}
+                                      <div className="max-h-64 overflow-y-auto custom-scrollbar p-1.5 space-y-1">
+                                        {filteredVendors.length === 0 ? (
+                                          <div className="p-6 text-center space-y-3">
+                                            <p className="text-xs text-muted-foreground">
+                                              No active vendors found matching &ldquo;<span className="text-foreground font-semibold">{vendorSearchQuery}</span>&rdquo;
+                                            </p>
+                                            <button
+                                              type="button"
+                                              onClick={() => {
+                                                setIsVendorPopoverOpen(false);
+                                                setIsVendorQuickCreateOpen(true);
+                                              }}
+                                              className="inline-flex items-center gap-1.5 text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-1.5 rounded-xl border border-primary/20 transition-all"
+                                            >
+                                              <Sparkles className="w-3.5 h-3.5" />
+                                              <span>Create vendor with this name</span>
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          filteredVendors.map((v: any) => {
+                                            const isItemActive = Number(field.value) === v.id;
+                                            const score = v.complianceScore ?? 0;
+                                            return (
+                                              <button
+                                                key={v.id}
+                                                type="button"
+                                                onClick={() => {
+                                                  field.onChange(v.id.toString());
+                                                  setIsVendorPopoverOpen(false);
+                                                  setVendorSearchQuery("");
+                                                }}
+                                                className={cn(
+                                                  "w-full flex items-center justify-between p-2.5 rounded-xl text-left transition-all",
+                                                  isItemActive 
+                                                    ? "bg-primary/15 border border-primary/30 text-foreground" 
+                                                    : "hover:bg-secondary/60 text-foreground/90 border border-transparent"
+                                                )}
+                                              >
+                                                <div className="flex items-center gap-2.5 min-w-0 mr-3">
+                                                  <div className={cn(
+                                                    "w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold",
+                                                    isItemActive ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
+                                                  )}>
+                                                    {isItemActive ? <CheckCircle2 className="w-4 h-4" /> : (v.companyName?.charAt(0)?.toUpperCase() || "V")}
+                                                  </div>
+                                                  <div className="min-w-0">
+                                                    <p className="text-xs font-semibold text-foreground truncate">{v.companyName}</p>
+                                                    {(v.commercialRegNo || v.contactPerson) && (
+                                                      <p className="text-[10px] text-muted-foreground truncate">
+                                                        {[v.commercialRegNo ? `CR: ${v.commercialRegNo}` : null, v.contactPerson].filter(Boolean).join(" • ")}
+                                                      </p>
+                                                    )}
+                                                  </div>
+                                                </div>
+
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                  <span className={cn(
+                                                    "text-[10px] font-bold px-2 py-0.5 rounded-md",
+                                                    score < 50 ? "bg-rose-500 text-white" : "bg-brand-secondary/20 text-brand-secondary"
+                                                  )}>
+                                                    {score}%
+                                                  </span>
+                                                </div>
+                                              </button>
+                                            );
+                                          })
+                                        )}
+                                      </div>
+                                    </PopoverContent>
+                                  </Popover>
+                                );
+                              }}
                             />
                             {errors.vendorId?.message && typeof errors.vendorId.message === 'string' && <p className="text-xs text-rose-500 mt-1 font-medium pl-1">{errors.vendorId.message}</p>}
                           </div>

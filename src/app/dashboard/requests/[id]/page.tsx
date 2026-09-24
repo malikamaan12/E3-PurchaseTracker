@@ -234,11 +234,7 @@ export default function RequestDetailPage() {
 
   const canEdit =
     (isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
-    (isOwner && (
-      request.status === 'draft' ||
-      request.status === 'changes_requested' ||
-      (request.status === 'pending' && approvedCount === 0)
-    ));
+    (isOwner && approvedCount === 0 && !['approved', 'fully_paid', 'archived', 'cancelled'].includes(request.status));
 
   // Request can only be deleted by the user who created it (until someone approved it) or superadmin (until amount is paid)
   const canDelete =
@@ -761,8 +757,15 @@ export default function RequestDetailPage() {
               <div className="flex gap-2">
                  <Button variant="outline" size="sm" className="min-h-[44px] text-xs rounded-xl border-border/50 hover:bg-muted/50 font-semibold touch-target" onClick={() => {
                    if (!Array.isArray(request.items)) return toast.error("No items to export");
-                   const rows = ['Item,Qty,Price,Total'];
-                   request.items.forEach((i: any) => rows.push(`"${i.name}","${i.quantity}","${i.estimatedCost}","${i.quantity*i.estimatedCost}"`));
+                   const rows = ['Item Name,Description / Details,Qty,Unit Price,Total'];
+                   request.items.forEach((i: any) => {
+                     const name = String(i.name || '').replace(/"/g, '""');
+                     const desc = String(i.description || i.details || i.remarks || '').replace(/"/g, '""');
+                     const qty = Number(i.quantity || 0);
+                     const unitPrice = Number(i.estimatedCost || 0);
+                     const total = qty * unitPrice;
+                     rows.push(`"${name}","${desc}","${qty}","${unitPrice}","${total}"`);
+                   });
                    const url = window.URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
                    const a = document.createElement('a'); a.href = url; a.download = `items-${request.id}.csv`; a.click(); window.URL.revokeObjectURL(url);
                  }}>
@@ -774,32 +777,42 @@ export default function RequestDetailPage() {
             {/* Mobile Line Item Cards (< md) */}
             <div className="md:hidden p-4 space-y-3">
               {Array.isArray(request.items) && request.items.length > 0 ? (
-                request.items.map((item: any, idx: number) => (
-                  <div
-                    key={idx}
-                    id={`item-${idx}`}
-                    className={cn(
-                      "p-4 rounded-2xl border border-border/60 bg-secondary/20 space-y-2 shadow-sm transition-all duration-500",
-                      highlightedItemIndex === idx && "ring-2 ring-primary border-primary bg-primary/5 shadow-md"
-                    )}
-                  >
-                    <div className="flex justify-between items-start gap-2">
-                      <p className="font-bold text-sm text-foreground">{item.name || "Unnamed Item"}</p>
-                      <span className="text-xs font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 shrink-0">
-                        Qty: {item.quantity || 0}
-                      </span>
+                request.items.map((item: any, idx: number) => {
+                  const itemDescription = item.description || item.details || item.remarks;
+                  return (
+                    <div
+                      key={idx}
+                      id={`item-${idx}`}
+                      className={cn(
+                        "p-4 rounded-2xl border border-border/60 bg-secondary/20 space-y-2 shadow-sm transition-all duration-500",
+                        highlightedItemIndex === idx && "ring-2 ring-primary border-primary bg-primary/5 shadow-md"
+                      )}
+                    >
+                      <div className="flex justify-between items-start gap-2">
+                        <div className="space-y-1 pr-2 min-w-0">
+                          <p className="font-bold text-sm text-foreground">{item.name || "Unnamed Item"}</p>
+                          {itemDescription && (
+                            <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap">
+                              {itemDescription}
+                            </p>
+                          )}
+                          {item.remarks && (item.description || item.details) && item.remarks !== (item.description || item.details) && (
+                            <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium">Note: {item.remarks}</p>
+                          )}
+                        </div>
+                        <span className="text-xs font-bold text-primary px-2 py-0.5 rounded-md bg-primary/10 border border-primary/20 shrink-0">
+                          Qty: {item.quantity || 0}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t border-border/40 text-xs">
+                        <span className="text-muted-foreground">Unit: {Number(item.estimatedCost || 0).toLocaleString()} QAR</span>
+                        <span className="font-bold text-foreground text-sm">
+                          {((item.quantity || 0) * (item.estimatedCost || 0)).toLocaleString()} QAR
+                        </span>
+                      </div>
                     </div>
-                    {item.remarks && (
-                      <p className="text-xs text-muted-foreground">{item.remarks}</p>
-                    )}
-                    <div className="flex justify-between items-center pt-2 border-t border-border/40 text-xs">
-                      <span className="text-muted-foreground">Unit: {Number(item.estimatedCost || 0).toLocaleString()} QAR</span>
-                      <span className="font-bold text-foreground text-sm">
-                        {((item.quantity || 0) * (item.estimatedCost || 0)).toLocaleString()} QAR
-                      </span>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="p-8 text-center text-muted-foreground text-xs font-medium">No line items specified</div>
               )}
@@ -810,36 +823,53 @@ export default function RequestDetailPage() {
               <table className="w-full text-sm">
                 <thead className="bg-muted/20 border-b border-border/50 text-xs text-muted-foreground">
                   <tr>
-                    <th className="px-6 py-3 text-left font-semibold uppercase tracking-wider">Description</th>
-                    <th className="px-6 py-3 text-center font-semibold uppercase tracking-wider">Qty</th>
-                    <th className="px-6 py-3 text-right font-semibold uppercase tracking-wider">Unit Price</th>
-                    <th className="px-6 py-3 text-right font-semibold uppercase tracking-wider">Total</th>
+                    <th className="px-6 py-3 text-left font-semibold uppercase tracking-wider w-1/4">Item Name</th>
+                    <th className="px-6 py-3 text-left font-semibold uppercase tracking-wider">Description / Details</th>
+                    <th className="px-6 py-3 text-center font-semibold uppercase tracking-wider w-20">Qty</th>
+                    <th className="px-6 py-3 text-right font-semibold uppercase tracking-wider w-32">Unit Price</th>
+                    <th className="px-6 py-3 text-right font-semibold uppercase tracking-wider w-36">Total</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">
-                   {Array.isArray(request.items) ? request.items.map((item: any, idx: number) => (
-                     <tr
-                       key={idx}
-                       id={`item-row-${idx}`}
-                       className={cn(
-                         "hover:bg-muted/10 transition-colors duration-500",
-                         highlightedItemIndex === idx && "bg-primary/10 ring-1 ring-primary/40 font-semibold"
-                       )}
-                     >
-                       <td className="px-6 py-4">
-                         <div className="font-medium text-foreground">{item.name || "Unnamed Item"}</div>
-                         {item.remarks && <div className="text-xs text-muted-foreground mt-1">{item.remarks}</div>}
-                       </td>
-                       <td className="px-6 py-4 text-center font-medium bg-muted/5 w-16">{item.quantity || 0}</td>
-                       <td className="px-6 py-4 text-right font-mono text-muted-foreground">
-                         {Number(item.estimatedCost || 0).toLocaleString()}
-                       </td>
-                       <td className="px-6 py-4 text-right font-mono font-bold text-foreground">
-                         {((item.quantity || 0) * (item.estimatedCost || 0)).toLocaleString()}
-                       </td>
-                     </tr>
-                   )) : (
-                    <tr><td colSpan={4} className="px-6 py-12 text-center text-muted-foreground text-sm font-medium">No line items specified</td></tr>
+                   {Array.isArray(request.items) ? request.items.map((item: any, idx: number) => {
+                     const itemDescription = item.description || item.details || item.remarks;
+                     return (
+                       <tr
+                         key={idx}
+                         id={`item-row-${idx}`}
+                         className={cn(
+                           "hover:bg-muted/10 transition-colors duration-500",
+                           highlightedItemIndex === idx && "bg-primary/10 ring-1 ring-primary/40 font-semibold"
+                         )}
+                       >
+                         <td className="px-6 py-4 align-top">
+                           <div className="font-semibold text-foreground text-sm">{item.name || "Unnamed Item"}</div>
+                         </td>
+                         <td className="px-6 py-4 align-top">
+                           {itemDescription ? (
+                             <div className="text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap max-w-md">
+                               <p className="text-foreground/80">{itemDescription}</p>
+                               {item.remarks && (item.description || item.details) && item.remarks !== (item.description || item.details) && (
+                                 <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1 font-medium">
+                                   Note: {item.remarks}
+                                 </p>
+                               )}
+                             </div>
+                           ) : (
+                             <span className="text-xs text-muted-foreground/40 italic">—</span>
+                           )}
+                         </td>
+                         <td className="px-6 py-4 text-center font-medium bg-muted/5 align-top">{item.quantity || 0}</td>
+                         <td className="px-6 py-4 text-right font-mono text-muted-foreground align-top">
+                           {Number(item.estimatedCost || 0).toLocaleString()}
+                         </td>
+                         <td className="px-6 py-4 text-right font-mono font-bold text-foreground align-top">
+                           {((item.quantity || 0) * (item.estimatedCost || 0)).toLocaleString()}
+                         </td>
+                       </tr>
+                     );
+                   }) : (
+                    <tr><td colSpan={5} className="px-6 py-12 text-center text-muted-foreground text-sm font-medium">No line items specified</td></tr>
                    )}
                  </tbody>
               </table>

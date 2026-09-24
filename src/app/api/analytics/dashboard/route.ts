@@ -187,7 +187,7 @@ export async function GET(req: NextRequest) {
     // ─── AGGREGATION 6: DISTRIBUTION ────────────────────────────────────────
     const vendorDist = await db.select({
       name: sql`COALESCE(${vendors.companyName}, 'General Supplier')`,
-      value: sql`SUM(COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0)))`
+      value: sql`SUM(${FinancialMetricsService.getNormalizedPrCostSql()})`
     })
     .from(purchaseRequests)
     .leftJoin(vendors, eq(purchaseRequests.vendorId, vendors.id))
@@ -199,7 +199,7 @@ export async function GET(req: NextRequest) {
 
     const purposeDist = await db.select({
       name: sql`COALESCE(${purchaseRequests.purposeType}, 'General Procurement')`,
-      value: sql`SUM(COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0)))`
+      value: sql`SUM(${FinancialMetricsService.getNormalizedPrCostSql()})`
     })
     .from(purchaseRequests)
     .leftJoin(users, eq(purchaseRequests.requesterId, users.id))

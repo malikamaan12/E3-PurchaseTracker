@@ -121,14 +121,7 @@ export async function GET(req: NextRequest) {
     if (deptFilter && deptFilter !== "all") {
       const trimmedDept = deptFilter.trim();
       whereConditions.push(
-        or(
-          sql`LOWER(TRIM(COALESCE(${purchaseRequests.department}, ${users.department}))) = LOWER(TRIM(${trimmedDept}))`,
-          sql`EXISTS (
-            SELECT 1 FROM ${approvals} 
-            WHERE ${approvals.requestId} = ${purchaseRequests.id} 
-            AND LOWER(TRIM(${approvals.department})) = LOWER(TRIM(${trimmedDept}))
-          )`
-        )
+        sql`LOWER(TRIM(COALESCE(${purchaseRequests.department}, ${users.department}))) = LOWER(TRIM(${trimmedDept}))`
       );
     }
 
@@ -186,6 +179,8 @@ export async function GET(req: NextRequest) {
       whereConditions.push(or(
         ilike(purchaseRequests.title, searchPattern),
         ilike(purchaseRequests.requestNumber, searchPattern),
+        ilike(purchaseRequests.description, searchPattern),
+        sql`${purchaseRequests.items}::text ILIKE ${searchPattern}`,
         ilike(sql`COALESCE(${purchaseRequests.department}, ${users.department})`, searchPattern),
         ilike(users.username, searchPattern),
         ilike(users.department, searchPattern),
@@ -198,6 +193,17 @@ export async function GET(req: NextRequest) {
           AND LOWER(TRIM(${approvals.department})) ILIKE LOWER(TRIM(${searchPattern}))
         )`
       ));
+    }
+
+    // 0. Draft Isolation:
+    // Drafts are strictly visible ONLY to their creator (requesterId) and super_admin.
+    if (!isSuperAdmin) {
+      whereConditions.push(
+        or(
+          ne(purchaseRequests.status, 'draft'),
+          eq(purchaseRequests.requesterId, user.id)
+        )
+      );
     }
 
     // 1. Isolation for pending_dept_head requests:

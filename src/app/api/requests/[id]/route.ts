@@ -155,11 +155,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       requestAuditLogs
     ] = await Promise.race([dataFetchPromise, timeoutPromise]) as any;
 
+    // ── DRAFT VISIBILITY GUARD ──────────────────────────────────────────────
+    // Draft requests are strictly visible ONLY to their creator and super_admin.
+    const isSuperAdmin = authenticatedUser.role?.toLowerCase() === 'super_admin' || authenticatedUser.role?.toLowerCase() === 'superadmin';
+    const isAdmin = authenticatedUser.role?.toLowerCase() === 'admin' || isSuperAdmin;
+    const isRequester = request.requesterId === authenticatedUser.id;
+
+    if (request.status === 'draft') {
+      if (!isSuperAdmin && !isRequester) {
+        return NextResponse.json(
+          { 
+            error: "Access Denied", 
+            message: "Draft requests are only visible to the creator and super administrators." 
+          }, 
+          { status: 403 }
+        );
+      }
+    }
+
     // ── STAGE 1 VISIBILITY GUARD ──────────────────────────────────────────────
     // If request is pending_dept_head, only the requester, their submitting department members, or super_admin may access it.
-    const isSuperAdmin = authenticatedUser.role === 'super_admin';
-    const isAdmin = authenticatedUser.role === 'admin' || isSuperAdmin;
-    const isRequester = request.requesterId === authenticatedUser.id;
     const effectiveRequestDept = (request.department || requester?.department || '').toLowerCase().trim();
     const userDepts = (authenticatedUser.departments || [authenticatedUser.department])
       .filter(Boolean)
@@ -320,9 +335,48 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
     // ─── AUTHENTICATION & AUTHORITY GATEKEEPING ────────────────────────────────
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
-    const userDepts = (user.departments || [user.department]).map(d => d.toLowerCase().trim());
-    const isFinance = userDepts.includes('finance');
+    const userDepts = (user.departments || [user.department]).filter(Boolean).map(d => String(d).toLowerCase().trim());
+    const isFinance = userDepts.includes('finance') || user.department?.toLowerCase() === 'finance';
     const isOwner = existing.requesterId === user.id;
+
+    // ─── FINANCE VARIATION BYPASS ──────────────────────────────────────────────
+    // Allow Finance or Admin to record budget variation / overrun even if request is approved/locked
+    const isVariationOnly = updateData.revisedTotalCost !== undefined && Object.keys(updateData).length === 1;
+
+    if ((isAdmin || isFinance) && isVariationOnly) {
+      const newTotal = Math.round(Number(updateData.revisedTotalCost));
+      const activeRate = Number(existing.exchangeRate || 1.0);
+      const newBaseAmountQar = Math.round(newTotal * activeRate);
+      const [updated] = await db.update(purchaseRequests)
+        .set({ 
+          revisedTotalCost: newTotal, 
+          baseAmountQar: newBaseAmountQar, 
+          updatedAt: new Date() 
+        })
+        .where(eq(purchaseRequests.id, requestId))
+        .returning();
+
+      try {
+        await db.insert(auditLogs).values({
+          resourceId: requestId,
+          resourceType: "purchase_request",
+          action: "BUDGET_VARIATION",
+          userId: user.id,
+          details: {
+            previousCost: existing.revisedTotalCost ?? existing.totalEstimatedCost,
+            newCost: newTotal,
+            previousBaseQar: existing.baseAmountQar,
+            newBaseQar: newBaseAmountQar,
+            userRole: user.role,
+            userDepartment: user.department,
+          },
+        });
+      } catch (auditErr) {
+        console.warn("[AuditLog] Failed to record variation audit log:", auditErr);
+      }
+
+      return NextResponse.json(updated);
+    }
 
     if (!isAdmin && !isOwner) {
       return NextResponse.json({ error: "Access Denied" }, { status: 403 });
@@ -336,31 +390,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const approvedCount = Number(approvedCountRecord?.countValue || 0);
 
     // Lock Check: 
-    // - Admins can ALWAYS edit unless 'fully_paid' or 'archived' (future proofing)
-    // - Requesters can edit if status is 'draft', 'rejected', 'changes_requested'
-    // - Requesters can edit 'pending' ONLY if approvedCount is 0
-    const isLockedStatus = !["draft", "rejected", "changes_requested", "pending"].includes(existing.status);
-    const isLockedForRequester = existing.status === "pending" && approvedCount > 0;
+    // - Admins/SuperAdmin can ALWAYS edit unless 'fully_paid' or 'archived'
+    // - Requesters can edit/modify what they created UNTIL anyone approves it (approvedCount === 0)
+    //   and as long as it's not in a terminal state (approved, fully_paid, cancelled)
+    const terminalStatuses = ["approved", "fully_paid", "partially_paid", "cancelled"];
+    const isLockedStatus = terminalStatuses.includes(existing.status);
+    const isLockedForRequester = approvedCount > 0 || isLockedStatus;
 
-    if (!isAdmin && (isLockedStatus || isLockedForRequester)) {
+    if (!isAdmin && isLockedForRequester) {
       return NextResponse.json({ 
         error: "Request Locked", 
-        message: isLockedForRequester 
+        message: approvedCount > 0 
           ? "This request has already received departmental approvals and is locked for editing. Please contact an Admin for force-updates."
           : `This request is currently "${existing.status}" and cannot be modified.` 
       }, { status: 403 });
-    }
-
-    // ─── FINANCE VARIATION BYPASS ──────────────────────────────────────────────
-    const isVariationOnly = updateData.revisedTotalCost !== undefined && Object.keys(updateData).length === 1;
-
-    if ((isAdmin || isFinance) && isVariationOnly) {
-      const newTotal = Math.round(Number(updateData.revisedTotalCost));
-      const [updated] = await db.update(purchaseRequests)
-        .set({ revisedTotalCost: newTotal, updatedAt: new Date() })
-        .where(eq(purchaseRequests.id, requestId))
-        .returning();
-      return NextResponse.json(updated);
     }
 
     // Sanitize update data
@@ -396,7 +439,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       (cleanData.vendorId !== undefined && cleanData.vendorId !== existing.vendorId) ||
       (itemsJson !== null && itemsJson !== JSON.stringify(existing.items));
 
-    const isWithdrawal = existing.status === "pending" && cleanData.status === "draft";
+    const requestedStatus = cleanData.status || rawBody.status;
+    const isExplicitDraft = requestedStatus === "draft";
+    const isWithdrawal = (existing.status === "pending" || existing.status === "pending_dept_head") && isExplicitDraft;
     const forceReset = isWithdrawal || hasFinancialChange || existing.status === "changes_requested";
 
     if (forceReset && approvedCount > 0) {
@@ -414,12 +459,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       });
     }
 
-    if (existing.status === "draft" || existing.status === "changes_requested" || forceReset) {
-      if (!isWithdrawal) {
-        cleanData.status = "pending";
-        // Re-seed approvals by tricking the system into thinking it's transitioning to pending
-        updateData.status = "pending"; 
-      }
+    if (isExplicitDraft) {
+      cleanData.status = "draft";
+      cleanData.isLocked = false;
+    } else if (existing.status === "draft" || existing.status === "changes_requested" || forceReset || requestedStatus === "pending") {
+      cleanData.status = "pending";
+      // Re-seed approvals by tricking the system into thinking it's transitioning to pending
+      updateData.status = "pending"; 
     } else {
       // SECURITY FIX: Never allow the client to arbitrarily update the status via PUT
       // unless it's explicitly handled by the state transitions above.
@@ -621,7 +667,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
     // Permissions: Creator (only until someone approved it) OR Super Admin (until any amount is paid)
     const isOwner = request.requesterId === user.id;
-    const isSuperAdminUser = user.role?.toLowerCase() === 'super_admin';
+    const isSuperAdminUser = user.role?.toLowerCase() === 'super_admin' || user.role?.toLowerCase() === 'superadmin';
 
     if (!isOwner && !isSuperAdminUser) {
       return NextResponse.json({ 

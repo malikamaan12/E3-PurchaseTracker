@@ -9,7 +9,7 @@ import {
   users,
   subPurposes
 } from "@db/schema";
-import { sql, eq, and, or, isNotNull, gte, lte, sum, count, avg, inArray } from "drizzle-orm";
+import { sql, eq, ne, and, or, isNotNull, gte, lte, sum, count, avg, inArray } from "drizzle-orm";
 import { getAuthenticatedUser } from "@/lib/auth-next";
 import { FinancialMetricsService } from "@/lib/services/FinancialMetricsService";
 import { normalizeDepartmentAssignments } from "@/lib/auth-shared";
@@ -63,6 +63,16 @@ export async function GET(req: NextRequest) {
     if (vendorId) prFilters.push(eq(purchaseRequests.vendorId, parseInt(vendorId)));
     if (status) prFilters.push(eq(purchaseRequests.status, status));
 
+    // Draft Isolation: Drafts are strictly visible ONLY to their creator and super_admin
+    if (!isSuperAdmin) {
+      prFilters.push(
+        or(
+          ne(purchaseRequests.status, 'draft'),
+          eq(purchaseRequests.requesterId, user.id)
+        )
+      );
+    }
+
     // RBAC: Force department and approver scoping for non-admin users
     if (!isAdmin) {
       const visibilityConditions: any[] = [
@@ -89,14 +99,7 @@ export async function GET(req: NextRequest) {
     } else if (filterDept && filterDept !== "all") {
       const trimmedDept = filterDept.trim();
       prFilters.push(
-        or(
-          sql`LOWER(TRIM(COALESCE(${purchaseRequests.department}, ${users.department}))) = LOWER(TRIM(${trimmedDept}))`,
-          sql`EXISTS (
-            SELECT 1 FROM ${approvals} 
-            WHERE ${approvals.requestId} = ${purchaseRequests.id} 
-            AND LOWER(TRIM(${approvals.department})) = LOWER(TRIM(${trimmedDept}))
-          )`
-        )
+        sql`LOWER(TRIM(COALESCE(${purchaseRequests.department}, ${users.department}))) = LOWER(TRIM(${trimmedDept}))`
       );
     }
 

@@ -260,6 +260,9 @@ function RequestsDashboardContent() {
     const rejected = list.filter((r: any) =>
       ['rejected', 'cancelled'].includes((r.status || '').toLowerCase())
     ).length;
+    const draft = list.filter((r: any) =>
+      (r.status || '').toLowerCase() === 'draft'
+    ).length;
 
     const totalAll = analytics?.overview?.activeRequestsCount ?? list.length;
     const totalPending = (analytics?.overview?.pendingRequestsCount ?? 0) + (analytics?.overview?.partiallyApprovedCount ?? 0) || pending;
@@ -274,6 +277,7 @@ function RequestsDashboardContent() {
       pending: isFilteredBySpecificStatus && analytics?.overview ? totalPending : pending,
       approved: isFilteredBySpecificStatus && analytics?.overview ? totalApproved : approved,
       rejected: isFilteredBySpecificStatus && analytics?.overview ? totalRejected : rejected,
+      draft,
       myQueue: myQueueCount
     };
   }, [requests, myQueueRequests, analytics, filters.status]);
@@ -975,11 +979,7 @@ function RequestMobileCard({ request, isSelected, onSelect, onRequestApprove, on
 
   const canEdit =
     (isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
-    (isOwner && (
-      request.status === 'draft' ||
-      request.status === 'changes_requested' ||
-      (request.status === 'pending' && approvedCount === 0)
-    ));
+    (isOwner && approvedCount === 0 && !['approved', 'fully_paid', 'archived', 'cancelled'].includes(request.status));
 
   // Request can only be deleted by the user who created it (until someone approved it) or superadmin (until amount is paid)
   const canDelete =
@@ -1168,11 +1168,7 @@ function RequestRow({ request, isSelected, onSelect, onApprove, onEdit, onDelete
 
   const canEdit =
     (isAdmin && !['fully_paid', 'archived'].includes(request.status)) ||
-    (isOwner && (
-      request.status === 'draft' ||
-      request.status === 'changes_requested' ||
-      (request.status === 'pending' && approvedCount === 0)
-    ));
+    (isOwner && approvedCount === 0 && !['approved', 'fully_paid', 'archived', 'cancelled'].includes(request.status));
 
   // Request can only be deleted by the user who created it (until someone approved it) or superadmin (until amount is paid)
   const canDelete =

@@ -202,16 +202,29 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
   const payments: any[] = Array.isArray(request.paymentInstallments) ? request.paymentInstallments : [];
   const activeExchangeRate = Number(request.exchangeRate || 1.0);
   const globalTargetRaw = Number(request.revisedTotalCost ?? request.totalEstimatedCost ?? 0);
-  const globalTargetQar = request.baseAmountQar ?? (globalTargetRaw * activeExchangeRate);
+  const globalTargetQar = request.revisedTotalCost != null 
+    ? Math.round(Number(request.revisedTotalCost) * activeExchangeRate)
+    : (request.baseAmountQar ?? Math.round(globalTargetRaw * activeExchangeRate));
   
-  const globalPaidQar = payments
+  const paymentsSumRaw = payments
     .filter((p: any) => p.status === 'paid' || p.status === 'partial' || p.status === 'settled_savings')
-    .reduce((sum: number, p: any) => sum + ((Number(p.paidAmount) || 0) * activeExchangeRate), 0);
+    .reduce((sum: number, p: any) => sum + (Number(p.paidAmount) || 0), 0);
+  const globalPaidQar = paymentsSumRaw * activeExchangeRate;
   
   const currentItemPaidRaw = payments.find((p: any) => p.id === editingPayment)?.paidAmount ?? 0;
   const currentEntryValueRaw = formData.status === 'pending' ? 0 : Number(formData.paidAmount || 0);
-  const newGlobalPaidQar = globalPaidQar - (currentItemPaidRaw * activeExchangeRate) + (currentEntryValueRaw * activeExchangeRate);
-  const isOverpaid = newGlobalPaidQar > globalTargetQar;
+  const newGlobalPaidRaw = paymentsSumRaw - currentItemPaidRaw + currentEntryValueRaw;
+  const newGlobalPaidQar = newGlobalPaidRaw * activeExchangeRate;
+  const isOverpaid = newGlobalPaidRaw > globalTargetRaw;
+
+  async function handleInitiateVariationAndCommit(paymentId: number) {
+    try {
+      await variationMutation.mutateAsync(newGlobalPaidRaw);
+      updatePaymentMutation.mutate({ paymentId, data: { ...formData, isFinalSettlement } });
+    } catch (err: any) {
+      console.error("[Variation & Commit Error]:", err);
+    }
+  }
 
   return (
     <div className="flex flex-col gap-6 animate-in slide-in-from-bottom-4 duration-500">
@@ -250,7 +263,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
             <div className="flex items-center gap-2">
               {!showVariationConfirm ? (
                 <Button size="sm" variant={isOverpaid ? "destructive" : "outline"} onClick={() => {
-                  if (isOverpaid) setVariationAmount((newGlobalPaidQar / activeExchangeRate).toString());
+                  setVariationAmount(newGlobalPaidRaw > 0 ? newGlobalPaidRaw.toString() : globalTargetRaw.toString());
                   setShowVariationConfirm(true);
                 }} disabled={isLockedByStatus} className="rounded-full px-5">
                   {isOverpaid ? "Initiate Variation" : "Request Overrun"}
@@ -270,9 +283,25 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
             </div>
           </div>
           {isOverpaid && (
-            <div className="mt-4 bg-destructive/10 border border-destructive/20 p-3 rounded-xl flex items-center gap-2 text-destructive text-sm font-bold">
-              <AlertCircle className="w-4 h-4" /> 
-              <span>Variation protocol is mandatory due to overpayment on scheduled disbursements.</span>
+            <div className="mt-4 bg-destructive/10 border border-destructive/20 p-3 rounded-xl flex items-center justify-between gap-3 text-destructive text-sm font-bold flex-wrap">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" /> 
+                <span>Variation protocol is mandatory due to overpayment on scheduled disbursements.</span>
+              </div>
+              {!showVariationConfirm && (
+                <Button 
+                  size="sm" 
+                  variant="destructive" 
+                  className="rounded-full px-4 text-xs font-bold shrink-0"
+                  onClick={() => {
+                    setVariationAmount(newGlobalPaidRaw.toString());
+                    setShowVariationConfirm(true);
+                  }}
+                  disabled={isLockedByStatus}
+                >
+                  Initiate Variation ({newGlobalPaidRaw.toLocaleString()} {request.currency || 'QAR'})
+                </Button>
+              )}
             </div>
           )}
         </div>
@@ -487,16 +516,38 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                           
                           <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
                              <Button variant="ghost" size="sm" className="rounded-full px-6" onClick={() => setEditingPayment(null)}>Cancel</Button>
-                             <Button 
-                               size="sm" 
-                               className="rounded-full px-6 shadow-sm" 
-                               variant={isOverpaid ? "destructive" : "default"} 
-                               onClick={() => updatePaymentMutation.mutate({ paymentId: p.id, data: { ...formData, isFinalSettlement } })} 
-                               disabled={updatePaymentMutation.isPending || isOverpaid || isUploadingReceipt}
-                             >
-                               {updatePaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-                               {updatePaymentMutation.isPending ? "Saving..." : "Commit Journal Entry"}
-                             </Button>
+                             {isOverpaid ? (
+                               <Button 
+                                 size="sm" 
+                                 className="rounded-full px-6 shadow-sm" 
+                                 variant="destructive" 
+                                 onClick={() => handleInitiateVariationAndCommit(p.id)} 
+                                 disabled={variationMutation.isPending || updatePaymentMutation.isPending || isUploadingReceipt}
+                               >
+                                 {(variationMutation.isPending || updatePaymentMutation.isPending) ? (
+                                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                                 ) : (
+                                   <Calculator className="w-4 h-4 mr-2" />
+                                 )}
+                                 {variationMutation.isPending 
+                                   ? "Initiating Variation..." 
+                                   : updatePaymentMutation.isPending 
+                                     ? "Saving..." 
+                                     : `Initiate Variation & Commit (${newGlobalPaidRaw.toLocaleString()} ${request.currency || 'QAR'})`
+                                 }
+                               </Button>
+                             ) : (
+                               <Button 
+                                 size="sm" 
+                                 className="rounded-full px-6 shadow-sm" 
+                                 variant="default" 
+                                 onClick={() => updatePaymentMutation.mutate({ paymentId: p.id, data: { ...formData, isFinalSettlement } })} 
+                                 disabled={updatePaymentMutation.isPending || isUploadingReceipt}
+                               >
+                                 {updatePaymentMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+                                 {updatePaymentMutation.isPending ? "Saving..." : "Commit Journal Entry"}
+                               </Button>
+                             )}
                           </div>
                         </div>
                       </td>

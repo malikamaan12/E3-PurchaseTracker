@@ -80,7 +80,11 @@ export class FinancialMetricsService {
    * Uses baseAmountQar if present, else revisedTotalCost or totalEstimatedCost * exchangeRate.
    */
   public static getNormalizedPrCostSql() {
-    return sql<number>`COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.revisedTotalCost}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0)) * COALESCE(${purchaseRequests.exchangeRate}, 1.0))`;
+    return sql<number>`CASE 
+      WHEN ${purchaseRequests.revisedTotalCost} IS NOT NULL 
+      THEN ${purchaseRequests.revisedTotalCost} * COALESCE(${purchaseRequests.exchangeRate}, 1.0)
+      ELSE COALESCE(${purchaseRequests.baseAmountQar}, COALESCE(${purchaseRequests.totalEstimatedCost}, 0) * COALESCE(${purchaseRequests.exchangeRate}, 1.0))
+    END`;
   }
 
   /**

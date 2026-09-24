@@ -27,7 +27,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const isFinance = user.department?.toLowerCase() === 'finance';
+    const userDepts = (user.departments || [user.department]).filter(Boolean).map(d => String(d).toLowerCase().trim());
+    const isFinance = userDepts.includes('finance') || user.department?.toLowerCase() === 'finance';
     const isAdmin = user.role === 'admin' || user.role === 'super_admin';
     if (!isFinance && !isAdmin) {
       return NextResponse.json(
