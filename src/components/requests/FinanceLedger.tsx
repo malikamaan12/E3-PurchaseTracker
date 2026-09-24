@@ -91,6 +91,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
       queryClient.invalidateQueries({ queryKey: ["dashboard-analytics"] });
       toast.success(res.message || "Financial record updated.");
       setEditingPayment(null);
+      setFormData({});
       setIsFinalSettlement(false);
     },
     onError: (err: any) => {
@@ -211,9 +212,23 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
     .reduce((sum: number, p: any) => sum + (Number(p.paidAmount) || 0), 0);
   const globalPaidQar = paymentsSumRaw * activeExchangeRate;
   
-  const currentItemPaidRaw = payments.find((p: any) => p.id === editingPayment)?.paidAmount ?? 0;
-  const currentEntryValueRaw = formData.status === 'pending' ? 0 : Number(formData.paidAmount || 0);
-  const newGlobalPaidRaw = paymentsSumRaw - currentItemPaidRaw + currentEntryValueRaw;
+  // Only project differential paid amount if actively editing a specific row
+  const editingPaymentObj = editingPayment !== null ? payments.find((p: any) => p.id === editingPayment) : null;
+  const editingPaymentCurrentPaid = (
+    editingPaymentObj && 
+    (editingPaymentObj.status === 'paid' || editingPaymentObj.status === 'partial' || editingPaymentObj.status === 'settled_savings')
+  ) ? Number(editingPaymentObj.paidAmount || 0) : 0;
+  
+  const editingPaymentNewPaid = (
+    editingPayment !== null && 
+    formData.status !== 'pending' && 
+    formData.paidAmount !== undefined && 
+    formData.paidAmount !== ''
+  ) ? Number(formData.paidAmount || 0) : 0;
+
+  const newGlobalPaidRaw = editingPayment !== null
+    ? (paymentsSumRaw - editingPaymentCurrentPaid + editingPaymentNewPaid)
+    : paymentsSumRaw;
   const newGlobalPaidQar = newGlobalPaidRaw * activeExchangeRate;
   const isOverpaid = newGlobalPaidRaw > globalTargetRaw;
 
@@ -263,7 +278,7 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
             <div className="flex items-center gap-2">
               {!showVariationConfirm ? (
                 <Button size="sm" variant={isOverpaid ? "destructive" : "outline"} onClick={() => {
-                  setVariationAmount(newGlobalPaidRaw > 0 ? newGlobalPaidRaw.toString() : globalTargetRaw.toString());
+                  setVariationAmount(isOverpaid ? newGlobalPaidRaw.toString() : (globalTargetRaw > 0 ? globalTargetRaw.toString() : ""));
                   setShowVariationConfirm(true);
                 }} disabled={isLockedByStatus} className="rounded-full px-5">
                   {isOverpaid ? "Initiate Variation" : "Request Overrun"}
@@ -515,7 +530,10 @@ export function FinanceLedger({ request }: FinanceLedgerProps) {
                           </div>
                           
                           <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
-                             <Button variant="ghost" size="sm" className="rounded-full px-6" onClick={() => setEditingPayment(null)}>Cancel</Button>
+                             <Button variant="ghost" size="sm" className="rounded-full px-6" onClick={() => {
+                               setEditingPayment(null);
+                               setFormData({});
+                             }}>Cancel</Button>
                              {isOverpaid ? (
                                <Button 
                                  size="sm" 
